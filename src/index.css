@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import '@fontsource/amiri';
+
+:root {
+  direction: rtl;
+}
+
+body {
+  font-family: 'Amiri', serif;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes fade-in-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) translateX(-50%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) translateX(-50%);
+  }
+}
+
+.animate-fade-in-down {
+  animation: fade-in-down 0.3s ease-out;
+}
+
+.status-indicator {
+  animation: blink 2s ease-in-out infinite;
+}
+
+.sidebar {
+  @apply fixed right-0 top-0 h-full w-64 bg-[#2c3e50] text-white p-4 flex flex-col;
+}
+
+.main-content {
+  @apply mr-64 p-6;
+}
+
+.menu-item {
+  @apply flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer select-none outline-none;
+}
+
+.menu-item:focus-visible {
+  @apply ring-2 ring-white/30;
+}
+
+.menu-item.active {
+  @apply bg-white/20;
+}
+
+.search-bar {
+  @apply w-full max-w-2xl px-4 py-2 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.dashboard-card {
+  @apply bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-all cursor-pointer select-none outline-none;
+}
+
+.dashboard-card:focus-visible {
+  @apply ring-2 ring-blue-500;
+}
+
+.dashboard-icon {
+  @apply w-12 h-12 mb-4;
+}
+
+.form-input {
+  @apply w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.btn-primary {
+  @apply bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors;
+}
