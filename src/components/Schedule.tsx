@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarRange, Plus, X, Edit2, Save, AlertTriangle, Users } from 'lucide-react';
 import { getStudents, Student, getSettings, AppSettings } from '../lib/storage';
+import { useCycle } from '../contexts/CycleContext';
 
 const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
 const timeSlots = ['08:00', '09:30', '11:00', '13:30', '15:00'];
@@ -18,6 +19,7 @@ interface Session {
 }
 
 export default function Schedule() {
+  const { getCycleLevels } = useCycle();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -269,7 +271,7 @@ export default function Schedule() {
                   required
                 >
                   <option value="">اختر المستوى</option>
-                  {settings?.levels.map(level => (
+                  {getCycleLevels().map(level => (
                     <option key={level} value={level}>{level}</option>
                   ))}
                 </select>

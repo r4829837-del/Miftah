@@ -1,300 +1,438 @@
-import React, { useState } from 'react';
-import { Target, CheckCircle2, Circle, Plus, X, Save, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, CheckCircle, Circle, Target, TrendingUp } from 'lucide-react';
+import { useCycleStorage } from '../hooks/useCycleStorage';
 
 interface Goal {
   id: string;
   title: string;
   description: string;
+  category: 'academic' | 'behavioral' | 'social' | 'religious';
+  priority: 'low' | 'medium' | 'high';
+  status: 'pending' | 'in-progress' | 'completed';
+  targetDate: string;
   progress: number;
-  deadline: string;
+  createdAt: string;
 }
 
-const mockGoals = [
-  {
-    id: '1',
-    title: 'تحسين نسبة النجاح',
-    description: 'رفع نسبة النجاح في الامتحانات بنسبة 15%',
-    progress: 75,
-    deadline: '2024-06-30'
-  },
-  {
-    id: '2',
-    title: 'تطوير المهارات اللغوية',
-    description: 'تحسين مستوى اللغة العربية لدى التلاميذ',
-    progress: 60,
-    deadline: '2024-05-15'
-  }
-];
+const Goals: React.FC = () => {
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'academic' | 'behavioral' | 'social' | 'religious'>('all');
+  
+  const { getStorage, setStorage } = useCycleStorage();
 
-export default function Goals() {
-  const [goals, setGoals] = useState<Goal[]>(mockGoals);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
-  const [newGoal, setNewGoal] = useState<Partial<Goal>>({
-    title: '',
-    description: '',
-    progress: 0,
-    deadline: ''
-  });
+  useEffect(() => {
+    loadGoals();
+  }, []);
 
-  const handleAddGoal = () => {
-    if (!newGoal.title || !newGoal.description || !newGoal.deadline) {
-      return;
+  const loadGoals = () => {
+    const savedGoals = getStorage('school-goals');
+    if (savedGoals) {
+      setGoals(savedGoals);
     }
+  };
 
-    const goal: Goal = {
-      id: Date.now().toString(),
-      title: newGoal.title,
-      description: newGoal.description,
-      progress: newGoal.progress || 0,
-      deadline: newGoal.deadline
+  const saveGoals = (newGoals: Goal[]) => {
+    setStorage('school-goals', newGoals);
+    setGoals(newGoals);
+  };
+
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const newGoal: Goal = {
+      id: editingGoal?.id || generateId(),
+      title: formData.get('title') as string,
+      description: formData.get('description') as string,
+      category: formData.get('category') as Goal['category'],
+      priority: formData.get('priority') as Goal['priority'],
+      status: formData.get('status') as Goal['status'],
+      targetDate: formData.get('targetDate') as string,
+      progress: parseInt(formData.get('progress') as string) || 0,
+      createdAt: editingGoal?.createdAt || new Date().toISOString(),
     };
 
-    if (selectedGoal) {
-      setGoals(goals.map(g => g.id === selectedGoal.id ? goal : g));
+    if (editingGoal) {
+      const updatedGoals = goals.map(goal => goal.id === editingGoal.id ? newGoal : goal);
+      saveGoals(updatedGoals);
+      setEditingGoal(null);
     } else {
-      setGoals([...goals, goal]);
+      saveGoals([...goals, newGoal]);
     }
-
-    setShowAddModal(false);
-    setSelectedGoal(null);
-    setNewGoal({
-      title: '',
-      description: '',
-      progress: 0,
-      deadline: ''
-    });
+    
+    setShowForm(false);
+    (e.target as HTMLFormElement).reset();
   };
 
-  const handleDeleteGoal = () => {
-    if (selectedGoal) {
-      setGoals(goals.filter(goal => goal.id !== selectedGoal.id));
-      setShowDeleteModal(false);
-      setSelectedGoal(null);
+  const deleteGoal = (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet objectif ?')) {
+      const updatedGoals = goals.filter(goal => goal.id !== id);
+      saveGoals(updatedGoals);
     }
   };
 
-  const handleEditGoal = (goal: Goal) => {
-    setSelectedGoal(goal);
-    setNewGoal(goal);
-    setShowAddModal(true);
+  const updateProgress = (id: string, progress: number) => {
+    const updatedGoals = goals.map(goal => 
+      goal.id === id ? { ...goal, progress } : goal
+    );
+    saveGoals(updatedGoals);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, 'yyyy/MM/dd');
+  const getPriorityColor = (priority: Goal['priority']) => {
+    switch (priority) {
+      case 'high': return 'text-red-600 bg-red-100';
+      case 'medium': return 'text-yellow-600 bg-yellow-100';
+      case 'low': return 'text-green-600 bg-green-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
   };
+
+  const getStatusColor = (status: Goal['status']) => {
+    switch (status) {
+      case 'completed': return 'text-green-600 bg-green-100';
+      case 'in-progress': return 'text-blue-600 bg-blue-100';
+      case 'pending': return 'text-gray-600 bg-gray-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getCategoryIcon = (category: Goal['category']) => {
+    switch (category) {
+      case 'academic': return '📚';
+      case 'behavioral': return '🎯';
+      case 'social': return '👥';
+      case 'religious': return '🕌';
+      default: return '📋';
+    }
+  };
+
+  const filteredGoals = goals.filter(goal => {
+    const statusMatch = filter === 'all' || goal.status === filter;
+    const categoryMatch = categoryFilter === 'all' || goal.category === categoryFilter;
+    return statusMatch && categoryMatch;
+  });
+
+  const completedGoals = goals.filter(goal => goal.status === 'completed').length;
+  const totalGoals = goals.length;
+  const completionRate = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0;
 
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">الأهداف</h1>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Objectifs Pédagogiques</h1>
+        <p className="text-gray-600">Gérez les objectifs et les buts éducatifs de votre école</p>
+      </div>
 
-      {/* Modal d'ajout/modification */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">
-                {selectedGoal ? 'تعديل الهدف' : 'إضافة هدف جديد'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSelectedGoal(null);
-                  setNewGoal({
-                    title: '',
-                    description: '',
-                    progress: 0,
-                    deadline: ''
-                  });
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="w-6 h-6" />
-              </button>
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Target className="h-8 w-8 text-blue-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Total Objectifs</p>
+              <p className="text-2xl font-bold text-gray-900">{totalGoals}</p>
             </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Complétés</p>
+              <p className="text-2xl font-bold text-gray-900">{completedGoals}</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <TrendingUp className="h-8 w-8 text-purple-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">Taux de Réussite</p>
+              <p className="text-2xl font-bold text-gray-900">{completionRate}%</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Circle className="h-8 w-8 text-orange-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600">En Cours</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {goals.filter(g => g.status === 'in-progress').length}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            <div className="space-y-4">
+      {/* Filtres et Actions */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-wrap gap-4">
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="pending">En attente</option>
+              <option value="in-progress">En cours</option>
+              <option value="completed">Complétés</option>
+            </select>
+            
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Toutes les catégories</option>
+              <option value="academic">Académique</option>
+              <option value="behavioral">Comportemental</option>
+              <option value="social">Social</option>
+              <option value="religious">Religieux</option>
+            </select>
+          </div>
+          
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nouvel Objectif
+          </button>
+        </div>
+      </div>
+
+      {/* Formulaire */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">
+              {editingGoal ? 'Modifier l\'objectif' : 'Nouvel objectif'}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  عنوان الهدف <span className="text-red-500">*</span>
+                  Titre *
                 </label>
                 <input
                   type="text"
-                  value={newGoal.title || ''}
-                  onChange={(e) => setNewGoal({ ...newGoal, title: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  name="title"
+                  defaultValue={editingGoal?.title}
                   required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  الوصف <span className="text-red-500">*</span>
+                  Description
                 </label>
                 <textarea
-                  value={newGoal.description || ''}
-                  onChange={(e) => setNewGoal({ ...newGoal, description: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={4}
-                  required
+                  name="description"
+                  defaultValue={editingGoal?.description}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Catégorie *
+                  </label>
+                  <select
+                    name="category"
+                    defaultValue={editingGoal?.category || 'academic'}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="academic">Académique</option>
+                    <option value="behavioral">Comportemental</option>
+                    <option value="social">Social</option>
+                    <option value="religious">Religieux</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Priorité *
+                  </label>
+                  <select
+                    name="priority"
+                    defaultValue={editingGoal?.priority || 'medium'}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="low">Faible</option>
+                    <option value="medium">Moyenne</option>
+                    <option value="high">Élevée</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Statut *
+                  </label>
+                  <select
+                    name="status"
+                    defaultValue={editingGoal?.status || 'pending'}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="pending">En attente</option>
+                    <option value="in-progress">En cours</option>
+                    <option value="completed">Complété</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date cible
+                  </label>
+                  <input
+                    type="date"
+                    name="targetDate"
+                    defaultValue={editingGoal?.targetDate}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  نسبة التقدم (%)
+                  Progression (%)
                 </label>
                 <input
                   type="number"
+                  name="progress"
                   min="0"
                   max="100"
-                  value={newGoal.progress || 0}
-                  onChange={(e) => setNewGoal({ ...newGoal, progress: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  defaultValue={editingGoal?.progress || 0}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  تاريخ الإنجاز <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={newGoal.deadline || ''}
-                  onChange={(e) => setNewGoal({ ...newGoal, deadline: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSelectedGoal(null);
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={handleAddGoal}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
-              >
-                <Save className="w-5 h-5" />
-                <span>{selectedGoal ? 'حفظ التغييرات' : 'إضافة الهدف'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de suppression */}
-      {showDeleteModal && selectedGoal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <div className="flex items-center gap-3 text-red-600 mb-4">
-              <AlertTriangle className="w-8 h-8" />
-              <h3 className="text-xl font-bold">تأكيد حذف الهدف</h3>
-            </div>
-            <p className="text-gray-600 mb-6">
-              هل أنت متأكد من حذف هذا الهدف؟ هذا الإجراء لا يمكن التراجع عنه.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSelectedGoal(null);
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={handleDeleteGoal}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-              >
-                تأكيد الحذف
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">قائمة الأهداف</h2>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>إضافة هدف</span>
-          </button>
-        </div>
-        
-        <div className="space-y-6">
-          {goals.map((goal) => (
-            <div key={goal.id} className="border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {goal.progress >= 100 ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-blue-500" />
-                  )}
-                  <h3 className="text-xl font-bold">{goal.title}</h3>
-                </div>
-                <span className="text-sm text-gray-500">
-                  تاريخ الإنجاز: {formatDate(goal.deadline)}
-                </span>
-              </div>
-              <p className="text-gray-600 mb-4">{goal.description}</p>
-              <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                      التقدم
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold inline-block text-blue-600">
-                      {goal.progress}%
-                    </span>
-                  </div>
-                </div>
-                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                  <div
-                    style={{ width: `${goal.progress}%` }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
-                  ></div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
+              
+              <div className="flex justify-end gap-3 pt-4">
                 <button
-                  onClick={() => handleEditGoal(goal)}
-                  className="text-blue-500 hover:text-blue-600 px-3 py-1 rounded-lg hover:bg-blue-50"
-                >
-                  تعديل
-                </button>
-                <button
+                  type="button"
                   onClick={() => {
-                    setSelectedGoal(goal);
-                    setShowDeleteModal(true);
+                    setShowForm(false);
+                    setEditingGoal(null);
                   }}
-                  className="text-red-500 hover:text-red-600 px-3 py-1 rounded-lg hover:bg-red-50"
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
-                  حذف
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  {editingGoal ? 'Modifier' : 'Créer'}
                 </button>
               </div>
-            </div>
-          ))}
+            </form>
+          </div>
         </div>
+      )}
+
+      {/* Liste des objectifs */}
+      <div className="space-y-4">
+        {filteredGoals.length === 0 ? (
+          <div className="bg-white p-8 rounded-lg shadow-sm border text-center">
+            <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun objectif trouvé</h3>
+            <p className="text-gray-600 mb-4">
+              {filter === 'all' && categoryFilter === 'all' 
+                ? 'Commencez par créer votre premier objectif pédagogique.'
+                : 'Aucun objectif ne correspond aux filtres sélectionnés.'
+              }
+            </p>
+            {filter === 'all' && categoryFilter === 'all' && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+              >
+                Créer un objectif
+              </button>
+            )}
+          </div>
+        ) : (
+          filteredGoals.map((goal) => (
+            <div key={goal.id} className="bg-white p-6 rounded-lg shadow-sm border">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{getCategoryIcon(goal.category)}</span>
+                    <h3 className="text-lg font-semibold text-gray-900">{goal.title}</h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(goal.priority)}`}>
+                      {goal.priority === 'high' ? 'Élevée' : goal.priority === 'medium' ? 'Moyenne' : 'Faible'}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(goal.status)}`}>
+                      {goal.status === 'completed' ? 'Complété' : goal.status === 'in-progress' ? 'En cours' : 'En attente'}
+                    </span>
+                  </div>
+                  
+                  {goal.description && (
+                    <p className="text-gray-600 mb-3">{goal.description}</p>
+                  )}
+                  
+                  <div className="flex items-center gap-6 text-sm text-gray-500">
+                    {goal.targetDate && (
+                      <span>Date cible: {new Date(goal.targetDate).toLocaleDateString('fr-FR')}</span>
+                    )}
+                    <span>Créé le: {new Date(goal.createdAt).toLocaleDateString('fr-FR')}</span>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Progression</span>
+                      <span className="text-sm text-gray-500">{goal.progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${goal.progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={() => {
+                      setEditingGoal(goal);
+                      setShowForm(true);
+                    }}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => deleteGoal(goal.id)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default Goals; 

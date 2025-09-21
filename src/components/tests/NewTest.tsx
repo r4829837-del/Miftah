@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Save, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Save, AlertTriangle, Download } from 'lucide-react';
 import { createTest } from '../../lib/storage';
+import { getQuestionsByType } from '../../data/testQuestions';
 
 export default function NewTest() {
   const navigate = useNavigate();
@@ -15,6 +16,16 @@ export default function NewTest() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [usePredefinedQuestions, setUsePredefinedQuestions] = useState(false);
+
+  const handleLoadPredefinedQuestions = () => {
+    const questions = getQuestionsByType(testData.type);
+    setTestData(prev => ({
+      ...prev,
+      questions: questions
+    }));
+    setUsePredefinedQuestions(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +141,32 @@ export default function NewTest() {
             min="1"
             required
           />
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-blue-800">الأسئلة الجاهزة</h3>
+            <button
+              type="button"
+              onClick={handleLoadPredefinedQuestions}
+              disabled={usePredefinedQuestions}
+              className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              <span>{usePredefinedQuestions ? 'تم تحميل الأسئلة' : 'تحميل الأسئلة الجاهزة'}</span>
+            </button>
+          </div>
+          <p className="text-sm text-blue-700">
+            يمكنك تحميل مجموعة من الأسئلة الجاهزة والمصممة خصيصاً لنوع الاختبار المحدد. 
+            يمكنك تعديل هذه الأسئلة لاحقاً حسب احتياجاتك.
+          </p>
+          {usePredefinedQuestions && (
+            <div className="mt-3 p-3 bg-green-100 border border-green-300 rounded-lg">
+              <p className="text-sm text-green-800">
+                ✓ تم تحميل {testData.questions.length} سؤال جاهز للاختبار
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-4">

@@ -1,13 +1,72 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { PlusCircle, Search, Pencil, Trash2, Eye, ArrowRight, Download, Save, Upload, AlertCircle, AlertTriangle, CheckSquare, Square } from 'lucide-react';
-import StudentForm from './StudentForm';
-import { getStudents, Student, deleteStudent, getSettings, AppSettings, getStudent, updateStudent, formatDate, addStudent } from '../lib/storage';
+import { PlusCircle, Search, Pencil, Trash2, Eye, ArrowRight, Save, Upload, AlertCircle, AlertTriangle, CheckSquare, Square } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import StudentForm from './StudentForm';
+import { getStudents, Student, deleteStudent, getSettings, AppSettings, getStudent, updateStudent, formatDate, addStudent, getStudentsDB } from '../lib/storage';
+import { useCycle } from '../contexts/CycleContext';
+
+// Helper function to check if a grade value is valid and not empty
+const hasValidGrade = (grade: any): boolean => {
+  if (grade === undefined || grade === null || grade === '') {
+    return false;
+  }
+  const numGrade = parseFloat(grade);
+  return !isNaN(numGrade) && numGrade > 0;
+};
+
+// Helper function to format date as YYYY/MM/DD
+const formatBirthDate = (dateString: string): string => {
+  if (!dateString) return '';
+  
+  // Handle Excel serial date format (e.g., "40025/01/01" or just "40025")
+  const excelSerialMatch = dateString.match(/^(\d+)(?:\/01\/01)?$/);
+  if (excelSerialMatch) {
+    const serialNumber = parseInt(excelSerialMatch[1]);
+    if (serialNumber > 25569) { // Excel date serial number (days since 1900-01-01)
+      // Convert Excel serial date to JavaScript Date
+      const excelEpoch = new Date(1900, 0, 1); // January 1, 1900
+      const date = new Date(excelEpoch.getTime() + (serialNumber - 2) * 24 * 60 * 60 * 1000);
+      
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
+      }
+    }
+  }
+  
+  // Handle different input formats
+  if (dateString.includes('/')) {
+    // Check if it's a valid date format
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100) {
+      return dateString;
+    }
+  } else if (dateString.includes('-')) {
+    // Convert from YYYY-MM-DD to YYYY/MM/DD
+    return dateString.replace(/-/g, '/');
+  } else {
+    // Try to parse as Date and format
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    
+    // Format as YYYY/MM/DD
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}/${month}/${day}`;
+  }
+  
+  return dateString; // Return original if no valid format found
+};
 
 function ViewStudent() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentCycle } = useCycle();
   const [student, setStudent] = useState<Student | null>(null);
 
   useEffect(() => {
@@ -34,11 +93,13 @@ function ViewStudent() {
         >
           <ArrowRight className="w-6 h-6" />
         </button>
-        <h2 className="text-2xl font-bold">معلومات التلميذ</h2>
+        <h2 className="text-2xl font-bold">
+          معلومات {currentCycle === 'ثانوي' ? 'الطالب' : 'التلميذ'}
+        </h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+          <div>
           <h3 className="text-lg font-semibold mb-4">المعلومات الشخصية</h3>
           <div className="space-y-3">
             <p><strong>رقم التعريف:</strong> {student.studentId}</p>
@@ -48,9 +109,9 @@ function ViewStudent() {
             <p><strong>الجنس:</strong> {student.gender === 'male' ? 'ذكر' : 'أنثى'}</p>
             <p><strong>العنوان:</strong> {student.address}</p>
           </div>
-        </div>
+          </div>
 
-        <div>
+          <div>
           <h3 className="text-lg font-semibold mb-4">المعلومات الدراسية</h3>
           <div className="space-y-3">
             <p><strong>المستوى:</strong> {student.level}</p>
@@ -63,9 +124,9 @@ function ViewStudent() {
               </>
             )}
           </div>
-        </div>
+          </div>
 
-        <div>
+          <div>
           <h3 className="text-lg font-semibold mb-4">معلومات الولي</h3>
           <div className="space-y-3">
             <p><strong>اسم الولي:</strong> {student.parentName}</p>
@@ -74,15 +135,15 @@ function ViewStudent() {
           </div>
         </div>
 
-        <div>
+          <div>
           <h3 className="text-lg font-semibold mb-4">الحالة الصحية</h3>
           <div className="space-y-3">
             <p><strong>الحالة الصحية:</strong> {student.healthStatus || 'لا توجد معلومات'}</p>
             <p><strong>احتياجات خاصة:</strong> {student.specialNeeds || 'لا توجد'}</p>
           </div>
-        </div>
+          </div>
 
-        <div>
+          <div>
           <h3 className="text-lg font-semibold mb-4">الحالة الاجتماعية</h3>
           <div className="space-y-3">
             <p><strong>الحالة الاجتماعية:</strong> {student.socialStatus || 'لا توجد معلومات'}</p>
@@ -97,7 +158,7 @@ function ViewStudent() {
         >
           تعديل
         </button>
-      </div>
+        </div>
     </div>
   );
 }
@@ -105,10 +166,13 @@ function ViewStudent() {
 function EditStudent() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { currentCycle } = useCycle();
   const [student, setStudent] = useState<Student | null>(null);
   const [settings, setSettings] = useState<AppSettings>({
     schoolName: '',
     counselorName: '',
+    highSchoolName: '',
+    highSchoolAddress: '',
     levels: [],
     groups: [],
     semesters: [],
@@ -119,6 +183,7 @@ function EditStudent() {
       security: true,
       profile: true,
       school: true,
+      highschool: true,
       levels: true,
       groups: true,
       semesters: true
@@ -145,11 +210,11 @@ function EditStudent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (student && id) {
-      try {
+    try {
         await updateStudent(id, student);
-        navigate('/students');
-      } catch (error) {
-        console.error('Error updating student:', error);
+      navigate('/students');
+    } catch (error) {
+      console.error('Error updating student:', error);
       }
     }
   };
@@ -167,7 +232,9 @@ function EditStudent() {
         >
           <ArrowRight className="w-6 h-6" />
         </button>
-        <h2 className="text-2xl font-bold">تعديل معلومات التلميذ</h2>
+        <h2 className="text-2xl font-bold">
+          تعديل معلومات {currentCycle === 'ثانوي' ? 'الطالب' : 'التلميذ'}
+        </h2>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -260,25 +327,25 @@ function EditStudent() {
         <div className="border-t pt-6">
           <h3 className="text-lg font-semibold mb-4">معلومات إضافية (اختياري)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
+          <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 تاريخ الميلاد
               </label>
-              <input
-                type="date"
-                value={student.birthDate}
-                onChange={(e) => setStudent({ ...student, birthDate: e.target.value })}
+            <input
+              type="date"
+              value={student.birthDate}
+              onChange={(e) => setStudent({ ...student, birthDate: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-            <div>
+            />
+          </div>
+          <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 العنوان
               </label>
-              <input
-                type="text"
-                value={student.address}
-                onChange={(e) => setStudent({ ...student, address: e.target.value })}
+            <input
+              type="text"
+              value={student.address}
+              onChange={(e) => setStudent({ ...student, address: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
               />
             </div>
@@ -291,8 +358,8 @@ function EditStudent() {
                 value={student.parentName}
                 onChange={(e) => setStudent({ ...student, parentName: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
+            />
+          </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 رقم الهاتف
@@ -304,12 +371,12 @@ function EditStudent() {
                 className="w-full px-3 py-2 border rounded-lg"
                 dir="ltr"
               />
-            </div>
+        </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 البريد الإلكتروني
               </label>
-              <input
+            <input
                 type="email"
                 value={student.parentEmail}
                 onChange={(e) => setStudent({ ...student, parentEmail: e.target.value })}
@@ -331,19 +398,19 @@ function EditStudent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 احتياجات خاصة
-              </label>
+          </label>
               <textarea
                 value={student.specialNeeds}
                 onChange={(e) => setStudent({ ...student, specialNeeds: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
                 rows={3}
               />
-            </div>
-            <div>
+        </div>
+        <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 الحالة الاجتماعية
               </label>
-              <textarea
+          <textarea
                 value={student.socialStatus || ''}
                 onChange={(e) => setStudent({ ...student, socialStatus: e.target.value })}
                 className="w-full px-3 py-2 border rounded-lg"
@@ -366,7 +433,7 @@ function EditStudent() {
             type="submit"
             className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
           >
-            حفظ التغييرات
+                حفظ التغييرات
           </button>
         </div>
       </form>
@@ -375,6 +442,7 @@ function EditStudent() {
 }
 
 function StudentList() {
+  const { currentCycle, getCycleTitle, getCycleLevels } = useCycle();
   const [students, setStudents] = useState<Student[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
@@ -387,6 +455,8 @@ function StudentList() {
   const [settings, setSettings] = useState<AppSettings>({
     schoolName: '',
     counselorName: '',
+    highSchoolName: '',
+    highSchoolAddress: '',
     levels: [],
     groups: [],
     semesters: [],
@@ -397,6 +467,7 @@ function StudentList() {
       security: true,
       profile: true,
       school: true,
+      highschool: true,
       levels: true,
       groups: true,
       semesters: true
@@ -409,10 +480,15 @@ function StudentList() {
     loadSettings();
   }, []);
 
+  // Recharger les étudiants quand le cycle change
+  useEffect(() => {
+    loadStudents();
+  }, [currentCycle]);
+
   const loadStudents = async () => {
     try {
       setIsLoading(true);
-      const loadedStudents = await getStudents();
+      const loadedStudents = await getStudents(currentCycle);
       setStudents(loadedStudents);
     } catch (error) {
       console.error('Error loading students:', error);
@@ -467,6 +543,52 @@ function StudentList() {
     }
   };
 
+
+  const handleClearGrades = async () => {
+    if (window.confirm('هل أنت متأكد من حذف جميع الدرجات؟ هذا سيبقي التلاميذ ولكن سيمسح جميع الدرجات.')) {
+      try {
+        setIsLoading(true);
+        const updatedStudents = students.map(student => ({
+          ...student,
+          semester1Grade: undefined,
+          semester2Grade: undefined,
+          semester3Grade: undefined
+        }));
+        
+        const studentsDb = getStudentsDB(currentCycle);
+        await Promise.all(updatedStudents.map(student => 
+          studentsDb.setItem(student.id, student)
+        ));
+        
+        setStudents(updatedStudents);
+        alert('تم حذف جميع الدرجات بنجاح');
+      } catch (error) {
+        console.error('Error clearing grades:', error);
+        alert('حدث خطأ أثناء حذف الدرجات');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleClearAllData = async () => {
+    if (window.confirm('هل أنت متأكد من حذف جميع البيانات؟ هذا سيمسح جميع التلاميذ والدرجات في هذا المستوى.')) {
+      try {
+        setIsLoading(true);
+        const studentsDb = getStudentsDB(currentCycle);
+        await studentsDb.clear();
+        setStudents([]);
+        setSelectedStudents(new Set());
+        alert('تم حذف جميع البيانات بنجاح');
+      } catch (error) {
+        console.error('Error clearing all data:', error);
+        alert('حدث خطأ أثناء حذف البيانات');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(null);
     const file = event.target.files?.[0];
@@ -478,37 +600,60 @@ function StudentList() {
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      // Debug: Log available columns
+      if (jsonData.length > 0) {
+        console.log('Colonnes disponibles dans le fichier:', Object.keys(jsonData[0] as object));
+      }
 
       // Validate and transform the data
       const importedStudents = await Promise.all(jsonData.map(async (row: any) => {
-        // Map Excel columns to student properties
+        // Helper function to get value from either Arabic column names
+        const getValue = (key: string) => {
+          return row[key]?.toString() || '';
+        };
+
+        // Parse the full name to extract first and last name
+        const fullName = getValue('اللقب و الاسم');
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        // Map the student data according to the new template format
         const studentData = {
-          studentId: row['رقم التعريف']?.toString() || '',
-          firstName: row['الاسم']?.toString() || '',
-          lastName: row['اللقب']?.toString() || '',
-          level: row['المستوى']?.toString() || '',
-          group: row['الفوج']?.toString() || '',
-          gender: row['الجنس'] === 'ذكر' ? 'male' : 'female',
-          isRepeating: row['معيد'] === 'نعم',
-          birthDate: row['تاريخ الميلاد']?.toString() || '',
-          address: row['العنوان']?.toString() || '',
-          parentName: row['اسم الولي']?.toString() || '',
-          parentPhone: row['رقم الهاتف']?.toString() || '',
-          parentEmail: row['البريد الإلكتروني']?.toString() || '',
+          studentId: getValue('الرقم'),
+          firstName: firstName,
+          lastName: lastName,
+          level: getCycleLevels()[0] || 'متوسط', // Use first available level from current cycle
+          group: settings.groups[0] || '01', // Use first available group
+          gender: getValue('الجنس') === 'أنثى' ? 'female' : 'male',
+          isRepeating: getValue('الإعادة') === 'نعم',
+          birthDate: formatBirthDate(getValue('تاريخ الميلاد')),
+          address: '',
+          parentName: '',
+          parentPhone: '',
+          parentEmail: '',
           familyStatus: '',
-          healthStatus: row['الحالة الصحية']?.toString() || '',
-          specialNeeds: row['احتياجات خاصة']?.toString() || '',
+          healthStatus: '',
+          specialNeeds: '',
           notes: '',
-          socialStatus: row['الحالة الاجتماعية']?.toString() || ''
+          socialStatus: '',
+          semester1Grade: getValue('معدل الفصل 1') && getValue('معدل الفصل 1').trim() !== '' ? parseFloat(getValue('معدل الفصل 1')) : undefined,
+          semester2Grade: getValue('معدل الفصل 2') && getValue('معدل الفصل 2').trim() !== '' ? parseFloat(getValue('معدل الفصل 2')) : undefined,
+          semester3Grade: getValue('معدل الفصل 3') && getValue('معدل الفصل 3').trim() !== '' ? parseFloat(getValue('معدل الفصل 3')) : undefined
         };
 
         // Validate required fields
-        if (!studentData.studentId || !studentData.firstName || !studentData.lastName || !studentData.level || !studentData.group) {
-          throw new Error(`بيانات غير مكتملة للطالب ${studentData.studentId || 'غير معروف'}`);
+        const missingFields = [];
+        if (!studentData.studentId) missingFields.push('الرقم');
+        if (!studentData.firstName) missingFields.push('اللقب و الاسم');
+        
+        if (missingFields.length > 0) {
+          throw new Error(`بيانات غير مكتملة للطالب ${studentData.studentId || 'غير معروف'}. الحقول المفقودة: ${missingFields.join(', ')}`);
         }
 
         // Add the student to the database
-        return await addStudent(studentData);
+        return await addStudent(studentData, currentCycle);
       }));
 
       setStudents(prev => [...prev, ...importedStudents]);
@@ -530,20 +675,28 @@ function StudentList() {
       return;
     }
 
-    const studentsData = filteredStudents.map(student => ({
-      'رقم التعريف': student.studentId,
-      'اللقب': student.lastName,
-      'الاسم': student.firstName,
-      'المستوى': student.level,
-      'الفوج': student.group,
-      'الجنس': student.gender === 'male' ? 'ذكر' : 'أنثى',
-      'معيد': student.isRepeating ? 'نعم' : 'لا',
-      'آخر اختبار': student.lastTestDate ? formatDate(student.lastTestDate) : 'لا يوجد',
-      'النتيجة': student.lastTestScore ? `${student.lastTestScore}%` : '-',
-      'الحالة الصحية': student.healthStatus || '',
-      'احتياجات خاصة': student.specialNeeds || '',
-      'الحالة الاجتماعية': student.socialStatus || ''
-    }));
+    const studentsData = filteredStudents.map((student, index) => {
+      const data: any = {
+        'الرقم': index + 1,
+        'اللقب و الاسم': `${student.lastName} ${student.firstName}`.trim(),
+        'تاريخ الميلاد': formatBirthDate(student.birthDate),
+        'الجنس': student.gender === 'male' ? 'ذكر' : 'أنثى',
+        'الإعادة': student.isRepeating ? 'نعم' : 'لا'
+      };
+      
+      // Only include semester grades if they have valid values
+      if (hasValidGrade((student as any).semester1Grade)) {
+        data['معدل الفصل 1'] = (student as any).semester1Grade;
+      }
+      if (hasValidGrade((student as any).semester2Grade)) {
+        data['معدل الفصل 2'] = (student as any).semester2Grade;
+      }
+      if (hasValidGrade((student as any).semester3Grade)) {
+        data['معدل الفصل 3'] = (student as any).semester3Grade;
+      }
+      
+      return data;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(studentsData);
     const workbook = XLSX.utils.book_new();
@@ -570,10 +723,12 @@ function StudentList() {
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
             <div className="flex items-center gap-3 text-red-600 mb-4">
               <AlertTriangle className="w-8 h-8" />
-              <h3 className="text-xl font-bold">تأكيد حذف التلاميذ المحددين</h3>
+              <h3 className="text-xl font-bold">
+                تأكيد حذف {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} المحددين
+              </h3>
             </div>
             <p className="text-gray-600 mb-6">
-              هل أنت متأكد من حذف {selectedStudents.size} تلميذ؟ هذا الإجراء لا يمكن التراجع عنه.
+              هل أنت متأكد من حذف {selectedStudents.size} {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}؟ هذا الإجراء لا يمكن التراجع عنه.
             </p>
             <div className="flex justify-end gap-3">
               <button
@@ -598,84 +753,110 @@ function StudentList() {
                   </>
                 )}
               </button>
-            </div>
           </div>
         </div>
+      </div>
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">قائمة التلاميذ</h2>
+        <h2 className="text-2xl font-bold">
+          {currentCycle === 'ثانوي' ? 'قائمة الطلاب' : 'قائمة التلاميذ'} - {getCycleTitle()}
+        </h2>
         <div className="flex gap-2">
-          <input
+            <input
             type="file"
-            ref={fileInputRef}
+              ref={fileInputRef}
             onChange={handleFileImport}
-            accept=".xlsx,.xls"
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              isLoading
+              accept=".xlsx,.xls"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                isLoading
                 ? 'bg-purple-300 cursor-not-allowed'
                 : 'bg-purple-500 hover:bg-purple-600 text-white'
-            }`}
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              }`}
+            >
+              {isLoading ? (
+                <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 <span>جاري الاستيراد...</span>
-              </>
-            ) : (
-              <>
-                <Upload className="w-5 h-5" />
-                <span>جلب قائمة التلاميذ</span>
-              </>
-            )}
-          </button>
+                </>
+              ) : (
+                <>
+                <Upload className="w-4 h-4" />
+                <span>جلب قائمة {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</span>
+                </>
+              )}
+            </button>
           <button
             onClick={handleSaveStudentsList}
             disabled={filteredStudents.length === 0}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
               filteredStudents.length === 0
                 ? 'bg-orange-300 cursor-not-allowed'
                 : 'bg-orange-500 hover:bg-orange-600 text-white'
             }`}
           >
-            <Save className="w-5 h-5" />
+            <Save className="w-4 h-4" />
             <span>حفظ</span>
           </button>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             disabled={selectedStudents.size === 0}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
               selectedStudents.size === 0
                 ? 'bg-red-300 cursor-not-allowed'
                 : 'bg-red-500 hover:bg-red-600 text-white'
             }`}
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-4 h-4" />
             <span>حذف ({selectedStudents.size})</span>
           </button>
           <button
-            onClick={() => navigate('new')}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            onClick={handleClearGrades}
+            disabled={students.length === 0 || isLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+              students.length === 0 || isLoading
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-orange-600 hover:bg-orange-700 text-white'
+            }`}
           >
-            <PlusCircle className="w-5 h-5" />
-            <span>إضافة تلميذ</span>
+            <Trash2 className="w-4 h-4" />
+            <span>مسح الدرجات</span>
           </button>
+          <button
+            onClick={handleClearAllData}
+            disabled={students.length === 0 || isLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+              students.length === 0 || isLoading
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>تفريغ القائمة</span>
+          </button>
+          <button
+            onClick={() => navigate('new')}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm transition-colors flex items-center gap-1.5"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>إضافة {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}</span>
+          </button>
+          </div>
         </div>
-      </div>
 
-      {importError && (
+        {importError && (
         <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
           <div className="flex items-center">
             <AlertCircle className="w-5 h-5 mr-2" />
             <span>{importError}</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <div className="mb-6 space-y-4">
         <div className="flex flex-wrap gap-4">
@@ -698,7 +879,7 @@ function StudentList() {
             className="border rounded-lg px-4 py-2 min-w-[200px]"
           >
             <option value="">جميع المستويات</option>
-            {settings.levels.map(level => (
+            {getCycleLevels().map(level => (
               <option key={level} value={level}>{level}</option>
             ))}
           </select>
@@ -714,12 +895,12 @@ function StudentList() {
           </select>
         </div>
       </div>
-      
+
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full table-fixed">
           <thead>
             <tr className="bg-gray-50">
-              <th className="px-4 py-2 text-right">
+              <th className="px-2 py-2 text-right w-12">
                 <button
                   onClick={toggleAllStudents}
                   className="hover:text-blue-600 transition-colors"
@@ -731,21 +912,21 @@ function StudentList() {
                   )}
                 </button>
               </th>
-              <th className="px-4 py-2 text-right">رقم التعريف</th>
-              <th className="px-4 py-2 text-right">اللقب</th>
-              <th className="px-4 py-2 text-right">الاسم</th>
-              <th className="px-4 py-2 text-right">المستوى</th>
-              <th className="px-4  py-2 text-right">الفوج</th>
-              <th className="px-4 py-2 text-right">الجنس</th>
-              <th className="px-4 py-2 text-right">معيد</th>
-              <th className="px-4 py-2 text-right">آخر اختبار</th>
-              <th className="px-4 py-2 text-right">الإجراءات</th>
+              <th className="px-2 py-2 text-right w-16">الرقم</th>
+              <th className="px-2 py-2 text-right w-32">اللقب و الاسم</th>
+              <th className="px-2 py-2 text-right w-24">تاريخ الميلاد</th>
+              <th className="px-2 py-2 text-right w-16">الجنس</th>
+              <th className="px-2 py-2 text-right w-16">الإعادة</th>
+              <th className="px-2 py-2 text-right w-20 whitespace-nowrap">معدل الفصل 1</th>
+              <th className="px-2 py-2 text-right w-20 whitespace-nowrap">معدل الفصل 2</th>
+              <th className="px-2 py-2 text-right w-20 whitespace-nowrap">معدل الفصل 3</th>
+              <th className="px-2 py-2 text-right w-24">الإجراءات</th>
             </tr>
           </thead>
           <tbody>
-            {filteredStudents.map((student) => (
+            {filteredStudents.map((student, index) => (
               <tr key={student.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-2">
+                <td className="px-2 py-2">
                   <button
                     onClick={() => toggleStudentSelection(student.id)}
                     className="hover:text-blue-600 transition-colors"
@@ -757,40 +938,42 @@ function StudentList() {
                     )}
                   </button>
                 </td>
-                <td className="px-4 py-2">{student.studentId}</td>
-                <td className="px-4 py-2">{student.lastName}</td>
-                <td className="px-4 py-2">{student.firstName}</td>
-                <td className="px-4 py-2">{student.level}</td>
-                <td className="px-4 py-2">{student.group}</td>
-                <td className="px-4 py-2">{student.gender === 'male' ? 'ذكر' : 'أنثى'}</td>
-                <td className="px-4 py-2">{student.isRepeating ? 'نعم' : 'لا'}</td>
-                <td className="px-4 py-2">
-                  {student.lastTestDate ? (
-                    <div>
-                      <div>{formatDate(student.lastTestDate)}</div>
-                      <div className="text-sm text-gray-500">{student.lastTestScore}%</div>
-                    </div>
-                  ) : (
-                    'لا يوجد'
-                  )}
+                <td className="px-2 py-2 text-center">{index + 1}</td>
+                <td className="px-2 py-2 truncate" title={`${student.lastName} ${student.firstName}`.trim()}>
+                  {`${student.lastName} ${student.firstName}`.trim()}
                 </td>
-                <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
+                <td className="px-2 py-2 text-center">{formatBirthDate(student.birthDate)}</td>
+                <td className="px-2 py-2 text-center">{student.gender === 'male' ? 'ذكر' : 'أنثى'}</td>
+                <td className="px-2 py-2 text-center">{student.isRepeating ? 'نعم' : 'لا'}</td>
+                <td className="px-2 py-2 text-center">
+                  {hasValidGrade((student as any).semester1Grade) ? (student as any).semester1Grade : ''}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {hasValidGrade((student as any).semester2Grade) ? (student as any).semester2Grade : ''}
+                </td>
+                <td className="px-2 py-2 text-center">
+                  {hasValidGrade((student as any).semester3Grade) ? (student as any).semester3Grade : ''}
+                </td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => navigate(`view/${student.id}`)}
                       className="p-1 text-gray-500 hover:text-gray-700"
+                      title="عرض"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => navigate(`edit/${student.id}`)}
                       className="p-1 text-blue-500 hover:text-blue-700"
+                      title="تعديل"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDeleteStudent(student.id)}
                       className="p-1 text-red-500 hover:text-red-700"
+                      title="حذف"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -806,9 +989,13 @@ function StudentList() {
 }
 
 function StudentManagement() {
+  const { getCycleTitle, currentCycle } = useCycle();
+  
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">إدارة التلاميذ</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">
+        {currentCycle === 'ثانوي' ? 'إدارة الطلاب' : 'إدارة التلاميذ'} - {getCycleTitle()}
+      </h1>
       <Routes>
         <Route index element={<StudentList />} />
         <Route path="new" element={<StudentForm />} />

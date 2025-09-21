@@ -1,60 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Bell, Lock, User, School, GraduationCap, Users, ToggleLeft, ToggleRight, Calendar, Clock, Save, Check, Download, Upload, AlertTriangle } from 'lucide-react';
-import { getSettings, updateSettings, type AppSettings, exportDatabase, importDatabase } from '../lib/storage';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, User, School, GraduationCap, Save, Check, Database, Cog, ToggleLeft, ToggleRight, BookOpen } from 'lucide-react';
+import { getSettings, updateSettings, type AppSettings, forceUpdateTimezone } from '../lib/storage';
+import { useCycle } from '../contexts/CycleContext';
+import DatabaseManager from './DatabaseManager';
 
 const timezones = [
-  { id: 'Africa/Tunis', label: 'توقيت تونس (GMT+1)' },
   { id: 'Africa/Algiers', label: 'توقيت الجزائر (GMT+1)' },
+  { id: 'Africa/Tunis', label: 'توقيت تونس (GMT+1)' },
   { id: 'Africa/Casablanca', label: 'توقيت المغرب (GMT+1)' },
   { id: 'Africa/Cairo', label: 'توقيت القاهرة (GMT+2)' },
   { id: 'Asia/Riyadh', label: 'توقيت الرياض (GMT+3)' }
 ];
 
-const settingsSections = [
-  {
-    id: 'general',
-    title: 'الإعدادات العامة',
-    icon: SettingsIcon,
-    settings: [
-      { id: 'language', label: 'اللغة', value: 'العربية' },
-      { id: 'timezone', label: 'المنطقة الزمنية', type: 'timezone' }
-    ]
-  },
-  {
-    id: 'notifications',
-    title: 'الإشعارات',
-    icon: Bell,
-    settings: [
-      { id: 'email', label: 'إشعارات البريد الإلكتروني', value: 'مفعلة' },
-      { id: 'app', label: 'إشعارات التطبيق', value: 'مفعلة' }
-    ]
-  },
-  {
-    id: 'security',
-    title: 'الأمان',
-    icon: Lock,
-    settings: [
-      { id: 'password', label: 'تغيير كلمة المرور', type: 'password' },
-      { id: 'twoFactorEnabled', label: 'المصادقة الثنائية', type: 'toggle' }
-    ]
-  },
+// Fonction pour obtenir les sections de paramètres selon le cycle - Version simplifiée
+const getSettingsSections = (currentCycle: string, getCycleConfig: any) => [
   {
     id: 'profile',
     title: 'الملف الشخصي',
     icon: User,
     settings: [
-      { id: 'counselorName', label: <span><strong>مستشار(ة) التوجيه:</strong></span>, type: 'input' },
-      { id: 'email', label: 'البريد الإلكتروني', value: 'تعديل' }
+      { id: 'counselorName', label: <span><strong>مستشار(ة) التوجيه:</strong></span>, type: 'input' }
     ]
   },
   {
     id: 'school',
-    title: 'إعدادات المتوسطة',
-    icon: School,
+    title: `إعدادات ${getCycleConfig(currentCycle).schoolName}`,
+    icon: currentCycle === 'ثانوي' ? GraduationCap : School,
     settings: [
-      { id: 'schoolName', label: <span><strong>المتوسطة:</strong></span>, type: 'input' },
-      { id: 'address', label: 'العنوان', value: 'تعديل' }
+      { 
+        id: 'schoolName', 
+        label: <span><strong>{getCycleConfig(currentCycle).schoolName}:</strong></span>, 
+        type: 'input' 
+      }
+    ]
+  },
+  {
+    id: 'cycles',
+    title: 'تكوين الدورات التعليمية',
+    icon: Cog,
+    settings: [
+      { id: 'cycleConfig', label: 'إعدادات الدورات', type: 'cycleConfig' },
+      { id: 'cycleBackup', label: 'النسخ الاحتياطية', type: 'cycleBackup' }
     ]
   }
 ];
@@ -62,6 +48,8 @@ const settingsSections = [
 const defaultSettings: AppSettings = {
   schoolName: '',
   counselorName: '',
+  highSchoolName: '',
+  highSchoolAddress: '',
   levels: [],
   groups: [],
   semesters: [],
@@ -72,6 +60,7 @@ const defaultSettings: AppSettings = {
     security: true,
     profile: true,
     school: true,
+    highschool: true,
     levels: true,
     groups: true,
     semesters: true
@@ -79,26 +68,36 @@ const defaultSettings: AppSettings = {
 };
 
 function Settings() {
+  const { getCycleConfig, updateCycleConfig, getAvailableCycles, currentCycle } = useCycle();
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isEditing, setIsEditing] = useState<Record<string, boolean>>({});
-  const [newLevel, setNewLevel] = useState('');
-  const [newGroup, setNewGroup] = useState('');
-  const [newSemester, setNewSemester] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [importError, setImportError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showDatabaseManager, setShowDatabaseManager] = useState(false);
+  const [editingCycle, setEditingCycle] = useState<string | null>(null);
+  const [cycleConfigs, setCycleConfigs] = useState<Record<string, any>>({});
 
   useEffect(() => {
     loadSettings();
+    loadCycleConfigs();
   }, []);
+
+  // Recharger les paramètres quand le cycle change
+  useEffect(() => {
+    loadSettings();
+  }, [currentCycle]);
+
+  // Recharger les configurations des cycles quand elles changent
+  useEffect(() => {
+    loadCycleConfigs();
+  }, [getCycleConfig]);
 
   const loadSettings = async () => {
     try {
-      const loadedSettings = await getSettings();
+      const loadedSettings = await getSettings(currentCycle);
       setSettings({
         ...defaultSettings,
         ...loadedSettings,
@@ -114,8 +113,20 @@ function Settings() {
     }
   };
 
+  const loadCycleConfigs = async () => {
+    try {
+      const configs: Record<string, any> = {};
+      getAvailableCycles().forEach(cycle => {
+        configs[cycle.name] = getCycleConfig(cycle.name as 'متوسط' | 'ثانوي');
+      });
+      setCycleConfigs(configs);
+    } catch (error) {
+      console.error('Error loading cycle configs:', error);
+    }
+  };
+
   const handleSettingChange = async (key: keyof AppSettings, value: string | boolean) => {
-    const updatedSettings = await updateSettings({ [key]: value });
+    const updatedSettings = await updateSettings({ [key]: value }, currentCycle);
     setSettings(prev => ({
       ...prev,
       ...updatedSettings,
@@ -173,144 +184,53 @@ function Settings() {
     showSaveSuccess();
   };
 
-  const handleAddLevel = async () => {
-    if (newLevel.trim()) {
-      const updatedLevels = [...(settings.levels || []), newLevel.trim()];
-      const updatedSettings = await updateSettings({ levels: updatedLevels });
-      setSettings(prev => ({
-        ...prev,
-        ...updatedSettings,
-        enabledSections: {
-          ...prev.enabledSections,
-          ...(updatedSettings.enabledSections || {})
-        }
-      }));
-      setNewLevel('');
-      showSaveSuccess();
-    }
-  };
 
-  const handleRemoveLevel = async (levelToRemove: string) => {
-    const updatedLevels = (settings.levels || []).filter(level => level !== levelToRemove);
-    const updatedSettings = await updateSettings({ levels: updatedLevels });
-    setSettings(prev => ({
-      ...prev,
-      ...updatedSettings,
-      enabledSections: {
-        ...prev.enabledSections,
-        ...(updatedSettings.enabledSections || {})
-      }
-    }));
-    showSaveSuccess();
-  };
 
-  const handleAddGroup = async () => {
-    if (newGroup.trim()) {
-      const updatedGroups = [...(settings.groups || []), newGroup.trim()];
-      const updatedSettings = await updateSettings({ groups: updatedGroups });
-      setSettings(prev => ({
-        ...prev,
-        ...updatedSettings,
-        enabledSections: {
-          ...prev.enabledSections,
-          ...(updatedSettings.enabledSections || {})
-        }
-      }));
-      setNewGroup('');
-      showSaveSuccess();
-    }
-  };
-
-  const handleRemoveGroup = async (groupToRemove: string) => {
-    const updatedGroups = (settings.groups || []).filter(group => group !== groupToRemove);
-    const updatedSettings = await updateSettings({ groups: updatedGroups });
-    setSettings(prev => ({
-      ...prev,
-      ...updatedSettings,
-      enabledSections: {
-        ...prev.enabledSections,
-        ...(updatedSettings.enabledSections || {})
-      }
-    }));
-    showSaveSuccess();
-  };
-
-  const handleAddSemester = async () => {
-    if (newSemester.trim()) {
-      const updatedSemesters = [...(settings.semesters || []), newSemester.trim()];
-      const updatedSettings = await updateSettings({ semesters: updatedSemesters });
-      setSettings(prev => ({
-        ...prev,
-        ...updatedSettings,
-        enabledSections: {
-          ...prev.enabledSections,
-          ...(updatedSettings.enabledSections || {})
-        }
-      }));
-      setNewSemester('');
-      showSaveSuccess();
-    }
-  };
-
-  const handleRemoveSemester = async (semesterToRemove: string) => {
-    const updatedSemesters = (settings.semesters || []).filter(semester => semester !== semesterToRemove);
-    const updatedSettings = await updateSettings({ semesters: updatedSemesters });
-    setSettings(prev => ({
-      ...prev,
-      ...updatedSettings,
-      enabledSections: {
-        ...prev.enabledSections,
-        ...(updatedSettings.enabledSections || {})
-      }
-    }));
-    showSaveSuccess();
-  };
-
-  const handleExportDatabase = async () => {
+  const handleCycleConfigChange = async (cycleName: string, field: string, value: string) => {
     try {
-      const data = await exportDatabase();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `school_database_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await updateCycleConfig(cycleName as 'متوسط' | 'ثانوي', { [field]: value });
+      setCycleConfigs(prev => ({
+        ...prev,
+        [cycleName]: { ...prev[cycleName], [field]: value }
+      }));
+      // Recharger les configurations pour s'assurer que les changements sont persistés
+      await loadCycleConfigs();
       showSaveSuccess();
     } catch (error) {
-      console.error('Error exporting database:', error);
-      setImportError('حدث خطأ أثناء تصدير قاعدة البيانات');
+      console.error('Error updating cycle config:', error);
     }
   };
 
-  const handleImportDatabase = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    setImportError(null);
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleAddCycleLevel = async (cycleName: string, level: string) => {
+    if (level.trim()) {
+      const currentLevels = cycleConfigs[cycleName]?.levels || [];
+      const updatedLevels = [...currentLevels, level.trim()];
+      await updateCycleConfig(cycleName as 'متوسط' | 'ثانوي', { levels: updatedLevels });
+      setCycleConfigs(prev => ({
+        ...prev,
+        [cycleName]: { ...prev[cycleName], levels: updatedLevels }
+      }));
+    }
+  };
 
+  const handleRemoveCycleLevel = async (cycleName: string, levelToRemove: string) => {
+    const currentLevels = cycleConfigs[cycleName]?.levels || [];
+    const updatedLevels = currentLevels.filter((level: string) => level !== levelToRemove);
+    await updateCycleConfig(cycleName as 'متوسط' | 'ثانوي', { levels: updatedLevels });
+    setCycleConfigs(prev => ({
+      ...prev,
+      [cycleName]: { ...prev[cycleName], levels: updatedLevels }
+    }));
+  };
+
+
+  const handleForceUpdateTimezone = async () => {
     try {
-      setIsLoading(true);
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-          await importDatabase(data);
-          await loadSettings();
-          showSaveSuccess();
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        } catch (error) {
-          console.error('Error importing database:', error);
-          setImportError('حدث خطأ أثناء استيراد قاعدة البيانات');
-        }
-      };
-      reader.readAsText(file);
+      await forceUpdateTimezone();
+      await loadSettings();
+      showSaveSuccess();
     } catch (error) {
-      console.error('Error reading file:', error);
-      setImportError('حدث خطأ أثناء قراءة الملف');
+      console.error('Error updating timezone:', error);
     }
   };
 
@@ -318,15 +238,25 @@ function Settings() {
     switch (setting.type) {
       case 'timezone':
         return (
-          <select
-            value={settings.timezone}
-            onChange={(e) => handleSettingChange('timezone', e.target.value)}
-            className="px-3 py-2 border rounded-lg"
-          >
-            {timezones.map(tz => (
-              <option key={tz.id} value={tz.id}>{tz.label}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={settings.timezone}
+              onChange={(e) => handleSettingChange('timezone', e.target.value)}
+              className="px-3 py-2 border rounded-lg"
+            >
+              {timezones.map(tz => (
+                <option key={tz.id} value={tz.id}>{tz.label}</option>
+              ))}
+            </select>
+            {settings.timezone === 'Africa/Tunis' && (
+              <button
+                onClick={handleForceUpdateTimezone}
+                className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm"
+              >
+                تحديث إلى الجزائر
+              </button>
+            )}
+          </div>
         );
 
       case 'password':
@@ -406,12 +336,12 @@ function Settings() {
           <div className="flex items-center gap-2">
             <input
               type="text"
-              value={settings[setting.id as keyof AppSettings] || ''}
+              value={String(settings[setting.id as keyof AppSettings] || '')}
               onChange={(e) => setSettings({ ...settings, [setting.id]: e.target.value })}
               className="px-2 py-1 border rounded"
             />
             <button
-              onClick={() => handleSettingChange(setting.id as keyof AppSettings, settings[setting.id as keyof AppSettings])}
+              onClick={() => handleSettingChange(setting.id as keyof AppSettings, String(settings[setting.id as keyof AppSettings] || ''))}
               className="text-green-500 hover:text-green-600 px-2 flex items-center gap-1"
             >
               <Save className="w-4 h-4" />
@@ -429,8 +359,22 @@ function Settings() {
             onClick={() => setIsEditing({ ...isEditing, [setting.id]: true })}
             className="text-blue-500 hover:text-blue-600"
           >
-            {settings[setting.id as keyof AppSettings] || 'تعديل'}
+            {String(settings[setting.id as keyof AppSettings] || 'تعديل')}
           </button>
+        );
+
+      case 'cycleConfig':
+        return (
+          <div className="text-gray-500 text-sm">
+            تكوين الدورات (قيد التطوير)
+          </div>
+        );
+
+      case 'cycleBackup':
+        return (
+          <div className="text-gray-500 text-sm">
+            النسخ الاحتياطية (قيد التطوير)
+          </div>
         );
 
       default:
@@ -461,44 +405,34 @@ function Settings() {
       )}
 
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">الإعدادات</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">الإعدادات</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            إعدادات خاصة بدورة {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}
+          </p>
+        </div>
         <div className="flex gap-4">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImportDatabase}
-            accept=".json"
-            className="hidden"
-          />
           <button
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            onClick={() => setShowDatabaseManager(!showDatabaseManager)}
+            className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
           >
-            <Upload className="w-5 h-5" />
-            <span>استيراد قاعدة البيانات</span>
-          </button>
-          <button
-            onClick={handleExportDatabase}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Download className="w-5 h-5" />
-            <span>تصدير قاعدة البيانات</span>
+            <Database className="w-5 h-5" />
+            <span>{showDatabaseManager ? 'إخفاء' : 'إدارة قاعدة البيانات'}</span>
           </button>
         </div>
       </div>
 
-      {importError && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-          <div className="flex items-center">
-            <AlertTriangle className="w-5 h-5 ml-2" />
-            <span>{importError}</span>
-          </div>
+
+      {/* Database Manager Section */}
+      {showDatabaseManager && (
+        <div className="mb-6">
+          <DatabaseManager />
         </div>
       )}
 
       <div className="space-y-6">
         {/* Original settings sections */}
-        {settingsSections.map((section) => (
+        {getSettingsSections(currentCycle, getCycleConfig).map((section) => (
           <div key={section.id} className={`bg-white p-6 rounded-lg shadow-md transition-opacity ${settings.enabledSections[section.id as keyof AppSettings['enabledSections']] ? 'opacity-100' : 'opacity-50'}`}>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -530,180 +464,195 @@ function Settings() {
           </div>
         ))}
 
-        {/* Education Levels Section */}
-        <div className={`bg-white p-6 rounded-lg shadow-md transition-opacity ${settings.enabledSections.levels ? 'opacity-100' : 'opacity-50'}`}>
+        {/* Cycle Configuration Section */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <GraduationCap className="w-6 h-6 text-blue-500" />
-              <h2 className="text-2xl font-bold">المستويات</h2>
+              <SettingsIcon className="w-6 h-6 text-blue-500" />
+              <h2 className="text-2xl font-bold">إعدادات المراحل التعليمية</h2>
             </div>
-            <button
-              onClick={() => handleSectionToggle('levels')}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              {settings.enabledSections.levels ? (
-                <ToggleRight className="w-6 h-6" />
-              ) : (
-                <ToggleLeft className="w-6 h-6" />
-              )}
-            </button>
+            <div className="text-sm text-gray-600">
+              كل دورة لها إعداداتها المستقلة
+            </div>
           </div>
           
-          {settings.enabledSections.levels && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newLevel}
-                  onChange={(e) => setNewLevel(e.target.value)}
-                  placeholder="أدخل المستوى الجديد"
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  onClick={handleAddLevel}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>حفظ</span>
-                </button>
-              </div>
+          <div className="space-y-6">
+            {getAvailableCycles().map((cycle) => {
+              const config = cycleConfigs[cycle.name];
+              const IconComponent = cycle.icon === 'BookOpen' ? BookOpen : GraduationCap;
+              const isEditing = editingCycle === cycle.name;
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {(settings.levels || []).map((level) => (
-                  <div
-                    key={level}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                  >
-                    <span>{level}</span>
+              return (
+                <div key={cycle.name} className="border rounded-lg p-4 bg-gray-50">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <IconComponent className={`w-6 h-6 ${cycle.color === 'blue' ? 'text-blue-500' : 'text-purple-500'}`} />
+                      <h3 className="text-xl font-semibold">{cycle.title}</h3>
+                    </div>
                     <button
-                      onClick={() => handleRemoveLevel(level)}
-                      className="text-red-500 hover:text-red-600"
+                      onClick={() => setEditingCycle(isEditing ? null : cycle.name)}
+                      className="text-blue-500 hover:text-blue-600 px-3 py-1 rounded"
                     >
-                      حذف
+                      {isEditing ? 'إلغاء' : 'تعديل'}
                     </button>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                  
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      {/* School Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          اسم المؤسسة:
+                        </label>
+                        <input
+                          type="text"
+                          value={config?.schoolName || ''}
+                          onChange={(e) => setCycleConfigs(prev => ({
+                            ...prev,
+                            [cycle.name]: { ...prev[cycle.name], schoolName: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                      
+                      {/* Counselor Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          مستشار(ة) التوجيه:
+                        </label>
+                        <input
+                          type="text"
+                          value={config?.counselorName || ''}
+                          onChange={(e) => setCycleConfigs(prev => ({
+                            ...prev,
+                            [cycle.name]: { ...prev[cycle.name], counselorName: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border rounded-lg"
+                        />
+                      </div>
+                      
+                      {/* Levels Management */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          المستويات:
+                        </label>
+                        <div className="flex gap-2 mb-3">
+                          <input
+                            type="text"
+                            placeholder="أدخل المستوى الجديد"
+                            className="flex-1 px-3 py-2 border rounded-lg"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleAddCycleLevel(cycle.name, e.currentTarget.value);
+                                e.currentTarget.value = '';
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={(e) => {
+                              const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                              handleAddCycleLevel(cycle.name, input.value);
+                              input.value = '';
+                            }}
+                            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+                          >
+                            إضافة
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {(config?.levels || []).map((level: string) => (
+                            <div
+                              key={level}
+                              className="flex items-center justify-between bg-white p-2 rounded border"
+                            >
+                              <span className="text-sm">{level}</span>
+                              <button
+                                onClick={() => handleRemoveCycleLevel(cycle.name, level)}
+                                className="text-red-500 hover:text-red-600 text-sm"
+                              >
+                                حذف
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Save Button */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            handleCycleConfigChange(cycle.name, 'schoolName', config?.schoolName || '');
+                            handleCycleConfigChange(cycle.name, 'counselorName', config?.counselorName || '');
+                            setEditingCycle(null);
+                          }}
+                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                        >
+                          <Save className="w-4 h-4" />
+                          حفظ التغييرات
+                        </button>
+                        <button
+                          onClick={() => setEditingCycle(null)}
+                          className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">اسم المؤسسة:</span>
+                        <span className="font-medium">{config?.schoolName || 'غير محدد'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">مستشار(ة) التوجيه:</span>
+                        <span className="font-medium">{config?.counselorName || 'غير محدد'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">عدد المستويات:</span>
+                        <span className="font-medium">{config?.levels?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">المستويات:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {(config?.levels || []).slice(0, 3).map((level: string) => (
+                            <span key={level} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                              {level}
+                            </span>
+                          ))}
+                          {(config?.levels || []).length > 3 && (
+                            <span className="text-gray-500 text-xs">+{(config?.levels || []).length - 3} أخرى</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Groups Section */}
-        <div className={`bg-white p-6 rounded-lg shadow-md transition-opacity ${settings.enabledSections.groups ? 'opacity-100' : 'opacity-50'}`}>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Users className="w-6 h-6 text-blue-500" />
-              <h2 className="text-2xl font-bold">الأقسام</h2>
-            </div>
-            <button
-              onClick={() => handleSectionToggle('groups')}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              {settings.enabledSections.groups ? (
-                <ToggleRight className="w-6 h-6" />
-              ) : (
-                <ToggleLeft className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-          
-          {settings.enabledSections.groups && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newGroup}
-                  onChange={(e) => setNewGroup(e.target.value)}
-                  placeholder="أدخل القسم الجديد"
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  onClick={handleAddGroup}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>حفظ</span>
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {(settings.groups || []).map((group) => (
-                  <div
-                    key={group}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                  >
-                    <span>{group}</span>
-                    <button
-                      onClick={() => handleRemoveGroup(group)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      حذف
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Semesters Section */}
-        <div className={`bg-white p-6 rounded-lg shadow-md transition-opacity ${settings.enabledSections.semesters ? 'opacity-100' : 'opacity-50'}`}>
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-6 h-6 text-blue-500" />
-              <h2 className="text-2xl font-bold">الفصول</h2>
-            </div>
-            <button
-              onClick={() => handleSectionToggle('semesters')}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              {settings.enabledSections.semesters ? (
-                <ToggleRight className="w-6 h-6" />
-              ) : (
-                <ToggleLeft className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-          
-          {settings.enabledSections.semesters && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newSemester}
-                  onChange={(e) => setNewSemester(e.target.value)}
-                  placeholder="أدخل الفصل الجديد"
-                  className="flex-1 px-3 py-2 border rounded-lg"
-                />
-                <button
-                  onClick={handleAddSemester}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>حفظ</span>
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {(settings.semesters || []).map((semester) => (
-                  <div
-                    key={semester}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                  >
-                    <span>{semester}</span>
-                    <button
-                      onClick={() => handleRemoveSemester(semester)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      حذف
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Database Manager Modal */}
+      {showDatabaseManager && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">إدارة قاعدة البيانات</h2>
+              <button
+                onClick={() => setShowDatabaseManager(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            <DatabaseManager />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

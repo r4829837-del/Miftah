@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { addStudent, getSettings, type AppSettings } from '../lib/storage';
 import { useNavigate } from 'react-router-dom';
+import { useCycle } from '../contexts/CycleContext';
 
 export default function StudentForm() {
   const navigate = useNavigate();
+  const { currentCycle } = useCycle();
   const [settings, setSettings] = useState<AppSettings>({
     schoolName: '',
     counselorName: '',
@@ -60,7 +62,7 @@ export default function StudentForm() {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">إضافة تلميذ جديد</h2>
+      <h2 className="text-2xl font-bold mb-6">{currentCycle === 'ثانوي' ? 'إضافة طالب جديد' : 'إضافة تلميذ جديد'}</h2>
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Champs obligatoires */}
@@ -247,7 +249,7 @@ export default function StudentForm() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border rounded-lg"
                 rows={3}
-                placeholder="وصف الحالة الاجتماعية للتلميذ"
+                placeholder={currentCycle === 'ثانوي' ? 'وصف الحالة الاجتماعية للطالب' : 'وصف الحالة الاجتماعية للتلميذ'}
               />
             </div>
           </div>
@@ -265,7 +267,7 @@ export default function StudentForm() {
             type="submit"
             className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
           >
-            إضافة التلميذ
+            {currentCycle === 'ثانوي' ? 'إضافة الطالب' : 'إضافة التلميذ'}
           </button>
         </div>
       </form>

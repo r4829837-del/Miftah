@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, authenticateUser } from '../lib/storage';
+import { User } from '../lib/storage';
 
 interface AuthContextType {
   user: User | null;
@@ -10,23 +10,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Créer une Map pour stocker les sessions actives
-const activeSessions = new Map<string, User>();
+// Utilisateurs autorisés
+const authorizedUsers = [
+  {
+    id: '1',
+    email: 'harounsolution@gmail.com',
+    password: '00000',
+    role: 'admin',
+    name: 'هارون الحلول'
+  },
+  {
+    id: '2',
+    email: 'admin@school.com',
+    password: 'admin123',
+    role: 'admin',
+    name: 'المدير'
+  }
+];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const sessionId = localStorage.getItem('sessionId');
-    if (sessionId) {
-      const sessionUser = activeSessions.get(sessionId);
-      if (sessionUser) {
-        setUser(sessionUser);
-      } else {
-        // Si la session n'existe plus, nettoyer le localStorage
-        localStorage.removeItem('sessionId');
-        localStorage.removeItem('user');
+    // Vérifier si l'utilisateur est déjà connecté (session locale)
+    const savedUser = localStorage.getItem('appamine_user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+      } catch (error) {
+        console.error('Erreur lors du chargement de la session:', error);
+        localStorage.removeItem('appamine_user');
       }
     }
     setIsLoading(false);
@@ -34,20 +49,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const authenticatedUser = await authenticateUser(email, password);
-      if (!authenticatedUser) {
+      // Simuler un délai de connexion
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Vérifier les identifiants
+      const foundUser = authorizedUsers.find(
+        u => u.email === email && u.password === password
+      );
+      
+      if (!foundUser) {
         throw new Error('كلمة المرور غير صحيحة');
       }
-      
-      // Créer un ID de session unique
-      const sessionId = Math.random().toString(36).substring(2);
-      
-      // Stocker la session
-      activeSessions.set(sessionId, authenticatedUser);
-      localStorage.setItem('sessionId', sessionId);
-      localStorage.setItem('user', JSON.stringify(authenticatedUser));
-      
-      setUser(authenticatedUser);
+
+      const mappedUser: User = {
+        id: foundUser.id,
+        email: foundUser.email,
+        password: '',
+        role: foundUser.role as 'admin' | 'teacher',
+        createdAt: new Date().toISOString(),
+      };
+
+      // Sauvegarder la session
+      localStorage.setItem('appamine_user', JSON.stringify(mappedUser));
+      setUser(mappedUser);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -55,12 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
-    const sessionId = localStorage.getItem('sessionId');
-    if (sessionId) {
-      activeSessions.delete(sessionId);
-      localStorage.removeItem('sessionId');
-      localStorage.removeItem('user');
-    }
+    localStorage.removeItem('appamine_user');
     setUser(null);
   };
 

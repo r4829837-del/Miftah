@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, Users, GraduationCap, Search, Filter, Pencil, Trash2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSettings, type AppSettings, getStudents, type Student } from '../lib/storage';
+import { useCycle } from '../contexts/CycleContext';
 
 interface Group {
   id: string;
@@ -11,6 +12,7 @@ interface Group {
 }
 
 export default function GroupManagement() {
+  const { currentCycle } = useCycle();
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
@@ -35,6 +37,7 @@ export default function GroupManagement() {
       security: true,
       profile: true,
       school: true,
+      highschool: true,
       levels: true,
       groups: true,
       semesters: true
@@ -43,7 +46,7 @@ export default function GroupManagement() {
 
   useEffect(() => {
     loadSettings();
-  }, []);
+  }, [currentCycle]); // Recharger quand le cycle change
 
   const loadSettings = async () => {
     const loadedSettings = await getSettings();
@@ -336,7 +339,7 @@ export default function GroupManagement() {
 
                   {expandedGroups.has(group.id) && (
                     <div className="mt-4 pt-4 border-t">
-                      <h4 className="font-semibold mb-3">قائمة التلاميذ:</h4>
+                      <h4 className="font-semibold mb-3">{currentCycle === 'ثانوي' ? 'قائمة الطلاب:' : 'قائمة التلاميذ:'}</h4>
                       {group.students.length > 0 ? (
                         <div className="space-y-2">
                           {group.students.map((student) => (
@@ -360,7 +363,7 @@ export default function GroupManagement() {
                         </div>
                       ) : (
                         <div className="text-center py-4 text-gray-500">
-                          لا يوجد تلاميذ في هذا القسم
+                          {currentCycle === 'ثانوي' ? 'لا يوجد طلاب في هذا القسم' : 'لا يوجد تلاميذ في هذا القسم'}
                         </div>
                       )}
                     </div>

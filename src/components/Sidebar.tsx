@@ -10,19 +10,22 @@ import {
   FileText,
   Settings,
   LogOut,
-  Brain
+  Brain,
+  GraduationCap,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCycle } from '../contexts/CycleContext';
 import { getSettings, type AppSettings } from '../lib/storage';
 
-const menuItems = [
+const getMenuItems = (currentCycle: string) => [
   { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/' },
-  { icon: Users, label: 'إدارة التلاميذ', path: '/students' },
+  { icon: Users, label: currentCycle === 'ثانوي' ? 'إدارة الطلاب' : 'إدارة التلاميذ', path: '/students' },
   { icon: UserSquare2, label: 'إدارة الأقسام', path: '/groups' },
   { icon: CalendarRange, label: 'الجدول الزمني للمقابلات', path: '/schedule' },
   { icon: Brain, label: 'إدارة الإختبارات', path: '/tests' },
   { icon: FileSpreadsheet, label: 'التوصيات', path: '/recommendations' },
-  { icon: Target, label: 'الأهداف', path: '/goals' },
+  { icon: Target, label: 'تحليل النتائج', path: '/analysis' },
   { icon: FileText, label: 'إدارة التقارير', path: '/reports' },
   { icon: Settings, label: 'الإعدادات', path: '/settings' }
 ];
@@ -31,6 +34,14 @@ function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuth();
+  const { 
+    currentCycle, 
+    toggleCycle, 
+    switchCycleWithConfirmation,
+    getCycleTitle, 
+    getCycleConfig, 
+    getAvailableCycles 
+  } = useCycle();
   const [settings, setSettings] = useState<AppSettings>({
     schoolName: 'المدرسة',
     counselorName: 'أمين بوسحبة'
@@ -38,7 +49,7 @@ function Sidebar() {
 
   useEffect(() => {
     loadSettings();
-  }, []);
+  }, [currentCycle]); // Recharger les paramètres quand le cycle change
 
   const loadSettings = async () => {
     const loadedSettings = await getSettings();
@@ -53,8 +64,48 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="mb-8">
+        {/* Sélecteur de cycle dynamique */}
+        <div className="mb-4">
+          <div className="text-sm text-gray-400 mb-2">اختر المرحلة التعليمية:</div>
+          <div className="flex bg-gray-800 rounded-lg p-1">
+            {getAvailableCycles().map((cycleConfig) => {
+              const IconComponent = cycleConfig.icon === 'BookOpen' ? BookOpen : GraduationCap;
+              const isActive = currentCycle === cycleConfig.name;
+              const colorClass = cycleConfig.color === 'blue' ? 'bg-blue-600' : 'bg-purple-600';
+              
+              const handleCycleClick = async () => {
+                if (currentCycle !== cycleConfig.name) {
+                  await switchCycleWithConfirmation(cycleConfig.name as 'متوسط' | 'ثانوي');
+                }
+              };
+              
+              return (
+                <button
+                  key={cycleConfig.name}
+                  onClick={handleCycleClick}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? `${colorClass} text-white`
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  }`}
+                >
+                  <IconComponent className="w-4 h-4" />
+                  {cycleConfig.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        
         <div className="text-base mb-2">
-          <span className="underline">المتوسطة</span>: {settings.schoolName}
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${getCycleConfig(currentCycle).color === 'blue' ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
+            <span className="underline font-semibold">{getCycleTitle()}</span>
+            <span className="text-gray-300">:</span>
+            <span className="text-gray-300 font-medium">
+              {getCycleConfig(currentCycle).schoolName}
+            </span>
+          </div>
         </div>
         <div className="text-base text-gray-300 flex items-center gap-2">
           <span className="underline">مستشار(ة) التوجيه</span>:
@@ -67,7 +118,7 @@ function Sidebar() {
         </div>
       </div>
       <nav className="flex flex-col flex-1">
-        {menuItems.map((item, index) => (
+        {getMenuItems(currentCycle).map((item, index) => (
           <div
             key={index}
             className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}

@@ -2,16 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowRight, Timer, AlertTriangle, X, Users, Brain, CheckCircle2, AlertCircle, Filter, Search } from 'lucide-react';
 import { getStudents, Student, submitTestResult, getTest, Test, getSettings, AppSettings } from '../../lib/storage';
+import { useCycle } from '../../contexts/CycleContext';
+import { evaluateCognitiveTest, evaluateCreativeTest, evaluateSocialTest } from '../../data/testQuestions';
+import CognitiveTestResults from '../CognitiveTestResults';
+import CreativeTestResults from '../CreativeTestResults';
+import SocialTestResults from '../SocialTestResults';
 
 export default function TakeTest() {
   const { testId } = useParams();
   const navigate = useNavigate();
+  const { currentCycle, getCycleLevels } = useCycle();
   const [test, setTest] = useState<Test | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [showResultModal, setShowResultModal] = useState(false);
   const [testScore, setTestScore] = useState(0);
+  const [detailedResults, setDetailedResults] = useState<{
+    score: number;
+    analysis: string;
+    strengths: string[];
+    recommendations: string[];
+  } | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
@@ -117,7 +129,30 @@ export default function TakeTest() {
   };
 
   const calculateScore = () => {
-    if (!test) return 0;
+    if (!test) return { score: 0, detailedResults: null };
+
+    // Use specialized evaluation functions for specific test types
+    if (test.type === 'cognitive') {
+      const stringAnswers = Object.fromEntries(
+        Object.entries(answers).map(([key, value]) => [key, String(value)])
+      );
+      const results = evaluateCognitiveTest(stringAnswers);
+      return { score: results.score, detailedResults: results };
+    } else if (test.type === 'creative') {
+      const stringAnswers = Object.fromEntries(
+        Object.entries(answers).map(([key, value]) => [key, String(value)])
+      );
+      const results = evaluateCreativeTest(stringAnswers);
+      return { score: results.score, detailedResults: results };
+    } else if (test.type === 'social') {
+      const stringAnswers = Object.fromEntries(
+        Object.entries(answers).map(([key, value]) => [key, String(value)])
+      );
+      const results = evaluateSocialTest(stringAnswers);
+      return { score: results.score, detailedResults: results };
+    }
+
+    // Default calculation for other test types
     let score = 0;
     let totalQuestions = test.questions.length;
 
@@ -133,12 +168,13 @@ export default function TakeTest() {
       }
     });
 
-    return Math.round((score / totalQuestions) * 100);
+    return { score: Math.round((score / totalQuestions) * 100), detailedResults: null };
   };
 
   const handleSubmit = async () => {
-    const score = calculateScore();
+    const { score, detailedResults } = calculateScore();
     setTestScore(score);
+    setDetailedResults(detailedResults);
 
     if (testId && selectedStudents[currentStudentIndex]) {
       try {
@@ -218,7 +254,7 @@ export default function TakeTest() {
         </div>
 
         <div className="mb-6">
-          <h3 className="text-xl font-semibold mb-4">اختيار التلاميذ</h3>
+          <h3 className="text-xl font-semibold mb-4">{currentCycle === 'ثانوي' ? 'اختيار الطلاب' : 'اختيار التلاميذ'}</h3>
           <div className="flex gap-4 mb-4">
             <button
               onClick={() => setSelectionMode('individual')}
@@ -263,7 +299,7 @@ export default function TakeTest() {
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     <option value="">جميع المستويات</option>
-                    {settings?.levels.map(level => (
+                    {getCycleLevels().map(level => (
                       <option key={level} value={level}>{level}</option>
                     ))}
                   </select>
@@ -582,6 +618,37 @@ export default function TakeTest() {
           <AlertTriangle className="w-5 h-5" />
           <span>تنبيه: بقي {Math.ceil(timeLeft / 60)} دقائق على نهاية الاختبار</span>
         </div>
+      )}
+
+      {/* Detailed Results Modals */}
+      {showResultModal && detailedResults && test?.type === 'cognitive' && (
+        <CognitiveTestResults
+          score={detailedResults.score}
+          analysis={detailedResults.analysis}
+          strengths={detailedResults.strengths}
+          recommendations={detailedResults.recommendations}
+          onClose={() => setShowResultModal(false)}
+        />
+      )}
+
+      {showResultModal && detailedResults && test?.type === 'creative' && (
+        <CreativeTestResults
+          score={detailedResults.score}
+          analysis={detailedResults.analysis}
+          strengths={detailedResults.strengths}
+          recommendations={detailedResults.recommendations}
+          onClose={() => setShowResultModal(false)}
+        />
+      )}
+
+      {showResultModal && detailedResults && test?.type === 'social' && (
+        <SocialTestResults
+          score={detailedResults.score}
+          analysis={detailedResults.analysis}
+          strengths={detailedResults.strengths}
+          recommendations={detailedResults.recommendations}
+          onClose={() => setShowResultModal(false)}
+        />
       )}
     </div>
   );

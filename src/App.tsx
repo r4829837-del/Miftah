@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CycleProvider, useCycle } from './contexts/CycleContext';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
@@ -9,75 +10,141 @@ import GroupManagement from './components/GroupManagement';
 import Schedule from './components/Schedule';
 import Recommendations from './components/Recommendations';
 import Goals from './components/Goals';
+import AnalysisResults from './components/AnalysisResults';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import TestManagement from './components/TestManagement';
+import MethodGuide from './components/MethodGuide';
+import UserGuide from './components/UserGuide';
+import TestArabicPDF from './components/TestArabicPDF';
+import TestPDFData from './components/TestPDFData';
+import CycleIndependenceTest from './components/CycleIndependenceTest';
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAuth();
-  
-  if (isLoading) {
+function AppLayout({ children }: { children: React.ReactNode }) {
+  try {
+    const { currentCycle, getCycleTitle, getCycleConfig } = useCycle();
+    const currentConfig = getCycleConfig(currentCycle);
+    
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-gray-100">
+        <Sidebar />
+        <main className="main-content">
+          {/* En-tête avec indicateur du cycle */}
+          <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-semibold text-gray-800">
+                {getCycleTitle()}
+              </h1>
+              <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${currentConfig.color === 'blue' ? 'bg-blue-500' : 'bg-purple-500'}`}></div>
+                  <span className="text-gray-600">المرحلة الحالية:</span>
+                  <span className={`font-semibold ${currentConfig.color === 'blue' ? 'text-blue-600' : 'text-purple-600'}`}>
+                    {currentCycle}
+                  </span>
+                </div>
+                <div className="w-px h-4 bg-gray-300"></div>
+                <span className="text-gray-500">
+                  {currentConfig.schoolName}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="p-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    );
+  } catch (error) {
+    console.error('Error in AppLayout:', error);
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <h2 className="font-bold">خطأ في تحميل التطبيق</h2>
+          <p>حدث خطأ أثناء تحميل التطبيق. يرجى إعادة تحميل الصفحة.</p>
+          <p className="text-sm mt-2">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+        </div>
       </div>
     );
   }
-  
-  return user ? <>{children}</> : <Navigate to="/login" />;
-}
-
-function AppLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <Sidebar />
-      <main className="main-content">
-        {children}
-      </main>
-    </div>
-  );
 }
 
 function App() {
-  const { user } = useAuth();
+  try {
+    const { user } = useAuth();
 
-  if (!user) {
+    if (!user) {
+      return (
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      );
+    }
+
     return (
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    );
-  }
-
-  return (
-    <Router>
-      <AppLayout>
+        <AppLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/students/*" element={<StudentManagement />} />
-          <Route path="/groups" element={<GroupManagement />} />
-          <Route path="/schedule" element={<Schedule />} />
-          <Route path="/recommendations" element={<Recommendations />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/reports/*" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/tests/*" element={<TestManagement />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
-    </Router>
-  );
+          <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/students/*" element={<StudentManagement />} />
+            <Route path="/groups" element={<GroupManagement />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/recommendations" element={<Recommendations />} />
+            <Route path="/goals" element={<Goals />} />
+            <Route path="/analysis" element={<AnalysisResults />} />
+            <Route path="/reports/*" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/tests/*" element={<TestManagement />} />
+            <Route path="/method-guide" element={<MethodGuide />} />
+            <Route path="/user-guide" element={<UserGuide />} />
+            <Route path="/test-pdf" element={<TestArabicPDF />} />
+            <Route path="/test-pdf-data" element={<TestPDFData />} />
+            <Route path="/cycle-test" element={<CycleIndependenceTest />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
+      </Router>
+    );
+  } catch (error) {
+    console.error('Error in App:', error);
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <h2 className="font-bold">خطأ في التطبيق الرئيسي</h2>
+          <p>حدث خطأ أثناء تحميل التطبيق. يرجى إعادة تحميل الصفحة.</p>
+          <p className="text-sm mt-2">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+        </div>
+      </div>
+    );
+  }
 }
 
 function AppWrapper() {
-  return (
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  );
+  try {
+    return (
+      <AuthProvider>
+        <CycleProvider>
+          <App />
+        </CycleProvider>
+      </AuthProvider>
+    );
+  } catch (error) {
+    console.error('Error in AppWrapper:', error);
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <h2 className="font-bold">خطأ في تحميل التطبيق</h2>
+          <p>حدث خطأ أثناء تحميل التطبيق. يرجى إعادة تحميل الصفحة.</p>
+          <p className="text-sm mt-2">Error: {error instanceof Error ? error.message : 'Unknown error'}</p>
+        </div>
+      </div>
+    );
+  }
 }
 
 export default AppWrapper;
