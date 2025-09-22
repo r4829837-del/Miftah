@@ -2,6 +2,7 @@ import localforage from 'localforage';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { markDataChanged } from './sync';
 
 // Types and Interfaces
 type GradesChangeReason = 'add_or_update' | 'bulk_upsert' | 'delete' | 'import' | 'clear';
@@ -204,13 +205,16 @@ const getDefaultSettingsForCycle = (cycle: string): AppSettings => {
   };
 };
 
-// Database Instances - Cycle-specific storage
+// Database Instances - Cycle-specific storage with user isolation
 const createCycleDB = (storeName: string) => {
   return {
-    getInstance: (cycle: string) => localforage.createInstance({
-      name: `schoolManagement_${cycle}`,
-      storeName: storeName
-    })
+    getInstance: (cycle: string, userId?: string) => {
+      const userPrefix = userId ? `_${userId}` : '';
+      return localforage.createInstance({
+        name: `schoolManagement${userPrefix}_${cycle}`,
+        storeName: storeName
+      });
+    }
   };
 };
 
@@ -241,28 +245,50 @@ export const formatDate = (date: string | Date) => {
   return format(dateObj, 'yyyy/MM/dd', { locale: ar });
 };
 
+// Helper function to get current user ID for data isolation
+export const getCurrentUserId = (): string | null => {
+  try {
+    const currentUser = localStorage.getItem('currentUser');
+    if (currentUser) {
+      const user = JSON.parse(currentUser);
+      return user.id;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting current user ID:', error);
+    return null;
+  }
+};
+
 // Get current cycle from localStorage
 export const getCurrentCycle = (): string => {
   const savedCycle = localStorage.getItem('currentCycle');
   return savedCycle || 'متوسط';
 };
 
-// Cycle-specific database getters
-export const getStudentsDB = (cycle?: string) => studentsDB.getInstance(cycle || getCurrentCycle());
-export const getSettingsDB = (cycle?: string) => settingsDB.getInstance(cycle || getCurrentCycle());
-export const getTestsDB = (cycle?: string) => testsDB.getInstance(cycle || getCurrentCycle());
-export const getTestResultsDB = (cycle?: string) => testResultsDB.getInstance(cycle || getCurrentCycle());
-export const getGradesDB = (cycle?: string) => gradesDB.getInstance(cycle || getCurrentCycle());
+// Helper function to get database instance with user isolation
+const getDBInstance = (db: any, cycle?: string) => {
+  const currentCycle = cycle || getCurrentCycle();
+  const userId = getCurrentUserId();
+  return db.getInstance(currentCycle, userId);
+};
 
-// Additional cycle-specific database getters for complete independence
-export const getReportsDB = (cycle?: string) => reportsDB.getInstance(cycle || getCurrentCycle());
-export const getGoalsDB = (cycle?: string) => goalsDB.getInstance(cycle || getCurrentCycle());
-export const getNewsDB = (cycle?: string) => newsDB.getInstance(cycle || getCurrentCycle());
-export const getInterventionDB = (cycle?: string) => interventionDB.getInstance(cycle || getCurrentCycle());
-export const getCounselorDB = (cycle?: string) => counselorDB.getInstance(cycle || getCurrentCycle());
-export const getScheduleDB = (cycle?: string) => scheduleDB.getInstance(cycle || getCurrentCycle());
-export const getAnalysisDB = (cycle?: string) => analysisDB.getInstance(cycle || getCurrentCycle());
-export const getRecommendationsDB = (cycle?: string) => recommendationsDB.getInstance(cycle || getCurrentCycle());
+// Cycle-specific database getters with user isolation
+export const getStudentsDB = (cycle?: string) => getDBInstance(studentsDB, cycle);
+export const getSettingsDB = (cycle?: string) => getDBInstance(settingsDB, cycle);
+export const getTestsDB = (cycle?: string) => getDBInstance(testsDB, cycle);
+export const getTestResultsDB = (cycle?: string) => getDBInstance(testResultsDB, cycle);
+export const getGradesDB = (cycle?: string) => getDBInstance(gradesDB, cycle);
+
+// Additional cycle-specific database getters for complete independence with user isolation
+export const getReportsDB = (cycle?: string) => getDBInstance(reportsDB, cycle);
+export const getGoalsDB = (cycle?: string) => getDBInstance(goalsDB, cycle);
+export const getNewsDB = (cycle?: string) => getDBInstance(newsDB, cycle);
+export const getInterventionDB = (cycle?: string) => getDBInstance(interventionDB, cycle);
+export const getCounselorDB = (cycle?: string) => getDBInstance(counselorDB, cycle);
+export const getScheduleDB = (cycle?: string) => getDBInstance(scheduleDB, cycle);
+export const getAnalysisDB = (cycle?: string) => getDBInstance(analysisDB, cycle);
+export const getRecommendationsDB = (cycle?: string) => getDBInstance(recommendationsDB, cycle);
 
 // Function to clear all student data for all cycles
 export const clearAllStudentData = async () => {
@@ -373,6 +399,7 @@ export const addStudent = async (studentData: Omit<Student, 'id' | 'createdAt' |
   };
   const db = getStudentsDB(cycle);
   await db.setItem(student.id, student);
+  markDataChanged(); // Marquer les changements pour la synchronisation
   return student;
 };
 
@@ -402,12 +429,14 @@ export const updateStudent = async (id: string, data: Partial<Student>) => {
     updatedAt: new Date().toISOString(),
   };
   await db.setItem(id, updatedStudent);
+  markDataChanged(); // Marquer les changements pour la synchronisation
   return updatedStudent;
 };
 
 export const deleteStudent = async (id: string) => {
   const db = getStudentsDB();
   await db.removeItem(id);
+  markDataChanged(); // Marquer les changements pour la synchronisation
 };
 
 // Settings Functions - Completely independent per cycle

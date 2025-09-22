@@ -17,6 +17,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useCycle } from '../contexts/CycleContext';
 import { getSettings, type AppSettings } from '../lib/storage';
+import { SyncIndicator } from './SyncIndicator';
+import { UserInfo } from './UserInfo';
 
 const getMenuItems = (currentCycle: string) => [
   { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/' },
@@ -130,7 +132,19 @@ function Sidebar() {
             <span>{item.label}</span>
           </div>
         ))}
+        
+        {/* Informations utilisateur */}
+        <div className="px-4 py-2">
+          <UserInfo />
+        </div>
+        
         <div className="flex-1"></div>
+        
+        {/* Indicateur de synchronisation */}
+        <div className="px-4 py-2 border-t border-gray-700">
+          <SyncIndicator />
+        </div>
+        
         <div
           className="menu-item text-red-300 hover:text-red-400 hover:bg-red-900/20 mt-4"
           onClick={handleLogout}

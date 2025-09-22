@@ -171,6 +171,38 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
     }
   }, []);
 
+  // Écouter les changements de cycle depuis d'autres onglets
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'currentCycle' && e.newValue) {
+        const newCycle = e.newValue as CycleType;
+        if (newCycle === 'متوسط' || newCycle === 'ثانوي') {
+          console.log(`🔄 Cycle changé depuis un autre onglet: ${newCycle}`);
+          setCurrentCycle(newCycle);
+        }
+      }
+    };
+
+    // Écouter les changements de localStorage depuis d'autres onglets
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Écouter les changements dans la même fenêtre (pour les mises à jour locales)
+    const interval = setInterval(() => {
+      const currentCycleFromStorage = localStorage.getItem('currentCycle') as CycleType;
+      if (currentCycleFromStorage && currentCycleFromStorage !== currentCycle) {
+        if (currentCycleFromStorage === 'متوسط' || currentCycleFromStorage === 'ثانوي') {
+          console.log(`🔄 Cycle changé localement: ${currentCycleFromStorage}`);
+          setCurrentCycle(currentCycleFromStorage);
+        }
+      }
+    }, 1000); // Vérifier toutes les secondes
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [currentCycle]);
+
   // Charger les configurations des cycles depuis les paramètres
   useEffect(() => {
     loadCycleConfigs();

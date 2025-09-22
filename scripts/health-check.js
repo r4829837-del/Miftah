@@ -16,7 +16,6 @@ const essentialFiles = [
   'src/App.tsx',
   'src/main.tsx',
   'src/lib/storage.ts',
-  'src/lib/supabase.ts',
   'vite.config.ts'
 ];
 
@@ -33,17 +32,6 @@ essentialFiles.forEach(file => {
 console.log('\n🔐 Vérification de la configuration...');
 if (fs.existsSync('.env')) {
   console.log('  ✅ Fichier .env trouvé');
-  
-  const envContent = fs.readFileSync('.env', 'utf8');
-  const hasSupabaseUrl = envContent.includes('VITE_SUPABASE_URL');
-  const hasSupabaseKey = envContent.includes('VITE_SUPABASE_ANON_KEY');
-  
-  if (hasSupabaseUrl && hasSupabaseKey) {
-    console.log('  ✅ Variables Supabase configurées');
-  } else {
-    console.log('  ⚠️  Variables Supabase manquantes');
-    console.log('     Consultez CONFIGURATION_GUIDE.md pour plus d\\'infos');
-  }
 } else {
   console.log('  ⚠️  Fichier .env manquant');
   console.log('     Créez un fichier .env basé sur .env.example');
@@ -61,11 +49,11 @@ try {
     'vite',
     '@vitejs/plugin-react',
     'typescript',
-    '@supabase/supabase-js',
     'jspdf',
     'html2canvas',
     'chart.js',
-    'lucide-react'
+    'lucide-react',
+    'localforage'
   ];
   
   criticalDeps.forEach(dep => {
