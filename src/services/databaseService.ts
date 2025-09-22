@@ -281,9 +281,9 @@ export class DatabaseService {
     const autoBackupEnabled = localStorage.getItem('autoBackupEnabled') === 'true';
     
     if (autoBackupEnabled) {
-      // Set up auto-backup every 30 minutes
+      // Set up incremental auto-backup every 30 minutes
       this.autoBackupInterval = setInterval(() => {
-        this.createAutoBackup();
+        this.createIncrementalBackup();
       }, 30 * 60 * 1000); // 30 minutes
     }
 
@@ -312,12 +312,53 @@ export class DatabaseService {
   }
 
   /**
+   * Create incremental backup (store only changed top-level stores since last backup)
+   */
+  private async createIncrementalBackup(): Promise<void> {
+    try {
+      const current = await this.exportDatabaseWithMetadata();
+      const last = localStorage.getItem('lastFullBackup');
+      const lastData = last ? (JSON.parse(last).data || {}) : {};
+
+      const diff: any = {};
+      const keys = new Set<string>([
+        ...Object.keys(lastData || {}),
+        ...Object.keys(current.data || {})
+      ]);
+
+      keys.forEach((key) => {
+        const prevVal = (lastData as any)[key];
+        const currVal = (current.data as any)[key];
+        if (JSON.stringify(prevVal) !== JSON.stringify(currVal)) {
+          (diff as any)[key] = currVal;
+        }
+      });
+
+      const delta = {
+        deltaOf: current.metadata.exportedAt,
+        keys: Object.keys(diff),
+        data: diff,
+      };
+
+      const deltaKey = 'autoBackupDelta_' + new Date().toISOString();
+      localStorage.setItem(deltaKey, JSON.stringify(delta));
+
+      // Track last backup time
+      this.lastBackupTime = new Date();
+    } catch (error) {
+      console.error('Error creating incremental backup:', error);
+    }
+  }
+
+  /**
    * Create initial backup
    */
   private async createInitialBackup(): Promise<void> {
     try {
       const backup = await this.exportDatabaseWithMetadata();
       localStorage.setItem('initialBackup', JSON.stringify(backup));
+      // Also store as the last full backup baseline for incrementals
+      localStorage.setItem('lastFullBackup', JSON.stringify(backup));
     } catch (error) {
       console.error('Error creating initial backup:', error);
     }
@@ -347,6 +388,15 @@ export class DatabaseService {
       autoBackupKeys
         .sort()
         .slice(0, autoBackupKeys.length - 7)
+        .forEach(key => localStorage.removeItem(key));
+    }
+
+    // Clean up old incremental deltas (keep last 50)
+    const deltaKeys = keys.filter(key => key.startsWith('autoBackupDelta_'));
+    if (deltaKeys.length > 50) {
+      deltaKeys
+        .sort()
+        .slice(0, deltaKeys.length - 50)
         .forEach(key => localStorage.removeItem(key));
     }
   }
@@ -407,7 +457,7 @@ export class DatabaseService {
     
     if (enabled && !this.autoBackupInterval) {
       this.autoBackupInterval = setInterval(() => {
-        this.createAutoBackup();
+        this.createIncrementalBackup();
       }, 30 * 60 * 1000);
     } else if (!enabled && this.autoBackupInterval) {
       clearInterval(this.autoBackupInterval);
@@ -460,6 +510,34 @@ export class DatabaseService {
       .map(key => key.replace('autoBackup_', ''))
       .sort()
       .reverse();
+  }
+
+  /**
+   * Get available incremental backups (delta keys)
+   */
+  public getAvailableIncrementalBackups(): string[] {
+    const keys = Object.keys(localStorage);
+    return keys
+      .filter(key => key.startsWith('autoBackupDelta_'))
+      .sort()
+      .reverse();
+  }
+
+  /**
+   * Get last incremental backup ISO time, if any
+   */
+  public getLastIncrementalBackupTime(): string | null {
+    const deltas = this.getAvailableIncrementalBackups();
+    if (deltas.length === 0) return null;
+    const latestKey = deltas[0];
+    const raw = localStorage.getItem(latestKey);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed.deltaOf || new Date().toISOString();
+    } catch {
+      return null;
+    }
   }
 
   /**

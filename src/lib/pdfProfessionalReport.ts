@@ -108,7 +108,7 @@ const generateProfessionalHTML = (data: any) => {
               تم إعداد هذا التقرير من قبل مستشار التوجيه المدرسي
             </p>
             <p style="font-size: 12px; margin: 5px 0 0 0; opacity: 0.7;">
-              ${new Date().toLocaleDateString('ar-SA')} - نظام Appamine
+            
             </p>
           </div>
         </div>
@@ -404,7 +404,7 @@ const generateProfessionalHTML = (data: any) => {
               تم إعداد هذا التقرير بواسطة مستشار التوجيه المدرسي
             </p>
             <p style="font-size: 12px; margin: 5px 0 0 0; opacity: 0.7;">
-              ${new Date().toLocaleString('ar-SA')} - نظام Appamine للتوجيه المدرسي
+            
             </p>
           </div>
         </div>

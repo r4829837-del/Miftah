@@ -1,5 +1,6 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CycleProvider, useCycle } from './contexts/CycleContext';
 import Sidebar from './components/Sidebar';
@@ -11,6 +12,9 @@ import Schedule from './components/Schedule';
 import Recommendations from './components/Recommendations';
 import Goals from './components/Goals';
 import AnalysisResults from './components/AnalysisResults';
+import AnalysisResultsSem2 from './components/AnalysisResultsSem2';
+import AnalysisResultsSem3 from './components/AnalysisResultsSem3';
+import AnalysisResultsCompare from './components/AnalysisResultsCompare';
 import Reports from './components/Reports';
 import Settings from './components/Settings';
 import TestManagement from './components/TestManagement';
@@ -19,11 +23,15 @@ import UserGuide from './components/UserGuide';
 import TestArabicPDF from './components/TestArabicPDF';
 import TestPDFData from './components/TestPDFData';
 import CycleIndependenceTest from './components/CycleIndependenceTest';
+import { databaseService } from './services/databaseService';
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   try {
     const { currentCycle, getCycleTitle, getCycleConfig } = useCycle();
     const currentConfig = getCycleConfig(currentCycle);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
+    
     
     return (
       <div className="min-h-screen bg-gray-100">
@@ -47,6 +55,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-gray-500">
                   {currentConfig.schoolName}
                 </span>
+                
+                <button
+                  onClick={() => { logout(); navigate('/login'); }}
+                  className="ml-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                  title="تسجيل الخروج"
+                >
+                  <div className="flex items-center gap-2">
+                    <LogOut className="w-5 h-5" />
+                    <span className="font-medium">تسجيل الخروج</span>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -97,6 +116,9 @@ function App() {
             <Route path="/recommendations" element={<Recommendations />} />
             <Route path="/goals" element={<Goals />} />
             <Route path="/analysis" element={<AnalysisResults />} />
+            <Route path="/analysis/sem2" element={<AnalysisResultsSem2 />} />
+            <Route path="/analysis/sem3" element={<AnalysisResultsSem3 />} />
+            <Route path="/analysis/compare" element={<AnalysisResultsCompare />} />
             <Route path="/reports/*" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/tests/*" element={<TestManagement />} />
@@ -126,6 +148,15 @@ function App() {
 
 function AppWrapper() {
   try {
+    useEffect(() => {
+      try {
+        // Enable auto-backup every 30 minutes by default
+        databaseService.setAutoBackup(true);
+      } catch (e) {
+        console.error('Failed to enable auto-backup', e);
+      }
+    }, []);
+
     return (
       <AuthProvider>
         <CycleProvider>

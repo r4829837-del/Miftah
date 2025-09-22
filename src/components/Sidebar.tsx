@@ -9,7 +9,6 @@ import {
   Target,
   FileText,
   Settings,
-  LogOut,
   Brain,
   GraduationCap,
   BookOpen
@@ -35,7 +34,7 @@ const getMenuItems = (currentCycle: string) => [
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const { 
     currentCycle, 
     toggleCycle, 
@@ -58,10 +57,7 @@ function Sidebar() {
     setSettings(loadedSettings);
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  // No local logout action; logout button moved to top header
 
   return (
     <aside className="sidebar">
@@ -143,16 +139,6 @@ function Sidebar() {
         {/* Indicateur de synchronisation */}
         <div className="px-4 py-2 border-t border-gray-700">
           <SyncIndicator />
-        </div>
-        
-        <div
-          className="menu-item text-red-300 hover:text-red-400 hover:bg-red-900/20 mt-4"
-          onClick={handleLogout}
-          role="button"
-          tabIndex={0}
-        >
-          <LogOut className="w-5 h-5" />
-          <span>تسجيل الخروج</span>
         </div>
       </nav>
     </aside>

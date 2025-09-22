@@ -301,12 +301,24 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     date: ''
   });
+  const [creativeResults, setCreativeResults] = useState<{
+    score: number;
+    analysis: string;
+    strengths: string[];
+    recommendations: string[];
+  } | null>(null);
 
   // Social skills test modal states
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [socialAnswers, setSocialAnswers] = useState<Record<number, 'a' | 'b' | undefined>>({});
   const [socialSelectedStudent, setSocialSelectedStudent] = useState<string>('');
   const [socialSaving, setSocialSaving] = useState(false);
+  const [socialResults, setSocialResults] = useState<{
+    score: number;
+    analysis: string;
+    strengths: string[];
+    recommendations: string[];
+  } | null>(null);
   const [socialPersonalInfo, setSocialPersonalInfo] = useState({
     name: '',
     surname: '',
@@ -360,6 +372,39 @@ function TestList() {
   // Professional orientation test states
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [professionalAnswers, setProfessionalAnswers] = useState<Record<number, 'a' | 'b' | undefined>>({});
+  // Reset helpers for tests
+  const resetCreativeTest = () => {
+    setCreativeAnswers({});
+    setCreativeSelectedStudent('');
+    setCreativePersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+  };
+
+  const resetSocialTest = () => {
+    setSocialAnswers({});
+    setSocialSelectedStudent('');
+    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+  };
+
+  const resetProfessionalTest = () => {
+    setProfessionalAnswers({});
+    setProfessionalSelectedStudent('');
+    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setProfessionalResults(null);
+  };
+
+  const resetCognitiveTest = () => {
+    setCognitiveAnswers({});
+    setCognitiveSelectedStudent('');
+    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, date: '' });
+    setCognitiveResults(null);
+  };
+
+  const resetEmotionalTest = () => {
+    setEmotionalAnswers({});
+    setEmotionalSelectedStudent('');
+    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setEmotionalResults(null as any);
+  };
   const [professionalSelectedStudent, setProfessionalSelectedStudent] = useState<string>('');
 
   // Cognitive abilities test states
@@ -2823,6 +2868,20 @@ function TestList() {
   };
 
   // Creative thinking test functions
+  const calculateCreativeResults = () => {
+    // Convert answers to the format expected by evaluation function
+    const answersForEvaluation = Object.fromEntries(
+      Object.entries(creativeAnswers).map(([idx, ans]) => [
+        `cre-${parseInt(idx) + 1}`,
+        ans === 'a'
+          ? (creativeQuestions[parseInt(idx)]?.options?.[0] || '')
+          : (creativeQuestions[parseInt(idx)]?.options?.[1] || '')
+      ])
+    );
+
+    const results = evaluateCreativeTest(answersForEvaluation);
+    setCreativeResults(results);
+  };
   const handleCreativeSubmit = async () => {
     if (!creativeSelectedStudent) {
       alert('اختر تلميذاً لحفظ النتيجة');
@@ -2835,7 +2894,9 @@ function TestList() {
       const answersForEvaluation = Object.fromEntries(
         Object.entries(creativeAnswers).map(([idx, ans]) => [
           `cre-${parseInt(idx) + 1}`,
-          ans === 'a' ? creativeQuestions[parseInt(idx)].options[0] : creativeQuestions[parseInt(idx)].options[1]
+          ans === 'a'
+            ? (creativeQuestions[parseInt(idx)]?.options?.[0] || '')
+            : (creativeQuestions[parseInt(idx)]?.options?.[1] || '')
         ])
       );
       
@@ -2869,6 +2930,22 @@ function TestList() {
   };
 
   // Social skills test functions
+  const calculateSocialResults = () => {
+    const answersForEvaluation = Object.fromEntries(
+      Object.entries(socialAnswers).map(([idx, ans]) => [
+        `soc-${parseInt(idx) + 1}`,
+        ans === 'a'
+          ? (socialQuestions[parseInt(idx)]?.options?.[0] || '')
+          : (socialQuestions[parseInt(idx)]?.options?.[1] || '')
+      ])
+    );
+    const results = evaluateSocialTest(answersForEvaluation);
+    setSocialResults(results);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
   const handleSocialSubmit = async () => {
     if (!socialSelectedStudent) {
       alert('اختر تلميذاً لحفظ النتيجة');
@@ -5351,7 +5428,7 @@ function TestList() {
                       className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                      >
                       <Users className="w-5 h-5" />
-                      <span>اختبار المهارات الاجتماعية</span>
+                      <span className="text-xs">اختبار المهارات الاجتماعية</span>
                      </button>
                    </div>
 
@@ -5600,16 +5677,7 @@ function TestList() {
                       <p>• آخر جواب تفضله تضع له نقطة واحدة 1</p>
                     </div>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 className="font-bold text-blue-800 mb-2">Test Instructions (EN):</h3>
-                    <div className="text-sm text-blue-700 space-y-1">
-                      <p>• You have 10 questions, each with 3 answers describing your preferred style.</p>
-                      <p>• You must rank the answers in order:</p>
-                      <p>• Your most preferred answer gets 3 points (in one box).</p>
-                      <p>• The next preferred answer gets 2 points (in a second box).</p>
-                      <p>• The last preferred answer gets 1 point (in the third box).</p>
-                    </div>
-                  </div>
+                  
                   
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
@@ -5823,7 +5891,7 @@ function TestList() {
                       </div>
 
                       {/* All Traits */}
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 no-print">
                         <div className="bg-white rounded-lg p-3 border border-indigo-200 text-center">
                           <div className="text-sm font-medium text-gray-600 mb-1">الانبساطية</div>
                           <div className="text-xl font-bold text-indigo-600">{personalityResults.extroversion}%</div>
@@ -5988,17 +6056,24 @@ function TestList() {
                     </div>
                   ))}
 
-                  <div className="flex justify-end gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
                     <button 
                       onClick={calculateCognitiveResults} 
-                      className="px-6 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700"
+                      disabled={Object.keys(cognitiveAnswers).length < 20}
+                      className="px-6 py-2 rounded-lg text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      حساب النتائج
+                      حساب النتائج والتوصية
+                    </button>
+                    <button 
+                      onClick={resetCognitiveTest}
+                      className="px-6 py-2 rounded-lg text-white bg-orange-600 hover:bg-orange-700"
+                    >
+                      تهيئة/إعادة تعيين الاختبار
                     </button>
                     <button 
                       onClick={saveCognitiveResult}
-                      disabled={cognitiveSaving}
-                      className="px-6 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                      disabled={cognitiveSaving || Object.keys(cognitiveAnswers).length < 20}
+                      className="px-6 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {cognitiveSaving ? 'جاري الحفظ...' : 'حفظ النتيجة'}
                     </button>
@@ -6006,7 +6081,7 @@ function TestList() {
 
                   {/* Results Display */}
                   {cognitiveResults && (
-                    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+                    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 print-area">
                       <h4 className="text-xl font-bold text-blue-800 mb-4 text-center">نتائج اختبار القدرات الفكرية</h4>
                       
                       {/* Dominant Profile */}
@@ -6038,6 +6113,14 @@ function TestList() {
                           <div className="text-sm font-medium text-gray-600 mb-1">المنظم</div>
                           <div className="text-xl font-bold text-blue-600">{cognitiveResults.detail}%</div>
                         </div>
+                      </div>
+                      <div className="mt-6 flex justify-end no-print">
+                        <button
+                          onClick={handlePrint}
+                          className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                        >
+                          طباعة
+                        </button>
                       </div>
                     </div>
                   )}
@@ -6165,18 +6248,25 @@ function TestList() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 justify-center pt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6">
                     <button
                       onClick={calculateProfessionalResults}
-                      className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-8 py-3 rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all duration-300 flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
+                      disabled={Object.keys(professionalAnswers).length < 20}
+                      className="bg-gradient-to-r from-emerald-600 to-green-600 text-white px-6 py-3 rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Brain className="w-5 h-5" />
-                      حساب النتائج
+                      <Calculator className="w-5 h-5" />
+                      حساب النتائج والتوصية
+                    </button>
+                    <button
+                      onClick={resetProfessionalTest}
+                      className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 font-semibold"
+                    >
+                      تهيئة/إعادة تعيين الاختبار
                     </button>
                     <button
                       onClick={saveProfessionalResult}
-                      disabled={professionalSaving || !professionalSelectedStudent}
-                      className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={professionalSaving || !professionalSelectedStudent || Object.keys(professionalAnswers).length < 20}
+                      className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <FileText className="w-5 h-5" />
                       {professionalSaving ? 'جاري الحفظ...' : 'حفظ النتيجة'}
@@ -6185,7 +6275,7 @@ function TestList() {
 
                   {/* Results Display */}
                   {professionalResults && (
-                    <div className="mt-8 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg p-6 border border-emerald-200">
+                    <div className="mt-8 bg-gradient-to-r from-emerald-50 to-green-50 rounded-lg p-6 border border-emerald-200 print-area">
                       <h3 className="text-2xl font-bold text-emerald-800 mb-6 text-center">نتائج اختبار الميول المهنية</h3>
                       
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -6216,10 +6306,18 @@ function TestList() {
                         <p className="text-lg font-bold text-gray-800 text-center">{professionalResults.dominantOrientation}</p>
                       </div>
 
-                      <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                    <div className="bg-white rounded-lg p-4 border border-emerald-200">
                         <h4 className="font-semibold text-emerald-800 mb-2">الوصف المهني</h4>
                         <p className="text-gray-700 leading-relaxed">{professionalResults.description}</p>
                       </div>
+                    <div className="mt-6 flex justify-end">
+                      <button
+                        onClick={handlePrint}
+                        className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                      >
+                        طباعة
+                      </button>
+                    </div>
                     </div>
                   )}
                 </div>
@@ -6372,34 +6470,38 @@ function TestList() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex gap-4 mt-8 pt-6 border-t border-pink-200">
-                    <button
-                      onClick={calculateEmotionalResults}
-                      disabled={Object.keys(emotionalAnswers).length < emotionalQuestions.length}
-                      className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl"
-                    >
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-8 pt-6 border-t border-pink-200">
+                  <button
+                    onClick={calculateEmotionalResults}
+                    disabled={Object.keys(emotionalAnswers).length < 20}
+                    className="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-6 py-3 rounded-lg hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl"
+                  >
                       <Calculator className="w-5 h-5" />
-                      حساب النتائج
+                      حساب النتائج والتوصية
                     </button>
-                    {emotionalResults && (
-                      <button
-                        onClick={saveEmotionalResult}
-                        disabled={emotionalSaving || !emotionalSelectedStudent}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl"
-                      >
-                        {emotionalSaving ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Save className="w-5 h-5" />
-                        )}
-                        حفظ النتيجة
-                      </button>
-                    )}
+                    <button
+                      onClick={resetEmotionalTest}
+                      className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 font-semibold"
+                    >
+                      تهيئة/إعادة تعيين الاختبار
+                    </button>
+                  <button
+                    onClick={saveEmotionalResult}
+                    disabled={emotionalSaving || !emotionalSelectedStudent || Object.keys(emotionalAnswers).length < 20}
+                    className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl"
+                  >
+                      {emotionalSaving ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Save className="w-5 h-5" />
+                      )}
+                      حفظ النتيجة
+                    </button>
                   </div>
 
                   {/* Results Display */}
                   {emotionalResults && (
-                    <div className="mt-8 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg p-6 border border-pink-200">
+                    <div className="mt-8 bg-gradient-to-r from-pink-50 to-rose-50 rounded-lg p-6 border border-pink-200 print-area">
                       <h6 className="font-bold text-pink-800 mb-4 text-xl flex items-center gap-2">
                         <Heart className="w-6 h-6" />
                         نتائج اختبار الذكاء العاطفي
@@ -6446,6 +6548,14 @@ function TestList() {
                         <h6 className="font-semibold text-pink-700 mb-3">الوصف التفصيلي</h6>
                         <p className="text-gray-700 leading-relaxed">{emotionalResults.description}</p>
                       </div>
+                      <div className="mt-6 flex justify-end">
+                        <button
+                          onClick={handlePrint}
+                          className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                        >
+                          طباعة
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -6457,8 +6567,8 @@ function TestList() {
         {/* Creative Thinking Test Modal */}
         {showCreativeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden" dir="rtl">
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 border-b rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-white bg-opacity-20 rounded-xl">
@@ -6478,7 +6588,7 @@ function TestList() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 overflow-auto max-h-[calc(95vh-100px)] space-y-4">
                 {/* Personal Information */}
                 <div className="bg-white rounded-lg p-4 border border-purple-200 mb-6">
                   <h6 className="font-semibold text-purple-800 mb-3">معلومات شخصية</h6>
@@ -6609,12 +6719,12 @@ function TestList() {
                   ))}
                 </div>
 
-                {/* Submit Button */}
-                <div className="mt-8 flex justify-center">
+                {/* Action Buttons */}
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
                     onClick={handleCreativeSubmit}
-                    disabled={creativeSaving || Object.keys(creativeAnswers).length < 45}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center gap-2 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={creativeSaving || Object.keys(creativeAnswers).length < 20}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {creativeSaving ? (
                       <>
@@ -6628,8 +6738,89 @@ function TestList() {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={resetCreativeTest}
+                    className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 text-base font-semibold"
+                  >
+                    تهيئة/إعادة تعيين الاختبار
+                  </button>
+                  <button
+                    onClick={calculateCreativeResults}
+                    disabled={Object.keys(creativeAnswers).length < 20}
+                    className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    حساب النتائج والتوصية
+                  </button>
                 </div>
+
+                {/* Results Display */}
+                {creativeResults && (
+                  <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200 print-area">
+                    <h3 className="text-2xl font-bold text-purple-800 mb-6 text-center">نتائج اختبار التفكير الإبداعي</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="font-semibold text-purple-700 mb-3">التحليل الشخصي</h4>
+                        <p className="text-gray-700 leading-relaxed">{creativeResults.analysis}</p>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="font-semibold text-purple-700 mb-3">الدرجة المئوية</h4>
+                        <div className="text-center">
+                          <div className="text-4xl font-extrabold text-purple-700 mb-2">{creativeResults.score}%</div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div className="h-3 bg-purple-500 rounded-full" style={{ width: `${creativeResults.score}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="font-semibold text-purple-700 mb-3">نقاط القوة</h4>
+                        <div className="space-y-2">
+                          {creativeResults.strengths.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 bg-purple-50 rounded-md">
+                              <span className="w-2 h-2 bg-purple-500 rounded-full" />
+                              <span className="text-gray-800">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-lg p-4 border border-purple-200">
+                        <h4 className="font-semibold text-purple-700 mb-3">التوصيات</h4>
+                        <div className="space-y-2">
+                          {creativeResults.recommendations.map((r, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 bg-pink-50 rounded-md">
+                              <span className="w-2 h-2 bg-pink-500 rounded-full" />
+                              <span className="text-gray-800">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-end gap-2 no-print">
+                      <button
+                        onClick={handlePrint}
+                        className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                      >
+                        طباعة
+                      </button>
+                      <button
+                        onClick={handleCreativeSubmit}
+                        disabled={creativeSaving || !creativeSelectedStudent}
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        حفظ النتيجة
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Sticky footer removed */}
             </div>
           </div>
         )}
@@ -6637,8 +6828,8 @@ function TestList() {
         {/* Social Skills Test Modal */}
         {showSocialModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-6 rounded-t-xl">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden" dir="rtl">
+              <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4 border-b rounded-t-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="p-3 bg-white bg-opacity-20 rounded-xl">
@@ -6658,7 +6849,7 @@ function TestList() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 overflow-auto max-h-[calc(95vh-100px)]">
                 {/* Personal Information */}
                 <div className="bg-white rounded-lg p-4 border border-green-200 mb-6">
                   <h6 className="font-semibold text-green-800 mb-3">معلومات شخصية</h6>
@@ -6790,10 +6981,10 @@ function TestList() {
                 </div>
 
                 {/* Submit Button */}
-                <div className="mt-8 flex justify-center">
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
                     onClick={handleSocialSubmit}
-                    disabled={socialSaving || Object.keys(socialAnswers).length < 45}
+                    disabled={socialSaving || Object.keys(socialAnswers).length < 20}
                     className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center gap-2 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {socialSaving ? (
@@ -6808,7 +6999,80 @@ function TestList() {
                       </>
                     )}
                   </button>
+                  <button
+                    onClick={resetSocialTest}
+                    className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 text-base font-semibold"
+                  >
+                    تهيئة/إعادة تعيين الاختبار
+                  </button>
+                  <button
+                    onClick={calculateSocialResults}
+                    disabled={Object.keys(socialAnswers).length < 20}
+                    className="bg-teal-600 text-white px-6 py-3 rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-2 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    حساب النتائج والتوصية
+                  </button>
                 </div>
+
+                {socialResults && (
+                  <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200 print-area">
+                    <h3 className="text-2xl font-bold text-green-800 mb-6 text-center">نتائج اختبار المهارات الاجتماعية</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <h4 className="font-semibold text-green-700 mb-3">التحليل</h4>
+                        <p className="text-gray-700 leading-relaxed">{socialResults.analysis}</p>
+                      </div>
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <h4 className="font-semibold text-green-700 mb-3">الدرجة المئوية</h4>
+                        <div className="text-center">
+                          <div className="text-4xl font-extrabold text-green-700 mb-2">{socialResults.score}%</div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div className="h-3 bg-green-500 rounded-full" style={{ width: `${socialResults.score}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <h4 className="font-semibold text-green-700 mb-3">نقاط القوة</h4>
+                        <div className="space-y-2">
+                          {socialResults.strengths.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 bg-green-50 rounded-md">
+                              <span className="w-2 h-2 bg-green-500 rounded-full" />
+                              <span className="text-gray-800">{s}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg p-4 border border-green-200">
+                        <h4 className="font-semibold text-green-700 mb-3">التوصيات</h4>
+                        <div className="space-y-2">
+                          {socialResults.recommendations.map((r, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 bg-emerald-50 rounded-md">
+                              <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                              <span className="text-gray-800">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-6 flex justify-end gap-2 no-print">
+                      <button
+                        onClick={handlePrint}
+                        className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-colors font-semibold"
+                      >
+                        طباعة
+                      </button>
+                      <button
+                        onClick={handleSocialSubmit}
+                        disabled={socialSaving || !socialSelectedStudent}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-300 font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        حفظ النتيجة
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

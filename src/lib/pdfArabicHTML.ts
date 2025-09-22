@@ -235,7 +235,7 @@ export const createArabicHTMLContent = (data: any) => {
           <strong>تم إنشاء هذا التقرير في:</strong> ${new Date().toLocaleString('ar-SA')}
         </p>
         <p style="color: #64748b; font-size: 12px; margin: 5px 0 0 0;">
-          نظام مستشار التوجيه - Appamine
+      
         </p>
       </div>
     </div>

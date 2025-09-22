@@ -28,6 +28,7 @@ const DatabaseManager: React.FC = () => {
   const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -137,49 +138,58 @@ const DatabaseManager: React.FC = () => {
         </div>
       )}
 
-      {/* Database Information */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">معلومات قاعدة البيانات</h3>
-          <button
-            onClick={getDatabaseInfo}
-            disabled={isLoading}
-            className="text-blue-500 hover:text-blue-600 flex items-center gap-1"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>تحديث</span>
-          </button>
-        </div>
-        
-        {databaseInfo ? (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-500">{databaseInfo.students}</div>
-                <div className="text-sm text-gray-600">الطلاب</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-500">{databaseInfo.users}</div>
-                <div className="text-sm text-gray-600">المستخدمين</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-500">{databaseInfo.tests}</div>
-                <div className="text-sm text-gray-600">الاختبارات</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-500">{databaseInfo.testResults}</div>
-                <div className="text-sm text-gray-600">نتائج الاختبارات</div>
-              </div>
+      {/* Options avancées repliées */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          className="text-sm text-gray-700 underline"
+        >
+          {showAdvanced ? 'إخفاء الخيارات المتقدمة' : 'خيارات متقدمة'}
+        </button>
+        {showAdvanced && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">معلومات قاعدة البيانات</h3>
+              <button
+                onClick={getDatabaseInfo}
+                disabled={isLoading}
+                className="text-blue-500 hover:text-blue-600 flex items-center gap-1"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>تحديث</span>
+              </button>
             </div>
-            {databaseInfo.totalSize && (
-              <div className="mt-4 text-center text-sm text-gray-600">
-                الحجم الإجمالي: {databaseInfo.totalSize}
+            {databaseInfo ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-500">{databaseInfo.students}</div>
+                    <div className="text-sm text-gray-600">الطلاب</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-500">{databaseInfo.users}</div>
+                    <div className="text-sm text-gray-600">المستخدمين</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-500">{databaseInfo.tests}</div>
+                    <div className="text-sm text-gray-600">الاختبارات</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-500">{databaseInfo.testResults}</div>
+                    <div className="text-sm text-gray-600">نتائج الاختبارات</div>
+                  </div>
+                </div>
+                {databaseInfo.totalSize && (
+                  <div className="mt-4 text-center text-sm text-gray-600">
+                    الحجم الإجمالي: {databaseInfo.totalSize}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center text-gray-500">
+                {isLoading ? 'جاري تحميل المعلومات...' : 'لا توجد معلومات متاحة'}
               </div>
             )}
-          </>
-        ) : (
-          <div className="text-center text-gray-500">
-            {isLoading ? 'جاري تحميل المعلومات...' : 'لا توجد معلومات متاحة'}
           </div>
         )}
       </div>

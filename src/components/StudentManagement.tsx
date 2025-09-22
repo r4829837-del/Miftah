@@ -760,7 +760,7 @@ function StudentList() {
 
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">
-          {currentCycle === 'ثانوي' ? 'قائمة الطلاب' : 'قائمة التلاميذ'} - {getCycleTitle()}
+          {currentCycle === 'ثانوي' ? 'قائمة الطلاب' : 'قائمة التلاميذ'}
         </h2>
         <div className="flex gap-2">
             <input
@@ -994,7 +994,9 @@ function StudentManagement() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8 text-gray-800">
-        {currentCycle === 'ثانوي' ? 'إدارة الطلاب' : 'إدارة التلاميذ'} - {getCycleTitle()}
+        {currentCycle === 'ثانوي'
+          ? 'إدارة الطلاب'
+          : 'إدارة التلاميذ'}
       </h1>
       <Routes>
         <Route index element={<StudentList />} />

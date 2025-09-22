@@ -84,7 +84,7 @@ export default function Login() {
                     مفتاح
                   </h1>
                   <p className="text-xl text-blue-200 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                    منصة متطورة لإدارة نشاطات مستشار التوجيه و الإرشاد المدرسي و المهني
+                    منصة متطورة للمساعدة في ادارة نشاطات مستشار التوجيه و الإرشاد المدرسي و المهني
                   </p>
                   <p className="text-lg text-gray-300 max-w-2xl mx-auto lg:mx-0 leading-relaxed mt-4">
                     أرسل لنا بريدًا إلكترونيًا للحصول على اسم المستخدم وكلمة المرور مجانًا

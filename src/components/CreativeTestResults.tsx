@@ -33,9 +33,9 @@ export default function CreativeTestResults({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden" dir="rtl">
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
+        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-4 border-b rounded-t-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white bg-opacity-20 rounded-xl">
@@ -55,7 +55,8 @@ export default function CreativeTestResults({
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 overflow-auto max-h-[calc(95vh-100px)]">
+          <div className="space-y-6">
           {/* Score Section */}
           <div className="bg-gradient-to-r from-gray-50 to-purple-50 rounded-xl p-6">
             <div className="text-center">
@@ -149,6 +150,7 @@ export default function CreativeTestResults({
                 </ul>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

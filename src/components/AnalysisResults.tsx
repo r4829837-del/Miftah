@@ -11,79 +11,114 @@ import {
   ArrowRight,
   ArrowDown
 } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import { ensureArabicFont, addArabicText } from '../lib/pdfArabic';
 import { createHTMLBasedPDF, createArabicHTMLContent } from '../lib/pdfArabicHTML';
 import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
 import { extractStudents } from '../utils/excelReader';
 import { buildFinalJsonTS } from '../utils/stats';
+import { getAnalysisDB } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
 
 const AnalysisResults: React.FC = () => {
   const { currentCycle } = useCycle();
+  const location = useLocation();
+  const isActive = (path: string) => location.pathname === path;
+
+  // Déterminer الفصل الحالي selon المسار
+  const semesterIndex = location.pathname.endsWith('/sem2') ? 2 : (location.pathname.endsWith('/sem3') ? 3 : 1);
+  const semesterLabel = semesterIndex === 1 ? 'الفصل الأول' : (semesterIndex === 2 ? 'الفصل الثاني' : 'الفصل الثالث');
+  const moyenneKey = `moyenneSem${semesterIndex}` as const;
+  const isHighSchool = (currentCycle as any) === 'ثانوي';
 
   // Fonction pour détecter l'orientation automatiquement
   const detectOrientation = (student: any) => {
     if (!student) return 'غير محدد';
     
-    console.log('=== DETECTING ORIENTATION ===');
-    console.log('Student:', student.name || student.lastName || student.nom || 'غير محدد');
-    console.log('Full student data:', student);
+    // 1) Essayer de déterminer via moyennes sciences/آداب pour détecter "متوازن"
+    const scienceSubjects = [
+      'الرياضيات', 'رياضيات', 'math', 'Math', 'Mathématiques',
+      'العلوم الطبيعية و الحياة', 'العلوم الطبيعية', 'علوم طبيعية', 'svt', 'SVT', 'Sciences naturelles',
+      'العلوم الفيزيائية و التكنولوجيا', 'العلوم الفيزيائية', 'علوم فيزيائية', 'physique', 'Physique', 'Sciences physiques',
+      'المعلوماتية', 'إعلام آلي', 'informatique', 'Informatique'
+    ];
+    const artsSubjects = [
+      'اللغة العربية', 'عربية', 'arabic', 'Arabic', 'Arabe',
+      'اللغة الفرنسية', 'فرنسية', 'french', 'French', 'Français',
+      'اللغة الإنجليزية', 'إنجليزية', 'english', 'English', 'Anglais',
+      'التاريخ و الجغرافيا', 'تاريخ', 'جغرافيا', 'histoire', 'geographie', 'Histoire', 'Géographie',
+      'التربية الإسلامية', 'تربية إسلامية', 'islamic', 'Islamic'
+    ];
     
-    // Test simple basé sur la moyenne générale d'abord
-    if (student.moyenne && !isNaN(parseFloat(student.moyenne))) {
-      const moyenne = parseFloat(student.moyenne);
-      console.log('Student moyenne:', moyenne);
-      
-      // Test simple: si moyenne > 12 = علوم، sinon أداب
-      if (moyenne >= 12) {
-        console.log('High average -> علوم و تكنولوجيا');
-        return 'علوم و تكنولوجيا';
-      } else {
-        console.log('Lower average -> أداب');
-        return 'أداب';
+    const extractGrades = (subjects: string[]) => {
+      let grades: number[] = [];
+      if (student.notes && typeof student.notes === 'object') {
+        grades = subjects
+          .map(subject => student.notes[subject])
+          .filter(grade => grade !== undefined && grade !== null && grade !== '' && !isNaN(parseFloat(grade)))
+          .map(grade => parseFloat(grade));
       }
-    }
-    
-    // Si pas de moyenne, essayer de trouver des notes individuelles
-    console.log('No moyenne found, checking individual subjects...');
-    
-    // Chercher des notes dans les différentes sources
-    const checkForGrades = (): Array<{key: string, value: number, source: number}> => {
-      const sources = [student.notes, student.matieres, student];
-      const foundGrades: Array<{key: string, value: number, source: number}> = [];
-      
-      sources.forEach((source, sourceIndex) => {
-        if (source && typeof source === 'object') {
-          Object.keys(source).forEach(key => {
-            const value = source[key];
-            if (typeof value === 'string' && !isNaN(parseFloat(value)) && parseFloat(value) > 0) {
-              foundGrades.push({ key, value: parseFloat(value), source: sourceIndex });
-            }
-          });
-        }
-      });
-      
-      console.log('Found grades:', foundGrades);
-      return foundGrades;
+      if (grades.length === 0 && student.matieres && typeof student.matieres === 'object') {
+        grades = subjects
+          .map(subject => student.matieres[subject])
+          .filter(grade => grade !== undefined && grade !== null && grade !== '' && !isNaN(parseFloat(grade)))
+          .map(grade => parseFloat(grade));
+      }
+      if (grades.length === 0) {
+        const allKeys = Object.keys(student || {});
+        subjects.forEach(subject => {
+          const matchingKey = allKeys.find(key => 
+            key.toLowerCase().includes(subject.toLowerCase()) || 
+            subject.toLowerCase().includes(key.toLowerCase())
+          );
+          if (matchingKey && student[matchingKey] && !isNaN(parseFloat(student[matchingKey]))) {
+            grades.push(parseFloat(student[matchingKey]));
+          }
+        });
+      }
+      return grades;
     };
     
-    const grades = checkForGrades();
+    const scienceGrades = extractGrades(scienceSubjects);
+    const artsGrades = extractGrades(artsSubjects);
+    const scienceAverage = scienceGrades.length > 0 ? (scienceGrades.reduce((s, v) => s + v, 0) / scienceGrades.length) : 0;
+    const artsAverage = artsGrades.length > 0 ? (artsGrades.reduce((s, v) => s + v, 0) / artsGrades.length) : 0;
     
-    if (grades.length > 0) {
-      // Calculer une moyenne simple
-      const total = grades.reduce((sum, grade) => sum + grade.value, 0);
-      const average = total / grades.length;
-      console.log('Calculated average from individual grades:', average);
-      
-      if (average >= 12) {
-        return 'علوم و تكنولوجيا';
-      } else {
-        return 'أداب';
+    if (scienceAverage > 0 && artsAverage > 0) {
+      const difference = Math.abs(scienceAverage - artsAverage);
+      const hasEnoughData = scienceGrades.length >= 2 && artsGrades.length >= 2;
+      const bothAbove10 = scienceAverage >= 10 && artsAverage >= 10;
+      const threshold = 1; // plus strict pour éviter le surclassement en "متوازن"
+      if (hasEnoughData && bothAbove10 && difference <= threshold) {
+        return 'متوازن';
       }
+      return scienceAverage > artsAverage ? 'علوم و تكنولوجيا' : 'أداب';
     }
     
-    console.log('No grades found -> غير محدد');
+    // 2) Sinon, fallback: utiliser moyenne générale si disponible
+    if (student.moyenne && !isNaN(parseFloat(student.moyenne))) {
+      const moyenne = parseFloat(student.moyenne);
+      return moyenne >= 12 ? 'علوم و تكنولوجيا' : 'أداب';
+    }
+    
+    // 3) Dernier recours: moyenne sur toutes les notes trouvées
+    const sources = [student.notes, student.matieres, student];
+    const foundGrades: number[] = [];
+    sources.forEach(source => {
+      if (source && typeof source === 'object') {
+        Object.values(source).forEach((val: any) => {
+          if (typeof val === 'string' && !isNaN(parseFloat(val)) && parseFloat(val) > 0) {
+            foundGrades.push(parseFloat(val));
+          }
+        });
+      }
+    });
+    if (foundGrades.length > 0) {
+      const avg = foundGrades.reduce((a, b) => a + b, 0) / foundGrades.length;
+      return avg >= 12 ? 'علوم و تكنولوجيا' : 'أداب';
+    }
+    
     return 'غير محدد';
   };
   const [selectedLevel, setSelectedLevel] = useState('all');
@@ -550,10 +585,35 @@ const AnalysisResults: React.FC = () => {
       setStudents(data);
       const computed = buildFinalJsonTS(data as any);
       setStats({ stats: computed });
+
+      // Persist full analysis dataset per cycle and semester
+      try {
+        const db = getAnalysisDB(currentCycle);
+        const record = {
+          id: `analysis_${currentCycle}_sem${semesterIndex}`,
+          cycle: currentCycle,
+          semester: semesterIndex,
+          createdAt: new Date().toISOString(),
+          students: data,
+          stats: computed
+        };
+        await db.setItem(record.id, record);
+      } catch (err) {
+        console.warn('Failed to persist analysis data', err);
+      }
       
       // Detect if all levels are present
       const allLevelsPresent = detectAllLevels(data);
       setHasAllLevels(allLevelsPresent);
+
+      // Persist simple cache of imported semester grades for annual analysis fallback
+      try {
+        const grades = Array.isArray(data) ? (data as any[])
+          .map(s => typeof s?.moyenne === 'number' ? s.moyenne : (typeof s?.moyenne === 'string' ? parseFloat(s.moyenne) : null))
+          .filter((v): v is number => v != null && isFinite(v)) : [];
+        const cacheKey = `analysis_cache_${currentCycle}_sem${semesterIndex}`;
+        localStorage.setItem(cacheKey, JSON.stringify(grades));
+      } catch (_) {}
       
       alert(`تم استيراد ${data.length} تلميذاً وحساب الإحصائيات بنجاح`);
     } catch (err) {
@@ -614,11 +674,11 @@ const AnalysisResults: React.FC = () => {
       const reportData = {
         cycle: currentCycle,
         level: selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel,
-        semester: 'الفصل الأول',
+        semester: semesterLabel,
         recordsCount: students.length,
-        average: stats?.stats?.overall?.subjects?.moyenneSem1?.mean?.toFixed(2) || 'غير محدد',
-        successRate: stats?.stats?.overall?.subjects?.moyenneSem1?.pc_ge10?.toFixed(2) || 'غير محدد',
-        standardDeviation: stats?.stats?.overall?.subjects?.moyenneSem1?.std?.toFixed(2) || 'غير محدد',
+        average: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.mean?.toFixed(2) || 'غير محدد',
+        successRate: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.pc_ge10?.toFixed(2) || 'غير محدد',
+        standardDeviation: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.std?.toFixed(2) || 'غير محدد',
         totalStudents: students.length,
         maleStudents: students.filter(s => s.sexe === 'ذكر').length,
         femaleStudents: students.filter(s => s.sexe === 'أنثى').length,
@@ -634,22 +694,22 @@ const AnalysisResults: React.FC = () => {
         
         // ترتيب الأقسام
         classRanking: stats?.stats?.by_class ? Object.entries(stats.stats.by_class as any)
-          .sort((a: any, b: any) => (b[1]?.means?.moyenneSem1 || 0) - (a[1]?.means?.moyenneSem1 || 0))
+          .sort((a: any, b: any) => ((b[1]?.means as any)?.[moyenneKey] || 0) - ((a[1]?.means as any)?.[moyenneKey] || 0))
           .map(([cls, data]: any, index) => ({
             name: `القسم ${cls}`,
-            average: data?.means?.moyenneSem1?.toFixed(2) || '—',
+            average: ((data?.means as any)?.[moyenneKey])?.toFixed(2) || '—',
             successRate: data?.pc_ge10?.toFixed(2) || '—',
             studentCount: data?.count || '—'
           })) : null,
         
         // أفضل الطلاب
         topStudents: students
-          .sort((a, b) => (b.moyenneSem1 || 0) - (a.moyenneSem1 || 0))
+          .sort((a, b) => ((b as any)[moyenneKey] || 0) - ((a as any)[moyenneKey] || 0))
           .slice(0, 10)
           .map((student, index) => ({
             name: student.name || student.lastName || student.nom || 'غير محدد',
-            average: student.moyenneSem1?.toFixed(2) || '0',
-            mention: getMention(student.moyenneSem1 || 0)
+            average: ((student as any)[moyenneKey])?.toFixed(2) || '0',
+            mention: getMention(((student as any)[moyenneKey]) || 0)
           })),
         
         // تحليل المواد
@@ -736,20 +796,20 @@ const AnalysisResults: React.FC = () => {
     // Informations générales
     addSectionTitle('المعلومات العامة', 16);
     addInfo('المستوى المحدد', selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel);
-      addInfo('الفصل الدراسي', 'الفصل الأول');
+    addInfo('الفصل الدراسي', semesterLabel);
     addInfo('عدد السجلات المستوردة', students.length);
     addInfo('تاريخ إنشاء التقرير', new Date().toLocaleDateString('ar-SA'));
     addInfo('نوع التحليل', 'تحليل شامل للنتائج والإحصائيات التربوية');
     // Statistiques générales
     addSectionTitle('الإحصائيات العامة');
-    if (stats?.stats?.overall?.subjects?.moyenneSem1?.mean != null) {
-      addInfo('المعدل العام للفصل', stats.stats.overall.subjects.moyenneSem1.mean.toFixed(2), true);
+    if ((stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.mean != null) {
+      addInfo('المعدل العام للفصل', ((stats.stats.overall.subjects as any)[moyenneKey].mean).toFixed(2), true);
     }
-    if (stats?.stats?.overall?.subjects?.moyenneSem1?.pc_ge10 != null) {
-      addInfo('نسبة النجاح العامة (≥10)', `${stats.stats.overall.subjects.moyenneSem1.pc_ge10}%`, true);
+    if ((stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.pc_ge10 != null) {
+      addInfo('نسبة النجاح العامة (≥10)', `${(stats.stats.overall.subjects as any)[moyenneKey].pc_ge10}%`, true);
     }
-    if (stats?.stats?.overall?.subjects?.moyenneSem1?.std != null) {
-      addInfo('الانحراف المعياري', stats.stats.overall.subjects.moyenneSem1.std.toFixed(2));
+    if ((stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.std != null) {
+      addInfo('الانحراف المعياري', ((stats.stats.overall.subjects as any)[moyenneKey].std).toFixed(2));
     }
     if (stats?.stats?.students?.sex?.total?.count != null) {
       addInfo('إجمالي عدد الطلاب', stats.stats.students.sex.total.count);
@@ -1115,6 +1175,14 @@ const AnalysisResults: React.FC = () => {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="mt-4 mb-6 flex flex-wrap gap-2" dir="rtl">
+        <Link to="/analysis" className={`px-3 py-1.5 rounded ${isActive('/analysis') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>الفصل الأول</Link>
+        <Link to="/analysis/sem2" className={`px-3 py-1.5 rounded ${isActive('/analysis/sem2') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>الفصل الثاني</Link>
+        <Link to="/analysis/sem3" className={`px-3 py-1.5 rounded ${isActive('/analysis/sem3') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>الفصل الثالث</Link>
+        <Link to="/analysis/compare" className={`px-3 py-1.5 rounded ${isActive('/analysis/compare') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>التحليل السنوي</Link>
+      </div>
+
       {/* ملخص علوي */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -1185,7 +1253,7 @@ const AnalysisResults: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">الفصل الدراسي</label>
             <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700">
-              الفصل الأول
+              {semesterLabel}
             </div>
           </div>
           
@@ -1732,7 +1800,83 @@ const AnalysisResults: React.FC = () => {
             </>
           ) : (
             <>
-              {/* س1م */}
+              {isHighSchool ? (
+                <>
+                  {/* س1ث */}
+                  <div 
+                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '1AS' || selectedLevel === 'all' 
+                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
+                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
+                        : (selectedLevel === '1AS' || selectedLevel === 'all'
+                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
+                            : 'bg-white border border-purple-200 hover:bg-blue-50')
+                    }`}
+                    onClick={() => setSelectedLevel(selectedLevel === '1AS' ? 'all' : '1AS')}
+                  >
+                    <div className={`font-bold transition-colors duration-300 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '1AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
+                        : (selectedLevel === '1AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
+                    }`}>س1ث</div>
+                    <div className="text-sm text-gray-600">السنة الأولى ثانوي</div>
+                    {(selectedLevel === '1AS' || selectedLevel === 'all') && (
+                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
+                    )}
+                  </div>
+
+                  {/* س2ث */}
+                  <div 
+                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '2AS' || selectedLevel === 'all' 
+                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
+                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
+                        : (selectedLevel === '2AS' || selectedLevel === 'all'
+                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
+                            : 'bg-white border border-purple-200 hover:bg-blue-50')
+                    }`}
+                    onClick={() => setSelectedLevel(selectedLevel === '2AS' ? 'all' : '2AS')}
+                  >
+                    <div className={`font-bold transition-colors duration-300 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '2AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
+                        : (selectedLevel === '2AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
+                    }`}>س2ث</div>
+                    <div className="text-sm text-gray-600">السنة الثانية ثانوي</div>
+                    {(selectedLevel === '2AS' || selectedLevel === 'all') && (
+                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
+                    )}
+                  </div>
+
+                  {/* س3ث */}
+                  <div 
+                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '3AS' || selectedLevel === 'all' 
+                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
+                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
+                        : (selectedLevel === '3AS' || selectedLevel === 'all'
+                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
+                            : 'bg-white border border-purple-200 hover:bg-blue-50')
+                    }`}
+                    onClick={() => setSelectedLevel(selectedLevel === '3AS' ? 'all' : '3AS')}
+                  >
+                    <div className={`font-bold transition-colors duration-300 ${
+                      hasAllLevels 
+                        ? (selectedLevel === '3AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
+                        : (selectedLevel === '3AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
+                    }`}>س3ث</div>
+                    <div className="text-sm text-gray-600">السنة الثالثة ثانوي</div>
+                    {(selectedLevel === '3AS' || selectedLevel === 'all') && (
+                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* س1م */}
               <div 
                 className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
                   hasAllLevels 
@@ -1827,6 +1971,8 @@ const AnalysisResults: React.FC = () => {
                   <div className="text-xs text-green-600 mt-1">✓ مختار</div>
                 )}
               </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -1988,18 +2134,18 @@ const AnalysisResults: React.FC = () => {
         })()}
       </div>
 
-      {/* نتائج الفصل الأول */}
+      {/* نتائج الفصل حسب الفصل الحالي */}
       <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl p-8 shadow-lg">
         <div className="text-center mb-8">
-          <h3 className="text-3xl font-bold text-indigo-800 mb-2">نتائج الفصل الأول</h3>
-          <p className="text-lg text-gray-700 mb-4">عرض شامل لنتائج الفصل الأول الدراسي</p>
+          <h3 className="text-3xl font-bold text-indigo-800 mb-2">نتائج {semesterLabel}</h3>
+          <p className="text-lg text-gray-700 mb-4">عرض شامل لنتائج {semesterLabel} الدراسي</p>
           <div className="w-24 h-1 bg-indigo-500 mx-auto rounded-full"></div>
         </div>
 
         {/* مؤشرات رئيسية */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {(() => {
-            const s = stats?.stats?.overall?.subjects?.moyenneSem1;
+            const s = (stats?.stats?.overall?.subjects as any)?.[moyenneKey];
             const mean = s?.mean ?? null;
             const success = s?.pc_ge10 ?? null;
             const present = s?.present ?? null;
@@ -2162,10 +2308,10 @@ const AnalysisResults: React.FC = () => {
           <div className="text-center">
             <h4 className="text-xl font-bold text-indigo-800 mb-4 flex items-center justify-center">
               <span className="text-2xl mr-3">📊</span>
-              ملخص شامل للفصل الأول
+              ملخص شامل لـ {semesterLabel}
             </h4>
             {(() => {
-              const s = stats?.stats?.overall?.subjects?.moyenneSem1;
+              const s = (stats?.stats?.overall?.subjects as any)?.[moyenneKey];
               const mean = s?.mean;
               const success = s?.pc_ge10 ?? 0;
               const present = s?.present ?? 0;

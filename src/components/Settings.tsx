@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, User, School, GraduationCap, Save, Check, Database, Cog, ToggleLeft, ToggleRight, BookOpen, Shield } from 'lucide-react';
+import { Settings as SettingsIcon, User, School, GraduationCap, Save, Check, Cog, ToggleLeft, ToggleRight, BookOpen } from 'lucide-react';
 import { getSettings, updateSettings, type AppSettings, forceUpdateTimezone } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
-import DatabaseManager from './DatabaseManager';
-import { BackupManager } from './BackupManager';
+ 
 
 const timezones = [
   { id: 'Africa/Algiers', label: 'توقيت الجزائر (GMT+1)' },
@@ -40,8 +39,7 @@ const getSettingsSections = (currentCycle: string, getCycleConfig: any) => [
     title: 'تكوين الدورات التعليمية',
     icon: Cog,
     settings: [
-      { id: 'cycleConfig', label: 'إعدادات الدورات', type: 'cycleConfig' },
-      { id: 'cycleBackup', label: 'النسخ الاحتياطية', type: 'cycleBackup' }
+      { id: 'cycleConfig', label: 'إعدادات الدورات', type: 'cycleConfig' }
     ]
   }
 ];
@@ -77,8 +75,7 @@ function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [showDatabaseManager, setShowDatabaseManager] = useState(false);
-  const [showBackupManager, setShowBackupManager] = useState(false);
+  
   const [editingCycle, setEditingCycle] = useState<string | null>(null);
   const [cycleConfigs, setCycleConfigs] = useState<Record<string, any>>({});
 
@@ -372,25 +369,7 @@ function Settings() {
           </div>
         );
 
-      case 'cycleBackup':
-        return (
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowBackupManager(true)}
-              className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <Shield className="w-4 h-4" />
-              <span>إدارة النسخ الاحتياطية</span>
-            </button>
-            <button
-              onClick={() => setShowDatabaseManager(true)}
-              className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
-            >
-              <Database className="w-4 h-4" />
-              <span>إدارة قاعدة البيانات</span>
-            </button>
-          </div>
-        );
+      
 
       default:
         return (
@@ -426,24 +405,10 @@ function Settings() {
             إعدادات خاصة بدورة {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}
           </p>
         </div>
-        <div className="flex gap-4">
-          <button
-            onClick={() => setShowDatabaseManager(!showDatabaseManager)}
-            className="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Database className="w-5 h-5" />
-            <span>{showDatabaseManager ? 'إخفاء' : 'إدارة قاعدة البيانات'}</span>
-          </button>
-        </div>
       </div>
 
 
-      {/* Database Manager Section */}
-      {showDatabaseManager && (
-        <div className="mb-6">
-          <DatabaseManager />
-        </div>
-      )}
+      
 
       <div className="space-y-6">
         {/* Original settings sections */}
@@ -651,15 +616,7 @@ function Settings() {
 
       </div>
 
-      {/* Database Manager Modal */}
-      {showDatabaseManager && (
-        <DatabaseManager onClose={() => setShowDatabaseManager(false)} />
-      )}
-
-      {/* Backup Manager Modal */}
-      {showBackupManager && (
-        <BackupManager onClose={() => setShowBackupManager(false)} />
-      )}
+      
     </div>
   );
 }

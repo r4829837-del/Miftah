@@ -1,7 +1,7 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-// Fonction pour créer un rapport professionnel de 5 pages
+// Fonction pour créer un rapport PDF complet et modulaire
 export const createProfessionalReport = async (data: any) => {
   try {
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -9,13 +9,27 @@ export const createProfessionalReport = async (data: any) => {
     const pdfHeight = pdf.internal.pageSize.getHeight();
     
     // Générer chaque page séparément
-    const pages = [
-      generatePage1(data),
-      generatePage2(data),
-      generatePage3(data),
-      generatePage4(data),
-      generatePage5(data)
-    ];
+    const pages: string[] = [];
+    pages.push(generatePage1(data));
+    pages.push(generatePage2(data));
+
+    // Pages cartes matières: paginer par groupes de 12 cartes
+    const totalSubjects = Array.isArray(data?.subjects) ? data.subjects.length : 0;
+    const cardsPerPage = 12;
+    const numCardPages = Math.ceil(totalSubjects / cardsPerPage) || 1;
+    for (let p = 0; p < numCardPages; p++) {
+      pages.push(generateSubjectCardsPage(data, p, cardsPerPage));
+    }
+
+    // Page résumé complet
+    pages.push(generatePageSummary(data));
+    // Page recommandations finales + signatures
+    pages.push(generatePageRecommendations(data));
+
+    // Supprimer systématiquement la 4ème page si elle existe (index 3)
+    if (pages.length >= 4) {
+      pages.splice(3, 1);
+    }
     
     for (let i = 0; i < pages.length; i++) {
       if (i > 0) {
@@ -104,12 +118,15 @@ const generatePage1 = (data: any) => {
           </div>
         </div>
         <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border: 1px solid black;">
-          <p style="font-size: 14px; margin: 0;">
-            تم إعداد هذا التقرير من قبل مستشار التوجيه المدرسي
+          <p style="font-size: 14px; margin: 0 0 10px 0;">
+            تم إعداد هذا التقرير من قبل:
           </p>
-          <p style="font-size: 12px; margin: 5px 0 0 0;">
-            ${new Date().toLocaleDateString('ar-SA')} - نظام Appamine
-          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه:</strong> __________________________</p>
+            <p style="font-size: 14px; margin: 0;"><strong>التوقيع:</strong> __________________________</p>
+            <p style="font-size: 14px; margin: 0;"><strong>التاريخ:</strong> __________________________</p>
+            
+          </div>
         </div>
       </div>
     </div>
@@ -156,148 +173,83 @@ const generatePage2 = (data: any) => {
       
       <div style="background: linear-gradient(135deg, #fef3c7, #fbbf24); padding: 25px; border-radius: 12px; border-right: 5px solid #f59e0b;">
         <h2 style="color: #92400e; font-size: 22px; margin: 0 0 15px 0;">💭 تعليقات مستشار التوجيه</h2>
-        <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0;">
-          <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #374151;">
-            <strong>التحليل العام:</strong> تشير النتائج إلى ${data.average >= 15 ? 'مستوى جيد' : data.average >= 12 ? 'مستوى متوسط' : 'مستوى يحتاج إلى تحسين'} في الأداء الأكاديمي. 
-            ${data.successRate >= 80 ? 'نسبة النجاح مرتفعة' : data.successRate >= 60 ? 'نسبة النجاح متوسطة' : 'نسبة النجاح منخفضة'} مما يتطلب 
-            ${data.successRate >= 80 ? 'الاستمرار في نفس النهج' : 'وضع خطط تحسينية'}.
-          </p>
+        <div style="background: white; padding: 16px; border-radius: 8px; margin: 15px 0; border: 1px dashed #fbbf24;">
+          <div style="color:#6b7280; font-size: 12px; margin-bottom: 8px;">مساحة مخصصة للكتابة اليدوية</div>
+          <div style="height: 160px; background-image: repeating-linear-gradient(transparent, transparent 22px, #e5e7eb 23px); border-radius: 6px;"></div>
         </div>
       </div>
     </div>
   `;
 };
 
-// Page 3: التقديرات والمنح + ترتيب الأقسام
-const generatePage3 = (data: any) => {
+// Page cartes matières: générique avec pagination
+function generateSubjectCardsPage(data: any, pageIndex: number, cardsPerPage: number) {
   return `
     <div style="font-family: 'Amiri', Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 20px; background: white; min-height: 100vh;">
       <h1 style="color: #1e40af; font-size: 28px; margin: 0 0 30px 0; text-align: center; border-bottom: 3px solid #3b82f6; padding-bottom: 15px;">
-        🏆 التقديرات والمنح + ترتيب الأقسام
+        ${pageIndex === 0 ? '📚 بطاقات تحليل المواد' : '📚 بطاقات تحليل المواد (تكملة)'}
       </h1>
       
-      <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color: #f59e0b; font-size: 22px; margin: 0 0 20px 0;">🏆 التقديرات والمنح</h2>
-        <div style="overflow-x: auto; margin: 20px 0;">
-          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 18px; min-width: 600px;">
-            <thead>
-              <tr style="background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white;">
-                <th style="padding: 20px; border: 2px solid #d97706; text-align: center; font-size: 18px; font-weight: bold;">نوع التقدير</th>
-                <th style="padding: 20px; border: 2px solid #d97706; text-align: center; font-size: 18px; font-weight: bold;">العدد</th>
-                <th style="padding: 20px; border: 2px solid #d97706; text-align: center; font-size: 18px; font-weight: bold;">النسبة</th>
-                <th style="padding: 20px; border: 2px solid #d97706; text-align: center; font-size: 18px; font-weight: bold;">المعدل المطلوب</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.mentions ? data.mentions.map((mention: any, index: number) => `
-                <tr style="background: ${index % 2 === 0 ? '#fef3c7' : 'white'};">
-                  <td style="padding: 18px; border: 2px solid #d97706; text-align: center; font-weight: bold; font-size: 16px;">${mention.name}</td>
-                  <td style="padding: 18px; border: 2px solid #d97706; text-align: center; font-size: 16px; font-weight: bold;">${mention.count}</td>
-                  <td style="padding: 18px; border: 2px solid #d97706; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${mention.percent}%</td>
-                  <td style="padding: 18px; border: 2px solid #d97706; text-align: center; font-size: 16px; font-weight: bold;">${mention.threshold}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #64748b; font-size: 18px;">لا توجد بيانات</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color: #8b5cf6; font-size: 22px; margin: 0 0 20px 0;">🏅 ترتيب الأقسام</h2>
-        <div style="overflow-x: auto; margin: 20px 0;">
-          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 18px; min-width: 700px;">
-            <thead>
-              <tr style="background: linear-gradient(135deg, #a855f7, #8b5cf6); color: white;">
-                <th style="padding: 20px; border: 2px solid #7c3aed; text-align: center; font-size: 18px; font-weight: bold;">الترتيب</th>
-                <th style="padding: 20px; border: 2px solid #7c3aed; text-align: center; font-size: 18px; font-weight: bold;">اسم القسم</th>
-                <th style="padding: 20px; border: 2px solid #7c3aed; text-align: center; font-size: 18px; font-weight: bold;">المعدل</th>
-                <th style="padding: 20px; border: 2px solid #7c3aed; text-align: center; font-size: 18px; font-weight: bold;">نسبة النجاح</th>
-                <th style="padding: 20px; border: 2px solid #7c3aed; text-align: center; font-size: 18px; font-weight: bold;">عدد الطلاب</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.classRanking ? data.classRanking.map((cls: any, index: number) => `
-                <tr style="background: ${index < 3 ? '#fef3c7' : index % 2 === 0 ? '#f3e8ff' : 'white'};">
-                  <td style="padding: 18px; border: 2px solid #7c3aed; text-align: center; font-weight: bold; color: ${index < 3 ? '#f59e0b' : 'black'}; font-size: 16px;">${index + 1}</td>
-                  <td style="padding: 18px; border: 2px solid #7c3aed; text-align: center; font-weight: bold; font-size: 16px;">${cls.name}</td>
-                  <td style="padding: 18px; border: 2px solid #7c3aed; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${cls.average}</td>
-                  <td style="padding: 18px; border: 2px solid #7c3aed; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${cls.successRate}%</td>
-                  <td style="padding: 18px; border: 2px solid #7c3aed; text-align: center; font-size: 16px; font-weight: bold;">${cls.studentCount}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="5" style="text-align: center; padding: 30px; color: #64748b; font-size: 18px;">لا توجد بيانات</td></tr>'}
-            </tbody>
-          </table>
+      <div style="background: #f8fafc; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px;">
+        <h2 style="color: #0f172a; font-size: 20px; margin: 0 0 16px 0; text-align:center;">شبكة بطاقات المواد</h2>
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;">
+          ${(() => {
+            const subjects = (data.subjects || []).slice().sort((a: any, b: any) => (parseFloat(b?.average) || 0) - (parseFloat(a?.average) || 0));
+            const start = pageIndex * cardsPerPage;
+            const end = start + cardsPerPage;
+            const cards = subjects.slice(start, end).map((subject: any, idx: number) => {
+              const avg = parseFloat(subject?.average) || 0;
+              let evalText = '—';
+              if (avg >= 17) evalText = 'ممتاز جداً';
+              else if (avg >= 16) evalText = 'ممتاز';
+              else if (avg >= 14) evalText = 'جيد جداً';
+              else if (avg >= 12) evalText = 'جيد';
+              else if (avg >= 10) evalText = 'مقبول';
+              else evalText = 'ضعيف';
+              let recText = '—';
+              if (avg >= 16) recText = 'الاستمرار على نفس الوتيرة وتعزيز التميز';
+              else if (avg >= 14) recText = 'الحفاظ على الأداء مع تحديات إضافية';
+              else if (avg >= 12) recText = 'تعزيز المراجعة المنتظمة وتحسين نقاط الضعف';
+              else if (avg >= 10) recText = 'وضع خطة دعم لرفع المعدل فوق 12';
+              else recText = 'تدخل فوري ودروس دعم مركزة';
+
+              // Couleur d'en-tête selon la moyenne
+              const headerColor = avg >= 16 ? '#16a34a' : avg >= 14 ? '#2563eb' : avg >= 12 ? '#f59e0b' : avg >= 10 ? '#ea580c' : '#dc2626';
+              const headerBg = avg >= 16 ? 'linear-gradient(135deg, #bbf7d0, #86efac)' : avg >= 14 ? 'linear-gradient(135deg, #bfdbfe, #93c5fd)' : avg >= 12 ? 'linear-gradient(135deg, #fde68a, #fbbf24)' : avg >= 10 ? 'linear-gradient(135deg, #fed7aa, #fdba74)' : 'linear-gradient(135deg, #fecaca, #fca5a5)';
+              return `
+              <div style="background:#ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow:hidden;">
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:${headerBg};">
+                  <div style="font-weight:bold; color:${headerColor}; font-size:16px;">${avg.toFixed(2)}</div>
+                  <div style="font-size:12px; color:#0f172a; background:#ffffff; border:1px solid #e5e7eb; padding:2px 6px; border-radius:999px;">${start + idx + 1}#</div>
+                </div>
+                <div style="padding:10px;">
+                  <div style="color:#0f172a; font-weight:bold; font-size:15px; margin-bottom:8px;">${subject?.name || '—'}</div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <div style="border:1px solid #e5e7eb; border-radius:8px; padding:8px; min-height:56px;">
+                      <div style="color:#64748b; font-size:12px; margin-bottom:4px;">التقييم</div>
+                      <div style="color:#111827; font-size:12px;">${evalText}</div>
+                    </div>
+                    <div style="border:1px solid #e5e7eb; border-radius:8px; padding:8px; min-height:56px;">
+                      <div style="color:#64748b; font-size:12px; margin-bottom:4px;">التوصية</div>
+                      <div style="color:#111827; font-size:12px;">${recText}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+  `;
+            }).join('');
+            return cards || '';
+          })()}
         </div>
       </div>
     </div>
   `;
-};
+}
 
-// Page 4: أفضل الطلاب + تحليل المواد
-const generatePage4 = (data: any) => {
-  return `
-    <div style="font-family: 'Amiri', Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 20px; background: white; min-height: 100vh;">
-      <h1 style="color: #1e40af; font-size: 28px; margin: 0 0 30px 0; text-align: center; border-bottom: 3px solid #3b82f6; padding-bottom: 15px;">
-        🥇 أفضل الطلاب + تحليل المواد
-      </h1>
-      
-      <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color: #10b981; font-size: 22px; margin: 0 0 20px 0;">🥇 أفضل الطلاب</h2>
-        <div style="overflow-x: auto; margin: 20px 0;">
-          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 18px; min-width: 600px;">
-            <thead>
-              <tr style="background: linear-gradient(135deg, #34d399, #10b981); color: white;">
-                <th style="padding: 20px; border: 2px solid #059669; text-align: center; font-size: 18px; font-weight: bold;">الترتيب</th>
-                <th style="padding: 20px; border: 2px solid #059669; text-align: center; font-size: 18px; font-weight: bold;">اسم الطالب</th>
-                <th style="padding: 20px; border: 2px solid #059669; text-align: center; font-size: 18px; font-weight: bold;">المعدل</th>
-                <th style="padding: 20px; border: 2px solid #059669; text-align: center; font-size: 18px; font-weight: bold;">التقدير</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.topStudents ? data.topStudents.map((student: any, index: number) => `
-                <tr style="background: ${index < 3 ? '#fef3c7' : index % 2 === 0 ? '#ecfdf5' : 'white'};">
-                  <td style="padding: 18px; border: 2px solid #059669; text-align: center; font-weight: bold; color: ${index < 3 ? '#f59e0b' : 'black'}; font-size: 16px;">${index + 1}</td>
-                  <td style="padding: 18px; border: 2px solid #059669; text-align: center; font-weight: bold; font-size: 16px;">${student.name || 'غير محدد'}</td>
-                  <td style="padding: 18px; border: 2px solid #059669; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${student.average || 0}</td>
-                  <td style="padding: 18px; border: 2px solid #059669; text-align: center; font-weight: bold; font-size: 16px;">${student.mention || 'غير محدد'}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #64748b; font-size: 18px;">لا توجد بيانات</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <div style="background: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color: #ef4444; font-size: 22px; margin: 0 0 20px 0;">📚 تحليل المواد</h2>
-        <div style="overflow-x: auto; margin: 20px 0;">
-          <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 18px; min-width: 700px;">
-            <thead>
-              <tr style="background: linear-gradient(135deg, #f87171, #ef4444); color: white;">
-                <th style="padding: 20px; border: 2px solid #dc2626; text-align: center; font-size: 18px; font-weight: bold;">المادة</th>
-                <th style="padding: 20px; border: 2px solid #dc2626; text-align: center; font-size: 18px; font-weight: bold;">المعدل</th>
-                <th style="padding: 20px; border: 2px solid #dc2626; text-align: center; font-size: 18px; font-weight: bold;">نسبة النجاح</th>
-                <th style="padding: 20px; border: 2px solid #dc2626; text-align: center; font-size: 18px; font-weight: bold;">الانحراف المعياري</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.subjects ? data.subjects.map((subject: any, index: number) => `
-                <tr style="background: ${index % 2 === 0 ? '#fef2f2' : 'white'};">
-                  <td style="padding: 18px; border: 2px solid #dc2626; text-align: center; font-weight: bold; font-size: 16px;">${subject.name}</td>
-                  <td style="padding: 18px; border: 2px solid #dc2626; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${subject.average}</td>
-                  <td style="padding: 18px; border: 2px solid #dc2626; text-align: center; color: #059669; font-weight: bold; font-size: 16px;">${subject.successRate}%</td>
-                  <td style="padding: 18px; border: 2px solid #dc2626; text-align: center; font-size: 16px; font-weight: bold;">${subject.standardDeviation}</td>
-                </tr>
-              `).join('') : '<tr><td colspan="4" style="text-align: center; padding: 30px; color: #64748b; font-size: 18px;">لا توجد بيانات</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
-};
+// Page 4 supprimée
 
-// Page 5: التوصيات النهائية
-const generatePage5 = (data: any) => {
+// Page recommandations finales
+const generatePageRecommendations = (data: any) => {
   return `
     <div style="font-family: 'Amiri', Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 20px; background: white; min-height: 100vh;">
       <h1 style="color: #1e40af; font-size: 28px; margin: 0 0 30px 0; text-align: center; border-bottom: 3px solid #3b82f6; padding-bottom: 15px;">
@@ -362,13 +314,108 @@ const generatePage5 = (data: any) => {
             من خلال تطبيق البرامج التطويرية المناسبة.
           </p>
         </div>
-        <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
-          <p style="font-size: 14px; margin: 0; opacity: 0.9;">
-            تم إعداد هذا التقرير بواسطة مستشار التوجيه المدرسي
-          </p>
-          <p style="font-size: 12px; margin: 5px 0 0 0; opacity: 0.7;">
-            ${new Date().toLocaleString('ar-SA')} - نظام Appamine للتوجيه المدرسي
-          </p>
+        <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: right;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; color: #ffffff;">
+            <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه:</strong> __________________________</p>
+            <p style="font-size: 14px; margin: 0;"><strong>التوقيع:</strong> __________________________</p>
+            <p style="font-size: 14px; margin: 0;"><strong>التاريخ:</strong> __________________________</p>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+// Page résumé complet: تحليل شامل للأداء
+const generatePageSummary = (data: any) => {
+  const subjects: Array<{ name: string; average: number }> = Array.isArray(data?.subjects)
+    ? (data.subjects as Array<any>)
+        .map((s: any) => ({ name: s?.name || '—', average: Number.parseFloat(s?.average) || 0 }))
+        .sort((a: { name: string; average: number }, b: { name: string; average: number }) => b.average - a.average)
+    : [];
+
+  const top3 = subjects.slice(0, 3);
+  const bottom3 = subjects.slice(-3).reverse();
+
+  const evalFor = (avg: number) => {
+    if (avg >= 17) return 'ممتاز جداً';
+    if (avg >= 16) return 'ممتاز';
+    if (avg >= 14) return 'جيد جداً';
+    if (avg >= 12) return 'جيد';
+    if (avg >= 10) return 'مقبول';
+    return 'ضعيف';
+  };
+  const recFor = (avg: number) => {
+    if (avg >= 16) return 'الاستمرار وتعزيز التميز';
+    if (avg >= 14) return 'المحافظة مع تحديات إضافية';
+    if (avg >= 12) return 'مراجعة منظمة وتحسين النقاط الضعيفة';
+    if (avg >= 10) return 'خطة دعم لرفع المعدل فوق 12';
+    return 'تدخل فوري ودروس دعم مركزة';
+  };
+
+  const rowsHtml = subjects
+    .map((s, i) => `
+      <tr style="background: ${i % 2 === 0 ? '#f8fafc' : 'white'};">
+        <td style="padding: 12px; border: 1px solid #e5e7eb; text-align: center; font-weight: bold;">${i + 1}</td>
+        <td style="padding: 12px; border: 1px solid #e5e7eb; text-align: center; font-weight: bold;">${s.name}</td>
+        <td style="padding: 12px; border: 1px solid #e5e7eb; text-align: center; color: #065f46; font-weight: bold;">${s.average.toFixed(2)}</td>
+        <td style="padding: 12px; border: 1px solid #e5e7eb; text-align: center;">${evalFor(s.average)}</td>
+        <td style="padding: 12px; border: 1px solid #e5e7eb; text-align: center;">${recFor(s.average)}</td>
+      </tr>
+    `)
+    .join('');
+
+  const card = (title: string, item?: { name: string; average: number }) => `
+    <div style="background:#ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
+      <div style="color:#111827; font-size:14px; margin-bottom:6px;">${title}</div>
+      ${item
+        ? `<div style=\"display:flex; justify-content:space-between; align-items:center;\">
+            <div style=\"font-weight:bold; color:#111827;\">${item.name}</div>
+            <div style=\"font-weight:bold; color:#065f46;\">${item.average.toFixed(2)}</div>
+           </div>
+           <div style=\"margin-top:6px; color:#374151; font-size:12px;\">
+             التقييم: ${evalFor(item.average)} — التوصية: ${recFor(item.average)}
+           </div>`
+        : '<div style="color:#6b7280;">—</div>'}
+    </div>
+  `;
+
+  return `
+    <div style="font-family: 'Amiri', Arial, sans-serif; direction: rtl; text-align: right; line-height: 1.8; max-width: 800px; margin: 0 auto; padding: 20px; background: white; min-height: 100vh;">
+      <h1 style="color: #1e40af; font-size: 28px; margin: 0 0 20px 0; text-align: center; border-bottom: 3px solid #3b82f6; padding-bottom: 12px;">
+        تحليل شامل للأداء - تحليل المعدل العام للمادة
+      </h1>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 12px 0 20px 0;">
+        ${card('أفضل مادة', top3[0])}
+        ${card('الثانية', top3[1])}
+        ${card('الثالثة', top3[2])}
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 0 0 20px 0;">
+        ${card('أضعف مادة', bottom3[0])}
+        ${card('قبل الأخيرة', bottom3[1])}
+        ${card('الثالثة قبل الأخيرة', bottom3[2])}
+      </div>
+
+      <div style="background:#ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;">
+        <h2 style="color:#111827; font-size:18px; margin: 0 0 10px 0;">جدول تفصيلي لكل المواد</h2>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse: collapse; font-size: 16px;">
+            <thead>
+              <tr style="background:#eef2ff; color:#1e3a8a;">
+                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align:center;">الترتيب</th>
+                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align:center;">المادة</th>
+                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align:center;">المعدل العام</th>
+                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align:center;">التقييم</th>
+                <th style="padding: 12px; border: 1px solid #e5e7eb; text-align:center;">التوصية</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || '<tr><td colspan="5" style="text-align:center; padding: 20px; color:#6b7280;">لا توجد بيانات</td></tr>'}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

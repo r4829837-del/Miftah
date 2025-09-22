@@ -50,7 +50,7 @@ export const AUTHORIZED_USERS = [
   { id: 'cem-kara-mostafa', email: 'cem.kara.mostafa@gmail.com', password: '5aun2s78', role: 'admin' },
   { id: 'cem-tbassi', email: 'cem.tbassi@gmail.com', password: '933q5bym', role: 'admin' },
   { id: 'cem-ghennissa', email: 'cem.ghennissa@gmail.com', password: 'y95gf41n', role: 'admin' },
-  { id: 'bvbsowmosta', email: 'bvbsowmosta@gmail.com', password: '0', role: 'admin' },
+  { id: 'bvbsowmosta', email: 'bvbsowmosta@gmail.com', password: '00000', role: 'admin' },
   { id: 'cem-belaid', email: 'cem.belaid@gmail.com', password: '56t89ntq', role: 'admin' },
   { id: 'cem-djeblimohamed', email: 'cem.djeblimohamed@gmail.com', password: 'j3z7p9e8', role: 'admin' },
   { id: 'cem-bensaber', email: 'cem.bensaber@gmail.com', password: '869x4ekd', role: 'admin' },
