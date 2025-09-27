@@ -62,5 +62,9 @@
   },
   "resolutions": {
     "date-fns": "^2.30.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
   }
 }

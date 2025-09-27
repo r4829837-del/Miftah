@@ -7,7 +7,7 @@
 
 [build.environment]
   # Version de Node.js
-  NODE_VERSION = "18"
+  NODE_VERSION = "22"
   # Variables d'environnement
   VITE_SYNC_SERVER_URL = "https://your-sync-server.com/api"
   VITE_DEV_MODE = "false"
