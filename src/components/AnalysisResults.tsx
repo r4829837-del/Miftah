@@ -1320,63 +1320,11 @@ const AnalysisResults: React.FC = () => {
             تفريغ
           </button>
           
-          {/* Bouton de gestion spécifique au cycle */}
-          <button
-            onClick={async () => {
-              const confirmMessage = `هل تريد تفريغ جميع بيانات التحليل للمرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}؟\n\nسيتم حذف:\n• جميع بيانات الفصول\n• جميع الإحصائيات\n• جميع التقارير\n\nهذا الإجراء لا يمكن التراجع عنه.`;
-              if (window.confirm(confirmMessage)) {
-                try {
-                  const db = getAnalysisDB(currentCycle);
-                  await db.clear();
-                  
-                  // Nettoyer aussi les caches localStorage
-                  for (const sem of [1, 2, 3]) {
-                    localStorage.removeItem(`analysis_cache_${currentCycle}_sem${sem}`);
-                  }
-                  
-                  setStudents([]);
-                  setStats(null);
-                  setHasAllLevels(false);
-                  
-                  alert(`تم تفريغ جميع بيانات المرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'} بنجاح`);
-                } catch (error) {
-                  alert('حدث خطأ أثناء التفريغ');
-                  console.error('Erreur lors du nettoyage:', error);
-                }
-              }
-            }}
-            className="bg-orange-50 text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-100 flex items-center gap-2 font-semibold shadow transition-all duration-200"
-            title={`تفريغ جميع بيانات المرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}`}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            تفريغ المرحلة
-          </button>
             <BarChart3 className="w-16 h-16 text-blue-200" />
           </div>
         </div>
       </div>
 
-      {/* Information sur l'indépendance des cycles */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">استقلالية البيانات بين المراحل</h3>
-            <div className="text-sm text-blue-700 space-y-1">
-              <p>• <strong>بيانات منفصلة:</strong> كل مرحلة تعليمية (متوسط/ثانوي) لها قاعدة بيانات مستقلة</p>
-              <p>• <strong>تحليل مستقل:</strong> الإحصائيات والنتائج محفوظة بشكل منفصل لكل مرحلة</p>
-              <p>• <strong>عدم التداخل:</strong> تغيير المرحلة لا يؤثر على بيانات المرحلة الأخرى</p>
-              <p>• <strong>المرحلة الحالية:</strong> {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Tabs */}
       <div className="mt-4 mb-6 flex flex-wrap gap-2" dir="rtl">

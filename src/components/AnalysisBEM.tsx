@@ -185,10 +185,10 @@ export default function AnalysisBEM() {
       const moyBEM = hasBem ? getBemAverage(bem) : null;
       
       // معدل التقويم = utiliser uniquement la valeur importée du fichier Excel
-      const moyEvaluation = getMoy(bem, ['معدل التقويم', 'moyenneEvaluation', 'moyenne_evaluation']);
+      const moyEvaluation = hasBem ? getMoy(bem, ['معدل التقويم', 'moyenneEvaluation', 'moyenne_evaluation']) : null;
       
       // معدل الإنتقال ne peut être calculé que si معدل ش.ت.م et معدل التقويم sont disponibles
-      const moyPassage = (moyBEM != null && moyBEM > 0 && moyEvaluation > 0) ? 
+      const moyPassage = (moyBEM != null && moyBEM > 0 && moyEvaluation != null && moyEvaluation > 0) ? 
         ((moyBEM + moyEvaluation) / 2) : null;
 
       // التوجيه النهائي ne peut être calculé que si معدل الإنتقال est disponible
@@ -420,7 +420,10 @@ export default function AnalysisBEM() {
           <thead>
             <tr className="bg-blue-50 border-b-2 border-blue-200">
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الترتيب</th>
-              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">اللقب و الاسم</th>
+              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">
+                <div>اللقب</div>
+                <div>و الاسم</div>
+              </th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الأول</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثاني</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثالث</th>
