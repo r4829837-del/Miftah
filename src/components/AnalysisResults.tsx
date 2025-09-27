@@ -16,7 +16,7 @@ import jsPDF from 'jspdf';
 import { ensureArabicFont, addArabicText } from '../lib/pdfArabic';
 // Removed unused: createHTMLBasedPDF, createArabicHTMLContent
 import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
-import { extractStudents } from '../utils/excelReader';
+import { extractStudents, downloadExcelTemplate } from '../utils/excelReader';
 import { buildFinalJsonTS } from '../utils/stats';
 import { getAnalysisDB } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
@@ -1290,6 +1290,18 @@ const AnalysisResults: React.FC = () => {
             >
               <Upload className="w-5 h-5" />
               رفع ملف Excel
+            </button>
+            <button 
+              onClick={() => {
+                const level = currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط';
+                const filename = `template_${level}_${new Date().getFullYear()}.xlsx`;
+                downloadExcelTemplate(level, filename);
+              }}
+              className="bg-green-50 text-green-600 px-6 py-3 rounded-lg hover:bg-green-100 flex items-center gap-2 font-semibold shadow-lg transition-all duration-200 hover:shadow-xl"
+              title={`تحميل قالب Excel للمرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}`}
+            >
+              <Download className="w-5 h-5" />
+              تحميل قالب
             </button>
           <button
             onClick={handleClearAnalysis}
