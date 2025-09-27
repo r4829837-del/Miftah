@@ -204,16 +204,21 @@ export async function extractStudents(file: File): Promise<Eleve[]> {
 
 // Helper function to create Excel template with RTL formatting
 export function createExcelTemplate(level: string): string {
-  // Template structure based on the new requirements
-  const headers = ['الرقم', 'اللقب و الاسم', 'تاريخ الميلاد', 'الجنس', 'الإعادة', 'معدل الفصل 1', 'معدل الفصل 2', 'معدل الفصل 3'];
+  // Template structure based on the image requirements - all subjects included
+  const headers = [
+    'معدل الفصل 1', 'التربية البدنية والرياضية', 'التربية الموسيقية', 'التربية التشكيلية', 
+    'المعلوماتية', 'العلوم الفيزيائية والتكنولوجيا', 'العلوم الطبيعية', 'الرياضيات', 
+    'التاريخ والجغرافيا', 'التربية المدنية', 'التربية الإسلامية', 'اللغة الإنجليزية', 
+    'اللغة الفرنسية', 'اللغة الأمازيغية', 'اللغة العربية', 'الإعادة', 'الجنس', 'اللقب و الاسم'
+  ];
   
   // Create workbook with RTL support
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    [1, 'محمد أحمد', '2010/05/06', 'ذكر', 'لا', 15.50, '', ''],
-    [2, 'علي فاطمة', '2010/03/22', 'أنثى', 'لا', 14.75, '', ''],
-    [3, 'يوسف علي', '2009/11/30', 'ذكر', 'نعم', 12.80, '', '']
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'ذكر', 'محمد أحمد'],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'أنثى', 'علي فاطمة'],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'نعم', 'ذكر', 'يوسف علي']
   ]);
   
   // Apply RTL formatting to the worksheet
@@ -255,17 +260,19 @@ export function createExcelTemplate(level: string): string {
     }
   }
   
-  // Set column widths for better RTL display
+  // Set column widths for better RTL display - adjusted for new structure
   const colWidths = [];
   for (let col = 0; col <= range.e.c; col++) {
-    if (col === 1) { // Name column
+    if (col === 17) { // Name column (اللقب و الاسم) - last column
       colWidths[col] = { wch: 20 };
-    } else if (col === 0) { // Number column
+    } else if (col === 16) { // Gender column (الجنس)
       colWidths[col] = { wch: 8 };
-    } else if (col >= 5) { // Subject columns
-      colWidths[col] = { wch: 12 };
-    } else { // Other columns
+    } else if (col === 15) { // Repeat column (الإعادة)
       colWidths[col] = { wch: 10 };
+    } else if (col === 0) { // Average column (معدل الفصل 1)
+      colWidths[col] = { wch: 12 };
+    } else { // Subject columns
+      colWidths[col] = { wch: 15 };
     }
   }
   ws['!cols'] = colWidths;
