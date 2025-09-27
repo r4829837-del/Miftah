@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import { exportDatabase } from './storage';
+import { exportDatabase, importDatabase } from './storage';
 
 // Configuration pour la persistance
 const PERSISTENCE_CONFIG = {
@@ -109,7 +109,6 @@ export const restoreFromBackup = async (backupId: string): Promise<void> => {
     }
 
     // Importer les données restaurées
-    const { importDatabase } = await import('./storage');
     await importDatabase(data);
     
     console.log(`✅ Données restaurées depuis: ${backupId}`);
@@ -200,7 +199,6 @@ export const restoreFromLocalStorage = async (key: string): Promise<void> => {
     }
 
     const parsedData = JSON.parse(data);
-    const { importDatabase } = await import('./storage');
     await importDatabase(parsedData);
     
     console.log(`✅ Données restaurées depuis localStorage: ${key}`);

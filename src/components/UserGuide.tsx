@@ -51,7 +51,7 @@ const UserGuide: React.FC = () => {
       content: (
         <div className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-xl font-bold text-blue-800 mb-4">مرحباً بك في تطبيق مستشار التوجيه</h3>
+            <h3 className="text-xl font-bold text-blue-800 mb-4">مرحباً بك في تطبيق مفتاح - مساعد مستشار التوجيه</h3>
             <p className="text-blue-700 leading-relaxed">
               تطبيق مستشار التوجيه هو نظام شامل لإدارة نشاطات مستشار التوجيه والإرشاد المدرسي والمهني. 
               يوفر التطبيق جميع الأدوات اللازمة لإدارة {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}، المجموعات، التقارير، الاختبارات، والتوصيات.
@@ -715,8 +715,8 @@ const UserGuide: React.FC = () => {
                 <BookOpen className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">الدليل المستخدم</h1>
-                <p className="text-gray-600">دليل شامل لاستخدام تطبيق مستشار التوجيه</p>
+                <h1 className="text-3xl font-bold text-gray-900">نظام تفتاح</h1>
+                <p className="text-gray-600">دليل شامل لاستخدام نظام تفتاح</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

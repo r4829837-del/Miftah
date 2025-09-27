@@ -93,16 +93,6 @@ export async function extractStudents(file: File): Promise<Eleve[]> {
         const headerRow: any[] = allRows[headerIndex] || [];
         const jsonData: any[][] = allRows.slice(headerIndex + 1);
         
-        // Helper: determine if a row is a valid student line
-        const isValidRow = (row: any[]): boolean => {
-          const hasName = String(row[1] || '').trim().length > 0;
-          // Consider any numeric value among subject columns or the last cell (moyenne)
-          const numericCells = (row || []).slice(5).map(v => parseFloat(v)).filter(v => !isNaN(v));
-          const hasScores = numericCells.length > 0;
-          // A valid student row must have both a name AND scores
-          return hasName && hasScores;
-        };
-
         // Build header name → index map with robust Arabic normalization
         const normalizeArabic = (s: string): string => {
           return String(s || '')
@@ -148,6 +138,17 @@ export async function extractStudents(file: File): Promise<Eleve[]> {
         const idxArts = findIdx(['التربية التشكيلية','تشكيلية'], 16);
         const idxMusique = findIdx(['التربية الموسيقية','موسيقية'], 17);
         const idxSport = findIdx(['ت البدنية و الرياضية','التربية البدنية و الرياضية','رياضة'], 18);
+
+        // Helper: determine if a row is a valid student line (robust to column order)
+        const isValidRow = (row: any[]): boolean => {
+          const hasName = String(row[idxNom] || '').trim().length > 0;
+          // Consider any numeric-looking value anywhere except the name/metadata columns
+          const numericCells = (row || [])
+            .map(v => parseFloat(String(v).toString().replace(',', '.')))
+            .filter(v => Number.isFinite(v));
+          const hasScores = numericCells.length > 0;
+          return hasName && hasScores;
+        };
 
         // Map to Eleve format with RTL text handling
         let seq = 1;

@@ -14,15 +14,17 @@ import {
 import { Link, useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import { ensureArabicFont, addArabicText } from '../lib/pdfArabic';
-import { createHTMLBasedPDF, createArabicHTMLContent } from '../lib/pdfArabicHTML';
+// Removed unused: createHTMLBasedPDF, createArabicHTMLContent
 import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
 import { extractStudents } from '../utils/excelReader';
 import { buildFinalJsonTS } from '../utils/stats';
 import { getAnalysisDB } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
+import { useCycleStorage } from '../hooks/useCycleStorage';
 
 const AnalysisResults: React.FC = () => {
   const { currentCycle } = useCycle();
+  const { getStorage, setStorage } = useCycleStorage();
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
 
@@ -36,87 +38,59 @@ const AnalysisResults: React.FC = () => {
   const detectOrientation = (student: any) => {
     if (!student) return 'غير محدد';
     
-    // 1) Essayer de déterminer via moyennes sciences/آداب pour détecter "متوازن"
-    const scienceSubjects = [
-      'الرياضيات', 'رياضيات', 'math', 'Math', 'Mathématiques',
-      'العلوم الطبيعية و الحياة', 'العلوم الطبيعية', 'علوم طبيعية', 'svt', 'SVT', 'Sciences naturelles',
-      'العلوم الفيزيائية و التكنولوجيا', 'العلوم الفيزيائية', 'علوم فيزيائية', 'physique', 'Physique', 'Sciences physiques',
-      'المعلوماتية', 'إعلام آلي', 'informatique', 'Informatique'
-    ];
-    const artsSubjects = [
-      'اللغة العربية', 'عربية', 'arabic', 'Arabic', 'Arabe',
-      'اللغة الفرنسية', 'فرنسية', 'french', 'French', 'Français',
-      'اللغة الإنجليزية', 'إنجليزية', 'english', 'English', 'Anglais',
-      'التاريخ و الجغرافيا', 'تاريخ', 'جغرافيا', 'histoire', 'geographie', 'Histoire', 'Géographie',
-      'التربية الإسلامية', 'تربية إسلامية', 'islamic', 'Islamic'
-    ];
+    // Use BEM criteria: prioritize general average from student data
+    let generalAverage = 0;
     
-    const extractGrades = (subjects: string[]) => {
-      let grades: number[] = [];
-      if (student.notes && typeof student.notes === 'object') {
-        grades = subjects
-          .map(subject => student.notes[subject])
-          .filter(grade => grade !== undefined && grade !== null && grade !== '' && !isNaN(parseFloat(grade)))
-          .map(grade => parseFloat(grade));
-      }
-      if (grades.length === 0 && student.matieres && typeof student.matieres === 'object') {
-        grades = subjects
-          .map(subject => student.matieres[subject])
-          .filter(grade => grade !== undefined && grade !== null && grade !== '' && !isNaN(parseFloat(grade)))
-          .map(grade => parseFloat(grade));
-      }
-      if (grades.length === 0) {
-        const allKeys = Object.keys(student || {});
-        subjects.forEach(subject => {
-          const matchingKey = allKeys.find(key => 
-            key.toLowerCase().includes(subject.toLowerCase()) || 
-            subject.toLowerCase().includes(key.toLowerCase())
-          );
-          if (matchingKey && student[matchingKey] && !isNaN(parseFloat(student[matchingKey]))) {
-            grades.push(parseFloat(student[matchingKey]));
-          }
-        });
-      }
-      return grades;
-    };
-    
-    const scienceGrades = extractGrades(scienceSubjects);
-    const artsGrades = extractGrades(artsSubjects);
-    const scienceAverage = scienceGrades.length > 0 ? (scienceGrades.reduce((s, v) => s + v, 0) / scienceGrades.length) : 0;
-    const artsAverage = artsGrades.length > 0 ? (artsGrades.reduce((s, v) => s + v, 0) / artsGrades.length) : 0;
-    
-    if (scienceAverage > 0 && artsAverage > 0) {
-      const difference = Math.abs(scienceAverage - artsAverage);
-      const hasEnoughData = scienceGrades.length >= 2 && artsGrades.length >= 2;
-      const bothAbove10 = scienceAverage >= 10 && artsAverage >= 10;
-      const threshold = 1; // plus strict pour éviter le surclassement en "متوازن"
-      if (hasEnoughData && bothAbove10 && difference <= threshold) {
-        return 'متوازن';
-      }
-      return scienceAverage > artsAverage ? 'علوم و تكنولوجيا' : 'أداب';
-    }
-    
-    // 2) Sinon, fallback: utiliser moyenne générale si disponible
+    // 1) Try to get general average from student.moyenne first
     if (student.moyenne && !isNaN(parseFloat(student.moyenne))) {
-      const moyenne = parseFloat(student.moyenne);
-      return moyenne >= 12 ? 'علوم و تكنولوجيا' : 'أداب';
+      generalAverage = parseFloat(student.moyenne);
+    } else if (student.moyenneGenerale && !isNaN(parseFloat(student.moyenneGenerale))) {
+      generalAverage = parseFloat(student.moyenneGenerale);
+    } else if (student.moyenneSem1 && !isNaN(parseFloat(student.moyenneSem1))) {
+      generalAverage = parseFloat(student.moyenneSem1);
+    } else {
+      // 2) Calculate from individual subjects if available
+      const sources = [student.notes, student.matieres, student];
+      const foundGrades: number[] = [];
+      sources.forEach(source => {
+        if (source && typeof source === 'object') {
+          Object.values(source).forEach((val: any) => {
+            if (typeof val === 'string' && !isNaN(parseFloat(val)) && parseFloat(val) > 0) {
+              foundGrades.push(parseFloat(val));
+            }
+          });
+        }
+      });
+      if (foundGrades.length > 0) {
+        generalAverage = foundGrades.reduce((a, b) => a + b, 0) / foundGrades.length;
+      }
     }
     
-    // 3) Dernier recours: moyenne sur toutes les notes trouvées
-    const sources = [student.notes, student.matieres, student];
-    const foundGrades: number[] = [];
-    sources.forEach(source => {
-      if (source && typeof source === 'object') {
-        Object.values(source).forEach((val: any) => {
-          if (typeof val === 'string' && !isNaN(parseFloat(val)) && parseFloat(val) > 0) {
-            foundGrades.push(parseFloat(val));
-          }
-        });
+    // Apply orientation criteria based on cycle
+    if (isHighSchool) {
+      // Criteria for high school cycle (ثانوي)
+      if (generalAverage >= 18) {
+        return 'جامعي';
+      } else if (generalAverage >= 16) {
+        return 'تقني سامي';
+      } else if (generalAverage >= 14) {
+        return 'مهني';
+      } else if (generalAverage >= 10) {
+        return 'تدريب مهني';
+      } else if (generalAverage > 0) {
+        return 'إعادة السنة';
       }
-    });
-    if (foundGrades.length > 0) {
-      const avg = foundGrades.reduce((a, b) => a + b, 0) / foundGrades.length;
-      return avg >= 12 ? 'علوم و تكنولوجيا' : 'أداب';
+    } else {
+      // Criteria for college cycle (متوسط) - BEM orientation
+      if (generalAverage >= 16) {
+        return 'ثانوي علمي';
+      } else if (generalAverage >= 14) {
+        return 'ثانوي تقني';
+      } else if (generalAverage >= 10) {
+        return 'ثانوي مهني';
+      } else if (generalAverage > 0) {
+        return 'إعادة السنة';
+      }
     }
     
     return 'غير محدد';
@@ -136,6 +110,33 @@ const AnalysisResults: React.FC = () => {
   // State for modal
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+
+  // Auto-load last persisted analysis dataset for this cycle/semester (after restore)
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        // Only load if nothing in memory yet
+        if (students.length > 0 || stats) return;
+        const db = getAnalysisDB(currentCycle);
+        let latest: any | null = null;
+        await db.iterate((value: any) => {
+          if (value && value.semester === semesterIndex && Array.isArray(value.students)) {
+            if (!latest || (value.createdAt && latest.createdAt && new Date(value.createdAt) > new Date(latest.createdAt))) {
+              latest = value;
+            }
+          }
+        });
+        if (active && latest) {
+          setStudents(latest.students || []);
+          setStats({ stats: latest.stats });
+        }
+      } catch (_) {
+        // no-op
+      }
+    })();
+    return () => { active = false; };
+  }, [currentCycle, semesterIndex]);
 
   // Transform imported students data for guidance analysis
   const transformStudentsForGuidance = () => {
@@ -374,7 +375,8 @@ const AnalysisResults: React.FC = () => {
   const actualStudents = students.filter((s: any) => Number.isFinite(Number(s?.moyenne)));
   
   // Filter logic (for guidance analysis)
-  const filteredStudents = guidanceStudents.filter(student => {
+  // Note: filteredStudents was unused in UI; keep for future filters or remove if not needed
+  const _filteredStudents = guidanceStudents.filter(student => {
     if (selectedGuidance === 'all') return true;
     return student.guidance === selectedGuidance;
   });
@@ -557,10 +559,12 @@ const AnalysisResults: React.FC = () => {
     return false;
   };
 
-  // Reset selected level when cycle changes
+  // Reset filters and in-memory data when cycle or semester changes to avoid cross-cycle bleed
   useEffect(() => {
     setSelectedLevel('all');
-  }, [currentCycle]);
+    setStudents([]);
+    setStats(null);
+  }, [currentCycle, semesterIndex]);
 
 
   const handleUploadClick = () => fileInputRef.current?.click();
@@ -575,6 +579,32 @@ const AnalysisResults: React.FC = () => {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedStudent(null);
+  };
+
+  // Clear current cycle/semester analysis data
+  const handleClearAnalysis = async () => {
+    try {
+      const ok = window.confirm('سيتم تفريغ بيانات تحليل النتائج لهذا الفصل وهذه المرحلة فقط. هل تريد المتابعة؟');
+      if (!ok) return;
+      const db = getAnalysisDB(currentCycle);
+      // Remove only current semester records
+      const toDelete: string[] = [];
+      await db.iterate((value: any, key: string) => {
+        if (value && value.semester === semesterIndex) {
+          toDelete.push(key);
+        }
+      });
+      for (const key of toDelete) {
+        await db.removeItem(key);
+      }
+      try { localStorage.removeItem(`analysis_cache_${currentCycle}_sem${semesterIndex}`); } catch (_) {}
+      setStudents([]);
+      setStats(null);
+      alert('تم التفريغ بنجاح');
+    } catch (e) {
+      console.error('Failed to clear analysis data', e);
+      alert('تعذر التفريغ. حاول مرة أخرى.');
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -671,25 +701,27 @@ const AnalysisResults: React.FC = () => {
       };
       
       // Utiliser la nouvelle approche HTML pour éviter les problèmes d'encodage
+      const overallSubjects: any = stats?.stats?.overall?.subjects as any;
+      const overallForKey = overallSubjects ? overallSubjects[moyenneKey] : undefined;
       const reportData = {
         cycle: currentCycle,
         level: selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel,
         semester: semesterLabel,
         recordsCount: students.length,
-        average: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.mean?.toFixed(2) || 'غير محدد',
-        successRate: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.pc_ge10?.toFixed(2) || 'غير محدد',
-        standardDeviation: (stats?.stats?.overall?.subjects as any)?.[moyenneKey]?.std?.toFixed(2) || 'غير محدد',
+        average: typeof overallForKey?.mean === 'number' ? overallForKey.mean : Number.parseFloat(overallForKey?.mean) || 0,
+        successRate: typeof overallForKey?.pc_ge10 === 'number' ? overallForKey.pc_ge10 : Number.parseFloat(overallForKey?.pc_ge10) || 0,
+        standardDeviation: typeof overallForKey?.std === 'number' ? overallForKey.std : Number.parseFloat(overallForKey?.std) || 0,
         totalStudents: students.length,
         maleStudents: students.filter(s => s.sexe === 'ذكر').length,
         femaleStudents: students.filter(s => s.sexe === 'أنثى').length,
         
         // التقديرات والمنح
         mentions: stats?.stats?.mentions ? [
-          { name: 'تميز', count: stats.stats.mentions.excellence?.count || 0, percent: stats.stats.mentions.excellence?.percent?.toFixed(2) || 0, threshold: '≥18' },
-          { name: 'تهنئة', count: stats.stats.mentions.felicitations?.count || 0, percent: stats.stats.mentions.felicitations?.percent?.toFixed(2) || 0, threshold: '15-17.99' },
-          { name: 'تشجيع', count: stats.stats.mentions.encouragements?.count || 0, percent: stats.stats.mentions.encouragements?.percent?.toFixed(2) || 0, threshold: '14-14.99' },
-          { name: 'لوحة الشرف', count: stats.stats.mentions.tableau_honneur?.count || 0, percent: stats.stats.mentions.tableau_honneur?.percent?.toFixed(2) || 0, threshold: '12-13.99' },
-          { name: 'بحاجة إلى تحسين', count: stats.stats.mentions.observation?.count || 0, percent: stats.stats.mentions.observation?.percent?.toFixed(2) || 0, threshold: '<12' }
+          { name: 'تميز', count: stats.stats.mentions.excellence?.count || 0, percent: Number.parseFloat(stats.stats.mentions.excellence?.percent) || 0, threshold: '≥18' },
+          { name: 'تهنئة', count: stats.stats.mentions.felicitations?.count || 0, percent: Number.parseFloat(stats.stats.mentions.felicitations?.percent) || 0, threshold: '15-17.99' },
+          { name: 'تشجيع', count: stats.stats.mentions.encouragements?.count || 0, percent: Number.parseFloat(stats.stats.mentions.encouragements?.percent) || 0, threshold: '14-14.99' },
+          { name: 'لوحة الشرف', count: stats.stats.mentions.tableau_honneur?.count || 0, percent: Number.parseFloat(stats.stats.mentions.tableau_honneur?.percent) || 0, threshold: '12-13.99' },
+          { name: 'بحاجة إلى تحسين', count: stats.stats.mentions.observation?.count || 0, percent: Number.parseFloat(stats.stats.mentions.observation?.percent) || 0, threshold: '<12' }
         ] : null,
         
         // ترتيب الأقسام
@@ -706,23 +738,23 @@ const AnalysisResults: React.FC = () => {
         topStudents: students
           .sort((a, b) => ((b as any)[moyenneKey] || 0) - ((a as any)[moyenneKey] || 0))
           .slice(0, 10)
-          .map((student, index) => ({
-            name: student.name || student.lastName || student.nom || 'غير محدد',
+      .map((student) => ({
+        name: (student as any).name || (student as any).nom || 'غير محدد',
             average: ((student as any)[moyenneKey])?.toFixed(2) || '0',
             mention: getMention(((student as any)[moyenneKey]) || 0)
           })),
         
         // تحليل المواد
         subjects: stats?.stats?.overall?.subjects ? [
-          { name: 'اللغة العربية', average: stats.stats.overall.subjects.arabe?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.arabe?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.arabe?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.arabe?.present || '—' },
-          { name: 'اللغة الفرنسية', average: stats.stats.overall.subjects.francais?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.francais?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.francais?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.francais?.present || '—' },
-          { name: 'اللغة الإنجليزية', average: stats.stats.overall.subjects.anglais?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.anglais?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.anglais?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.anglais?.present || '—' },
-          { name: 'الرياضيات', average: stats.stats.overall.subjects.math?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.math?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.math?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.math?.present || '—' },
-          { name: 'العلوم الطبيعية', average: stats.stats.overall.subjects.svt?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.svt?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.svt?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.svt?.present || '—' },
-          { name: 'العلوم الفيزيائية', average: stats.stats.overall.subjects.physique?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.physique?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.physique?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.physique?.present || '—' },
-          { name: 'التربية الإسلامية', average: stats.stats.overall.subjects.islamique?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.islamique?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.islamique?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.islamique?.present || '—' },
-          { name: 'التاريخ والجغرافيا', average: stats.stats.overall.subjects.histGeo?.mean?.toFixed(2) || '—', successRate: stats.stats.overall.subjects.histGeo?.pc_ge10?.toFixed(2) || '—', standardDeviation: stats.stats.overall.subjects.histGeo?.std?.toFixed(2) || '—', studentCount: stats.stats.overall.subjects.histGeo?.present || '—' }
-        ].filter(subject => subject.average !== '—') : null
+          { name: 'اللغة العربية', average: Number.parseFloat(stats.stats.overall.subjects.arabe?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.arabe?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.arabe?.std) || 0, studentCount: stats.stats.overall.subjects.arabe?.present || 0 },
+          { name: 'اللغة الفرنسية', average: Number.parseFloat(stats.stats.overall.subjects.francais?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.francais?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.francais?.std) || 0, studentCount: stats.stats.overall.subjects.francais?.present || 0 },
+          { name: 'اللغة الإنجليزية', average: Number.parseFloat(stats.stats.overall.subjects.anglais?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.anglais?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.anglais?.std) || 0, studentCount: stats.stats.overall.subjects.anglais?.present || 0 },
+          { name: 'الرياضيات', average: Number.parseFloat(stats.stats.overall.subjects.math?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.math?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.math?.std) || 0, studentCount: stats.stats.overall.subjects.math?.present || 0 },
+          { name: 'العلوم الطبيعية', average: Number.parseFloat(stats.stats.overall.subjects.svt?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.svt?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.svt?.std) || 0, studentCount: stats.stats.overall.subjects.svt?.present || 0 },
+          { name: 'العلوم الفيزيائية', average: Number.parseFloat(stats.stats.overall.subjects.physique?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.physique?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.physique?.std) || 0, studentCount: stats.stats.overall.subjects.physique?.present || 0 },
+          { name: 'التربية الإسلامية', average: Number.parseFloat(stats.stats.overall.subjects.islamique?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.islamique?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.islamique?.std) || 0, studentCount: stats.stats.overall.subjects.islamique?.present || 0 },
+          { name: 'التاريخ والجغرافيا', average: Number.parseFloat(stats.stats.overall.subjects.histGeo?.mean) || 0, successRate: Number.parseFloat(stats.stats.overall.subjects.histGeo?.pc_ge10) || 0, standardDeviation: Number.parseFloat(stats.stats.overall.subjects.histGeo?.std) || 0, studentCount: stats.stats.overall.subjects.histGeo?.present || 0 }
+        ] : null
       };
       
       // Utiliser le rapport professionnel de 5 pages
@@ -731,6 +763,20 @@ const AnalysisResults: React.FC = () => {
       // Sauvegarder le PDF
       const fileName = `تقرير_تحليل_النتائج_الشامل_5_صفحات_${selectedLevel}_${new Date().toISOString().split('T')[0]}.pdf`;
       pdf.save(fileName);
+      // Save a copy in Reports: تقرير تحليل النتائج
+      try {
+        const existingReports = (getStorage('reports') || []) as any[];
+        const newReport = {
+          id: Date.now().toString(),
+          title: `تقرير تحليل النتائج - ${semesterLabel} - ${selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel}`,
+          date: new Date().toLocaleDateString('ar-SA'),
+          type: 'تقرير تحليل النتائج',
+          content: reportData
+        };
+        setStorage('reports', [...existingReports, newReport]);
+      } catch (e) {
+        console.error('Failed to store analysis report copy:', e);
+      }
       
       return;
     } catch (error) {
@@ -740,8 +786,8 @@ const AnalysisResults: React.FC = () => {
     // Fallback vers l'ancienne méthode si la nouvelle échoue
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     await ensureArabicFont(pdf);
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = Number(pdf.internal.pageSize.getWidth());
+    const pageHeight = Number(pdf.internal.pageSize.getHeight());
     const margin = 20;
     let y = 20;
 
@@ -782,7 +828,11 @@ const AnalysisResults: React.FC = () => {
 
     // En-tête principal simplifié (sans couleurs pour réduire la taille)
     pdf.setDrawColor(0, 0, 0); // Bordure noire simple
-    pdf.rect(0, 0, pageWidth, 35, 'S'); // Rectangle vide avec bordure
+    try {
+      pdf.rect(0, 0, pageWidth, 35);
+    } catch (_) {
+      pdf.rect(0, 0, pageWidth, 35);
+    }
     
     pdf.setTextColor(0, 0, 0); // Texte noir
     pdf.setFontSize(20);
@@ -812,13 +862,13 @@ const AnalysisResults: React.FC = () => {
       addInfo('الانحراف المعياري', ((stats.stats.overall.subjects as any)[moyenneKey].std).toFixed(2));
     }
     if (stats?.stats?.students?.sex?.total?.count != null) {
-      addInfo('إجمالي عدد الطلاب', stats.stats.students.sex.total.count);
+      addInfo(`إجمالي عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}`, stats.stats.students.sex.total.count);
     }
     if (stats?.stats?.students?.sex?.male?.count != null) {
-      addInfo('عدد الطلاب الذكور', stats.stats.students.sex.male.count);
+      addInfo(`عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} الذكور`, stats.stats.students.sex.male.count);
     }
     if (stats?.stats?.students?.sex?.female?.count != null) {
-      addInfo('عدد الطالبات الإناث', stats.stats.students.sex.female.count);
+      addInfo(`عدد ${currentCycle === 'ثانوي' ? 'الطالبات' : 'التلميذات'} الإناث`, stats.stats.students.sex.female.count);
     }
 
     // Mentions et التقديرات
@@ -878,7 +928,7 @@ const AnalysisResults: React.FC = () => {
       pdf.text('اسم القسم', margin + 25, y);
       pdf.text('المعدل', margin + 70, y);
       pdf.text('نسبة النجاح', margin + 100, y);
-      pdf.text('عدد الطلاب', margin + 130, y);
+      pdf.text(`عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}`, margin + 130, y);
       y += 8;
       
       // Ligne de séparation
@@ -927,7 +977,7 @@ const AnalysisResults: React.FC = () => {
         
         // En-tête de la matière (sans couleurs pour réduire la taille)
         pdf.setDrawColor(0, 0, 0); // Bordure noire simple
-        pdf.rect(0, 0, pageWidth, 25, 'S'); // Rectangle vide avec bordure
+        pdf.rect(0, 0, pageWidth, 25);
         
         pdf.setTextColor(0, 0, 0); // Texte noir
         pdf.setFont('helvetica', 'bold');
@@ -937,7 +987,7 @@ const AnalysisResults: React.FC = () => {
         yy = 35;
         
         // Statistiques de base de la matière
-        addInfo('عدد الطلاب الحاضرين', s.present || 0);
+        addInfo(`عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} الحاضرين`, s.present || 0);
         addInfo('المعدل العام', s.mean ? s.mean.toFixed(2) : '—');
         addInfo('الانحراف المعياري', s.std ? s.std.toFixed(2) : '—');
         addInfo('نسبة النجاح (≥10)', s.pc_ge10 ? `${s.pc_ge10}%` : '—');
@@ -1022,7 +1072,11 @@ const AnalysisResults: React.FC = () => {
     
     // En-tête de conclusion (sans couleurs pour réduire la taille)
     pdf.setDrawColor(0, 0, 0); // Bordure noire simple
-    pdf.rect(0, 0, pageWidth, 25, 'S'); // Rectangle vide avec bordure
+    try {
+      pdf.rect(0, 0, pageWidth, 25);
+    } catch (_) {
+      pdf.rect(0, 0, pageWidth, 25);
+    }
     
     pdf.setTextColor(0, 0, 0); // Texte noir
     pdf.setFont('helvetica', 'bold');
@@ -1033,7 +1087,7 @@ const AnalysisResults: React.FC = () => {
     
     // Résumé des points clés
     addSectionTitle('النقاط الرئيسية');
-    addInfo('إجمالي عدد الطلاب المحللين', students.length);
+      addInfo(`إجمالي عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} المحللين`, students.length);
     if (stats?.stats?.overall?.subjects?.moyenneSem1?.mean != null) {
       addInfo('المعدل العام للفصل', stats.stats.overall.subjects.moyenneSem1.mean.toFixed(2));
     }
@@ -1070,7 +1124,64 @@ const AnalysisResults: React.FC = () => {
     // Génération et téléchargement du PDF
     const fileName = `تقرير_تحليل_النتائج_${currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(fileName);
+    // Save a copy in Reports: تقرير تحليل النتائج (fallback)
+    try {
+      const existingReports = (getStorage('reports') || []) as any[];
+      const newReport = {
+        id: Date.now().toString(),
+        title: `تقرير تحليل النتائج - ${semesterLabel} - ${selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel}`,
+        date: new Date().toLocaleDateString('ar-SA'),
+        type: 'تقرير تحليل النتائج',
+        content: {
+          cycle: currentCycle,
+          level: selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel,
+          semester: semesterLabel
+        }
+      };
+      setStorage('reports', [...existingReports, newReport]);
+    } catch (e) {
+      console.error('Failed to store analysis report copy (fallback):', e);
+    }
   };
+
+  // Auto-sync to Reports: keep a template report for Analysis per cycle/semester/level
+  useEffect(() => {
+    try {
+      // Build minimal normalized payload whenever stats or selection changes
+      if (!stats) return;
+      const levelNormalized = selectedLevel === 'all' ? 'جميع المستويات' : selectedLevel;
+      const reportId = `analysis_${currentCycle}_${semesterIndex}_${levelNormalized}`;
+
+      const overallSubjects: any = stats?.stats?.overall?.subjects as any;
+      const overallForKey = overallSubjects ? overallSubjects[moyenneKey] : undefined;
+      const normalized = {
+        id: reportId,
+        title: `تقرير تحليل النتائج - ${semesterLabel} - ${levelNormalized}`,
+        date: new Date().toLocaleDateString('ar-SA'),
+        type: 'تقرير تحليل النتائج',
+        content: {
+          cycle: currentCycle,
+          level: levelNormalized,
+          semester: semesterLabel,
+          average: typeof overallForKey?.mean === 'number' ? overallForKey.mean : Number.parseFloat(overallForKey?.mean) || 0,
+          successRate: typeof overallForKey?.pc_ge10 === 'number' ? overallForKey.pc_ge10 : Number.parseFloat(overallForKey?.pc_ge10) || 0,
+          standardDeviation: typeof overallForKey?.std === 'number' ? overallForKey.std : Number.parseFloat(overallForKey?.std) || 0
+        }
+      };
+
+      const existing = (getStorage('reports') || []) as any[];
+      const idx = existing.findIndex(r => r.id === reportId);
+      if (idx >= 0) {
+        const updated = existing.slice();
+        updated[idx] = { ...existing[idx], ...normalized };
+        setStorage('reports', updated);
+      } else {
+        setStorage('reports', [...existing, normalized]);
+      }
+    } catch (e) {
+      console.error('Failed to auto-sync analysis report:', e);
+    }
+  }, [stats, selectedLevel, semesterIndex, currentCycle, moyenneKey, semesterLabel, getStorage, setStorage]);
 
   const handleExportStatsJson = () => {
     if (!stats) return;
@@ -1160,6 +1271,16 @@ const AnalysisResults: React.FC = () => {
           تحليل النتائج - {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}
         </h1>
             <p className="text-blue-100">تحليل شامل لأداء {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} والإحصائيات التربوية</p>
+            
+            {/* Indicateur d'indépendance des cycles */}
+            <div className="mt-3 p-3 bg-white bg-opacity-20 rounded-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                <span className="font-semibold">بيانات مستقلة لكل مرحلة</span>
+                <span className="text-blue-200">•</span>
+                <span>المرحلة الحالية: {currentCycle === 'ثانوي' ? 'الثانوي' : 'المتوسط'}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
@@ -1170,7 +1291,68 @@ const AnalysisResults: React.FC = () => {
               <Upload className="w-5 h-5" />
               رفع ملف Excel
             </button>
+          <button
+            onClick={handleClearAnalysis}
+            className="bg-red-50 text-red-600 px-4 py-2 rounded-lg hover:bg-red-100 flex items-center gap-2 font-semibold shadow transition-all duration-200"
+            title="تفريغ بيانات التحليل لهذا الفصل"
+          >
+            تفريغ
+          </button>
+          
+          {/* Bouton de gestion spécifique au cycle */}
+          <button
+            onClick={async () => {
+              const confirmMessage = `هل تريد تفريغ جميع بيانات التحليل للمرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}؟\n\nسيتم حذف:\n• جميع بيانات الفصول\n• جميع الإحصائيات\n• جميع التقارير\n\nهذا الإجراء لا يمكن التراجع عنه.`;
+              if (window.confirm(confirmMessage)) {
+                try {
+                  const db = getAnalysisDB(currentCycle);
+                  await db.clear();
+                  
+                  // Nettoyer aussi les caches localStorage
+                  for (const sem of [1, 2, 3]) {
+                    localStorage.removeItem(`analysis_cache_${currentCycle}_sem${sem}`);
+                  }
+                  
+                  setStudents([]);
+                  setStats(null);
+                  setHasAllLevels(false);
+                  
+                  alert(`تم تفريغ جميع بيانات المرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'} بنجاح`);
+                } catch (error) {
+                  alert('حدث خطأ أثناء التفريغ');
+                  console.error('Erreur lors du nettoyage:', error);
+                }
+              }
+            }}
+            className="bg-orange-50 text-orange-600 px-4 py-2 rounded-lg hover:bg-orange-100 flex items-center gap-2 font-semibold shadow transition-all duration-200"
+            title={`تفريغ جميع بيانات المرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            تفريغ المرحلة
+          </button>
             <BarChart3 className="w-16 h-16 text-blue-200" />
+          </div>
+        </div>
+      </div>
+
+      {/* Information sur l'indépendance des cycles */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">استقلالية البيانات بين المراحل</h3>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p>• <strong>بيانات منفصلة:</strong> كل مرحلة تعليمية (متوسط/ثانوي) لها قاعدة بيانات مستقلة</p>
+              <p>• <strong>تحليل مستقل:</strong> الإحصائيات والنتائج محفوظة بشكل منفصل لكل مرحلة</p>
+              <p>• <strong>عدم التداخل:</strong> تغيير المرحلة لا يؤثر على بيانات المرحلة الأخرى</p>
+              <p>• <strong>المرحلة الحالية:</strong> {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1181,22 +1363,38 @@ const AnalysisResults: React.FC = () => {
         <Link to="/analysis/sem2" className={`px-3 py-1.5 rounded ${isActive('/analysis/sem2') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>الفصل الثاني</Link>
         <Link to="/analysis/sem3" className={`px-3 py-1.5 rounded ${isActive('/analysis/sem3') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>الفصل الثالث</Link>
         <Link to="/analysis/compare" className={`px-3 py-1.5 rounded ${isActive('/analysis/compare') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>التحليل السنوي</Link>
+        <Link to="/analysis/bem" className={`px-3 py-1.5 rounded ${isActive('/analysis/bem') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>تحليل  ش.ت.م</Link>
       </div>
 
       {/* ملخص علوي */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="text-sm text-gray-500 mb-1">العدد الإجمالي</div>
+        <div className="bg-white rounded-lg shadow-sm border p-6 relative">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-gray-500">العدد الإجمالي</div>
+            <div className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+              {currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}
+            </div>
+          </div>
           <div className="text-2xl font-bold text-gray-800">{stats?.stats ? (stats.stats.students?.sex?.total?.count ?? students.length) : students.length}</div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="text-sm text-gray-500 mb-1">نسبة النجاح العامة (≥ 10)</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-gray-500">نسبة النجاح العامة (≥ 10)</div>
+            <div className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
+              {currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}
+            </div>
+          </div>
           <div className="text-2xl font-bold text-green-700">
             {stats?.stats?.overall?.subjects?.moyenneSem1?.pc_ge10 != null ? `${stats.stats.overall.subjects.moyenneSem1.pc_ge10}%` : '—'}
           </div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="text-sm text-gray-500 mb-1">المعدل العام</div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-gray-500">المعدل العام</div>
+            <div className="text-xs bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">
+              {currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}
+            </div>
+          </div>
           <div className="text-2xl font-bold text-indigo-700">
             {stats?.stats?.overall?.subjects?.moyenneSem1?.mean != null ? stats.stats.overall.subjects.moyenneSem1.mean : '—'}
           </div>
@@ -1301,26 +1499,55 @@ const AnalysisResults: React.FC = () => {
               <div className="mb-6 p-4 bg-white rounded-lg border border-orange-200">
                 <h4 className="text-lg font-bold text-orange-700 mb-3">توزيع التوجيهات المقترحة</h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{orientationCounts['علوم و تكنولوجيا'] || 0}</div>
-                    <div className="text-sm text-gray-600">علوم و تكنولوجيا</div>
-                    <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['علوم و تكنولوجيا'] || 0) / total) * 100) : 0}%</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{orientationCounts['أداب'] || 0}</div>
-                    <div className="text-sm text-gray-600">أداب</div>
-                    <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['أداب'] || 0) / total) * 100) : 0}%</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{orientationCounts['متوازن'] || 0}</div>
-                    <div className="text-sm text-gray-600">متوازن</div>
-                    <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['متوازن'] || 0) / total) * 100) : 0}%</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-gray-500">{orientationCounts['غير محدد'] || 0}</div>
-                    <div className="text-sm text-gray-600">غير محدد</div>
-                    <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['غير محدد'] || 0) / total) * 100) : 0}%</div>
-                  </div>
+                  {isHighSchool ? (
+                    // High school cycle orientations
+                    <>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{orientationCounts['جامعي'] || 0}</div>
+                        <div className="text-sm text-gray-600">جامعي</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['جامعي'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{orientationCounts['تقني سامي'] || 0}</div>
+                        <div className="text-sm text-gray-600">تقني سامي</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['تقني سامي'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{orientationCounts['مهني'] || 0}</div>
+                        <div className="text-sm text-gray-600">مهني</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['مهني'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-500">{orientationCounts['غير محدد'] || 0}</div>
+                        <div className="text-sm text-gray-600">غير محدد</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['غير محدد'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                    </>
+                  ) : (
+                    // College cycle orientations
+                    <>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{orientationCounts['ثانوي علمي'] || 0}</div>
+                        <div className="text-sm text-gray-600">ثانوي علمي</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي علمي'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{orientationCounts['ثانوي تقني'] || 0}</div>
+                        <div className="text-sm text-gray-600">ثانوي تقني</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي تقني'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{orientationCounts['ثانوي مهني'] || 0}</div>
+                        <div className="text-sm text-gray-600">ثانوي مهني</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي مهني'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-500">{orientationCounts['غير محدد'] || 0}</div>
+                        <div className="text-sm text-gray-600">غير محدد</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['غير محدد'] || 0) / total) * 100) : 0}%</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );
@@ -1428,7 +1655,7 @@ const AnalysisResults: React.FC = () => {
                   <th className="border border-gray-300 p-2 text-center">معدل الفصل</th>
                   <th className="border border-gray-300 p-2 text-center">الدرجة</th>
                   <th className="border border-gray-300 p-2 text-center">التقدير</th>
-                  <th className="border border-gray-300 p-2 text-center">التوجيه المقترح</th>
+                  <th className="border border-gray-300 p-2 text-center">التوجيه المقترح (تقدير مؤقت)</th>
                 </tr>
               </thead>
               <tbody>
@@ -1448,7 +1675,7 @@ const AnalysisResults: React.FC = () => {
                       
                       return { 
                         name: String(s?.nom || '').trim(), 
-                        moyenne: Number(s.moyenne),
+                        moyenne: Number(s[moyenneKey] || s.moyenne || 0),
                         numero: s.numero || 0,
                         gender: s.gender || s.sexe || 'غير محدد',
                         isRepeating: s.isRepeating || s.repeater || s.redoublement || false
@@ -1545,7 +1772,7 @@ const AnalysisResults: React.FC = () => {
                         <td className="border border-gray-300 p-2 text-center">
                           {(() => {
                             // Debug simple et visible
-                            const studentName = student.name || student.lastName || student.nom || 'غير محدد';
+    const studentName = (student as any).name || (student as any).nom || 'غير محدد';
                             console.log('Student data for orientation:', studentName, student);
                             
                             const orientation = detectOrientation(student);
@@ -1554,20 +1781,15 @@ const AnalysisResults: React.FC = () => {
                             const colorClass = orientation === 'علوم و تكنولوجيا' 
                               ? 'text-blue-600 font-bold' 
                               : orientation === 'أداب' 
-                                ? 'text-green-600 font-bold'
-                                : orientation === 'متوازن'
-                                  ? 'text-purple-600 font-bold'
-                                  : 'text-gray-500';
-                            
+                              ? 'text-green-600 font-bold' 
+                              : orientation === 'إعادة السنة' 
+                              ? 'text-red-600 font-bold' 
+                              : 'text-gray-700';
+
                             return (
-                              <div className="space-y-1">
-                                <div className={`${colorClass} text-sm`}>
-                                  {orientation}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {studentName}
-                                </div>
-                              </div>
+                              <span className={colorClass}>
+                                {orientation}
+                              </span>
                             );
                           })()}
                         </td>
@@ -2210,7 +2432,7 @@ const AnalysisResults: React.FC = () => {
                   <div className="text-3xl font-bold text-blue-800 mb-2">
                     {typeof present === 'number' ? present : '—'}
                   </div>
-                  <div className="text-sm text-gray-600">عدد الطلاب</div>
+                  <div className="text-sm text-gray-600">عدد {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</div>
                   <div className="text-xs text-gray-500 mt-1">إجمالي الممتحنين</div>
                 </div>
 
@@ -2242,23 +2464,57 @@ const AnalysisResults: React.FC = () => {
               أفضل وأضعف أداء
             </h4>
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                <span className="text-sm text-gray-600">أعلى معدل</span>
-                <span className="text-xl font-bold text-green-600">
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">أعلى معدل</span>
+                  <span className="text-xl font-bold text-green-600">
+                    {(() => {
+                      const max = stats?.stats?.overall?.subjects?.[moyenneKey]?.max;
+                      return typeof max === 'number' ? max.toFixed(1) : '—';
+                    })()}
+                  </span>
+                </div>
+                <div className="text-sm text-green-700 font-medium">
                   {(() => {
-                    const max = stats?.stats?.overall?.subjects?.moyenneSem1?.max;
-                    return typeof max === 'number' ? max.toFixed(1) : '—';
+                    const max = stats?.stats?.overall?.subjects?.[moyenneKey]?.max;
+                    if (typeof max !== 'number') return '—';
+                    const topStudents = students.filter((s: any) => {
+                      const grade = parseFloat(s[moyenneKey] || s.moyenne || 0);
+                      return Math.abs(grade - max) < 0.01; // Tolérance de 0.01 pour plus de précision
+                    });
+                    if (topStudents.length === 0) return '—';
+                    if (topStudents.length === 1) {
+                      return `${topStudents[0].nom || topStudents[0].name || 'غير محدد'}`;
+                    }
+                    return `${topStudents.length} ${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}: ${topStudents.map((s: any) => `${s.nom || s.name || 'غير محدد'}`).join(', ')}`;
                   })()}
-                </span>
+                </div>
               </div>
-              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                <span className="text-sm text-gray-600">أقل معدل</span>
-                <span className="text-xl font-bold text-red-600">
+              <div className="p-3 bg-red-50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">أقل معدل</span>
+                  <span className="text-xl font-bold text-red-600">
+                    {(() => {
+                      const min = stats?.stats?.overall?.subjects?.[moyenneKey]?.min;
+                      return typeof min === 'number' ? min.toFixed(1) : '—';
+                    })()}
+                  </span>
+                </div>
+                <div className="text-sm text-red-700 font-medium">
                   {(() => {
-                    const min = stats?.stats?.overall?.subjects?.moyenneSem1?.min;
-                    return typeof min === 'number' ? min.toFixed(1) : '—';
+                    const min = stats?.stats?.overall?.subjects?.[moyenneKey]?.min;
+                    if (typeof min !== 'number') return '—';
+                    const bottomStudents = students.filter((s: any) => {
+                      const grade = parseFloat(s[moyenneKey] || s.moyenne || 0);
+                      return Math.abs(grade - min) < 0.01; // Tolérance de 0.01 pour plus de précision
+                    });
+                    if (bottomStudents.length === 0) return '—';
+                    if (bottomStudents.length === 1) {
+                      return `${bottomStudents[0].nom || bottomStudents[0].name || 'غير محدد'}`;
+                    }
+                    return `${bottomStudents.length} ${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}: ${bottomStudents.map((s: any) => `${s.nom || s.name || 'غير محدد'}`).join(', ')}`;
                   })()}
-                </span>
+                </div>
               </div>
             </div>
           </div>
@@ -2755,7 +3011,7 @@ const AnalysisResults: React.FC = () => {
                         </div>
                         
                         <div class="print-orientation" style="background: #f8f9fa; border: 1px solid #2c3e50; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center;">
-                          <h4 style="color: #2c3e50; font-size: 14px; margin: 0 0 8px 0; font-weight: bold;">التوجيه المقترح</h4>
+                          <h4 style="color: #2c3e50; font-size: 14px; margin: 0 0 8px 0; font-weight: bold;">التوجيه المقترح (تقدير مؤقت)</h4>
                           <div style="font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 5px;">
                             ${(() => {
                               const studentData = students.find(s => s.nom === selectedStudent.name);
@@ -2768,9 +3024,14 @@ const AnalysisResults: React.FC = () => {
                               const studentData = students.find(s => s.nom === selectedStudent.name);
                               if (!studentData) return 'لا توجد بيانات كافية';
                               const orientation = detectOrientation(studentData);
-                              if (orientation === 'علوم و تكنولوجيا') return 'يُنصح بالتوجه نحو المواد العلمية والتكنولوجية';
-                              if (orientation === 'أداب') return 'يُنصح بالتوجه نحو المواد الأدبية واللغوية';
-                              if (orientation === 'متوازن') return 'يُظهر توازنًا جيدًا بين المواد العلمية والأدبية';
+                              if (orientation === 'جامعي') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم الجامعي';
+                              if (orientation === 'تقني سامي') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني السامي';
+                              if (orientation === 'مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم المهني';
+                              if (orientation === 'تدريب مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو التدريب المهني';
+                              if (orientation === 'ثانوي علمي') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي العلمي';
+                              if (orientation === 'ثانوي تقني') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي التقني';
+                              if (orientation === 'ثانوي مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي المهني';
+                              if (orientation === 'إعادة السنة') return 'تقدير مؤقت: يُنصح بإعادة السنة لتحسين الأداء';
                               return 'يحتاج إلى مزيد من البيانات لتحديد التوجه المناسب';
                             })()}
                           </div>
@@ -2931,17 +3192,33 @@ const AnalysisResults: React.FC = () => {
                 if (!studentData) return null;
                 
                 const orientation = detectOrientation(studentData);
-                const orientationColors = {
-                  'علوم و تكنولوجيا': 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
-                  'أداب': 'from-green-50 to-emerald-50 border-green-200 text-green-800',
-                  'متوازن': 'from-purple-50 to-violet-50 border-purple-200 text-purple-800',
+                const orientationColors = isHighSchool ? {
+                  'جامعي': 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
+                  'تقني سامي': 'from-green-50 to-emerald-50 border-green-200 text-green-800',
+                  'مهني': 'from-purple-50 to-violet-50 border-purple-200 text-purple-800',
+                  'تدريب مهني': 'from-orange-50 to-amber-50 border-orange-200 text-orange-800',
+                  'إعادة السنة': 'from-red-50 to-orange-50 border-red-200 text-red-800',
+                  'غير محدد': 'from-gray-50 to-slate-50 border-gray-200 text-gray-800'
+                } : {
+                  'ثانوي علمي': 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
+                  'ثانوي تقني': 'from-green-50 to-emerald-50 border-green-200 text-green-800',
+                  'ثانوي مهني': 'from-purple-50 to-violet-50 border-purple-200 text-purple-800',
+                  'إعادة السنة': 'from-red-50 to-orange-50 border-red-200 text-red-800',
                   'غير محدد': 'from-gray-50 to-slate-50 border-gray-200 text-gray-800'
                 };
                 
-                const orientationIcons = {
-                  'علوم و تكنولوجيا': '🔬',
-                  'أداب': '📚',
-                  'متوازن': '⚖️',
+                const orientationIcons = isHighSchool ? {
+                  'جامعي': '🎓',
+                  'تقني سامي': '🔧',
+                  'مهني': '⚙️',
+                  'تدريب مهني': '🛠️',
+                  'إعادة السنة': '🔄',
+                  'غير محدد': '❓'
+                } : {
+                  'ثانوي علمي': '🔬',
+                  'ثانوي تقني': '⚙️',
+                  'ثانوي مهني': '🔧',
+                  'إعادة السنة': '🔄',
                   'غير محدد': '❓'
                 };
                 
@@ -2953,19 +3230,27 @@ const AnalysisResults: React.FC = () => {
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-3 mb-4">
                         <div className="text-3xl">{icon}</div>
-                        <h4 className="text-xl font-bold">التوجيه المقترح</h4>
+                        <h4 className="text-xl font-bold">التوجيه المقترح (تقدير مؤقت)</h4>
                       </div>
                       <div className="bg-white bg-opacity-70 rounded-lg p-4 border border-opacity-50">
                         <div className="text-2xl font-bold mb-2">{orientation}</div>
+                        <div className="text-xs text-amber-600 font-medium mb-2 bg-amber-50 px-2 py-1 rounded">
+                          ⚠️ تقدير مؤقت - التوجيه النهائي سيتم تحديده {isHighSchool ? 'في نهاية السنة الدراسية' : 'في قسم "تحليل ش.ت.م"'}
+                        </div>
                         <div className="text-sm opacity-80">
-                          {orientation === 'علوم و تكنولوجيا' && 'يُنصح بالتوجه نحو المواد العلمية والتكنولوجية'}
-                          {orientation === 'أداب' && 'يُنصح بالتوجه نحو المواد الأدبية واللغوية'}
-                          {orientation === 'متوازن' && 'يُظهر توازنًا جيدًا بين المواد العلمية والأدبية'}
+                          {orientation === 'جامعي' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم الجامعي'}
+                          {orientation === 'تقني سامي' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني السامي'}
+                          {orientation === 'مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم المهني'}
+                          {orientation === 'تدريب مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو التدريب المهني'}
+                          {orientation === 'ثانوي علمي' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي العلمي'}
+                          {orientation === 'ثانوي تقني' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي التقني'}
+                          {orientation === 'ثانوي مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي المهني'}
+                          {orientation === 'إعادة السنة' && 'تقدير مؤقت: يُنصح بإعادة السنة لتحسين الأداء'}
                           {orientation === 'غير محدد' && 'يحتاج إلى مزيد من البيانات لتحديد التوجه المناسب'}
                         </div>
                         {studentData.moyenne && (
                           <div className="mt-3 text-xs opacity-70">
-                            بناءً على المعدل العام: {studentData.moyenne.toFixed(2)}
+                            بناءً على المعدل المؤقت: {studentData.moyenne.toFixed(2)}
                           </div>
                         )}
                       </div>

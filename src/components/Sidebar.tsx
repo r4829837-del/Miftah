@@ -11,7 +11,8 @@ import {
   Settings,
   Brain,
   GraduationCap,
-  BookOpen
+  BookOpen,
+  Video
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCycle } from '../contexts/CycleContext';

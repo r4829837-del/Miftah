@@ -17,6 +17,7 @@ const testTypes = [];
 
 // Test Results Section Component
 function TestResultsSection({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
+  const { currentCycle } = useCycle();
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,13 +134,13 @@ function TestResultsSection({ setActiveTab }: { setActiveTab: (tab: string) => v
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">الطالب</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{currentCycle === 'ثانوي' ? 'الطالب' : 'التلميذ'}</label>
             <select
               value={selectedStudent}
               onChange={(e) => setSelectedStudent(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all">جميع الطلاب</option>
+              <option value="all">{currentCycle === 'ثانوي' ? 'جميع الطلاب' : 'جميع التلاميذ'}</option>
               {students.map(student => (
                 <option key={student.id} value={student.id}>
                   {student.firstName} {student.lastName}
@@ -285,6 +286,7 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    wilaya: '',
     date: ''
   });
   // NEW: ranking per question (3/2/1 for A/B/C)
@@ -1792,6 +1794,9 @@ function TestList() {
               <div style="font-size: 18px; font-weight: bold; color: #000; text-decoration: underline; margin-bottom: 12px;">
                 الجمهورية الجزائرية الديمقراطية الشعبية
               </div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 12px;">
+                وزارة التربية الوطنية
+              </div>
             </div>
             
             <!-- Main Header Content -->
@@ -1799,7 +1804,7 @@ function TestList() {
               <!-- Left Side: directorate -->
               <div style="text-align: right; direction: rtl; flex: 1;">
                 <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">
-                  مديرية التربية لولاية مستغانم
+                  مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}
                 </div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; direction: rtl; text-align: right; white-space: nowrap;">
                   <span style="font-weight: bold;">نوع المؤسسة :</span>
@@ -2618,6 +2623,9 @@ function TestList() {
             <div style="text-align: center; margin-bottom: 32px;">
               <div style="font-size: 18px; font-weight: bold; color: #000; text-decoration: underline; margin-bottom: 12px;">
                 الجمهورية الجزائرية الديمقراطية الشعبية
+              </div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 12px;">
+                وزارة التربية الوطنية
               </div>
             </div>
             
@@ -5384,7 +5392,7 @@ function TestList() {
                       <div className="p-3 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-400 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <Sparkles className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-teal-700 transition-colors">اختبار الأنماط التمثيلية</h3>
+                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-teal-700 transition-colors">الأنماط التمثيلية</h3>
                     </div>
                     <p className="text-gray-700 mb-6 text-sm leading-relaxed">تحديد النمط التمثيلي المفضل (بصري / سمعي / حسي)</p>
                      <button
@@ -5392,7 +5400,7 @@ function TestList() {
                       className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-4 py-3 rounded-lg hover:from-teal-600 hover:to-cyan-600 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                      >
                       <Sparkles className="w-5 h-5" />
-                      <span>اختبار الأنماط التمثيلية</span>
+                      <span>الأنماط التمثيلية</span>
                      </button>
                    </div>
 
@@ -5402,7 +5410,7 @@ function TestList() {
                       <div className="p-3 rounded-xl bg-gradient-to-br from-purple-400 to-pink-400 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <Sparkles className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-purple-700 transition-colors">اختبار التفكير الإبداعي</h3>
+                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-purple-700 transition-colors">التفكير الإبداعي</h3>
                     </div>
                     <p className="text-gray-700 mb-6 text-sm leading-relaxed">قياس مهارات التفكير الإبداعي والابتكار والمرونة الذهنية</p>
                      <button
@@ -5410,7 +5418,7 @@ function TestList() {
                       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                      >
                       <Sparkles className="w-5 h-5" />
-                      <span>اختبار التفكير الإبداعي</span>
+                      <span>التفكير الإبداعي</span>
                      </button>
                    </div>
 
@@ -5420,7 +5428,7 @@ function TestList() {
                       <div className="p-3 rounded-xl bg-gradient-to-br from-green-400 to-emerald-400 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <Users className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-green-700 transition-colors">اختبار المهارات الاجتماعية</h3>
+                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-green-700 transition-colors">المهارات الاجتماعية</h3>
                     </div>
                     <p className="text-gray-700 mb-6 text-sm leading-relaxed">تقييم القدرة على التواصل والتعامل مع الآخرين وبناء العلاقات</p>
                      <button
@@ -5428,7 +5436,7 @@ function TestList() {
                       className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                      >
                       <Users className="w-5 h-5" />
-                      <span className="text-xs">اختبار المهارات الاجتماعية</span>
+                      <span className="text-xs">المهارات الاجتماعية</span>
                      </button>
                    </div>
 
@@ -5438,7 +5446,7 @@ function TestList() {
                       <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-400 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                         <UserCircle2 className="w-6 h-6" />
                       </div>
-                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">اختبار التوجه الشخصي</h3>
+                      <h3 className="text-lg font-bold text-gray-800 group-hover:text-indigo-700 transition-colors">التوجه الشخصي</h3>
                     </div>
                     <p className="text-gray-700 mb-6 text-sm leading-relaxed">اختبار شامل لتحليل وفهم السمات الشخصية</p>
                      <button
@@ -5446,7 +5454,7 @@ function TestList() {
                       className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-3 rounded-lg hover:from-indigo-600 hover:to-purple-600 transition-all duration-300 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg hover:shadow-xl transform hover:scale-105"
                      >
                       <UserCircle2 className="w-5 h-5" />
-                      <span>اختبار التوجه الشخصي</span>
+                      <span>التوجه الشخصي</span>
                      </button>
                    </div>
 
@@ -5517,7 +5525,7 @@ function TestList() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden" dir="rtl">
               <div className="p-4 border-b bg-gradient-to-r from-teal-50 to-cyan-50 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-right flex-1 text-gray-800">اختبار الأنماط التمثيلية (بصري / سمعي / حسي)</h3>
+                <h3 className="text-2xl font-bold text-right flex-1 text-gray-800">الأنماط التمثيلية (بصري / سمعي / حسي)</h3>
                 <div className="flex items-center gap-2">
                   <button onClick={()=>setShowRepModal(false)} className="text-gray-500 hover:text-gray-700 p-2"><X className="w-6 h-6"/></button>
                 </div>
@@ -5548,6 +5556,16 @@ function TestList() {
                           placeholder="أدخل اللقب"
                         />
                       </div>
+                <div>
+                  <label className="block text-sm font-medium text-teal-700 mb-1">الولاية :</label>
+                  <input
+                    type="text"
+                    value={repPersonalInfo.wilaya || ''}
+                    onChange={(e) => handleRepPersonalInfoChange('wilaya', e.target.value)}
+                    className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                    placeholder="أدخل اسم الولاية"
+                  />
+                </div>
                       <div>
                         <label className="block text-sm font-medium text-teal-700 mb-1">القسم :</label>
                         <input
@@ -5718,12 +5736,12 @@ function TestList() {
           </div>
         )}
 
-        {/* Modal: اختبار التوجه الشخصي */}
+        {/* Modal: التوجه الشخصي */}
         {showPersonalityModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[95vh] overflow-hidden" dir="rtl">
               <div className="p-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-right flex-1 text-gray-800">اختبار التوجه الشخصي</h3>
+                <h3 className="text-2xl font-bold text-right flex-1 text-gray-800">التوجه الشخصي</h3>
                 <div className="flex items-center gap-2">
                   <button onClick={()=>setShowPersonalityModal(false)} className="text-gray-500 hover:text-gray-700 p-2"><X className="w-6 h-6"/></button>
                 </div>
@@ -6575,7 +6593,7 @@ function TestList() {
                       <Sparkles className="w-8 h-8" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold">اختبار التفكير الإبداعي</h2>
+      <h2 className="text-2xl font-bold">التفكير الإبداعي</h2>
                       <p className="text-purple-100">قياس مهارات التفكير الإبداعي والابتكار</p>
                     </div>
                   </div>
@@ -6756,7 +6774,7 @@ function TestList() {
                 {/* Results Display */}
                 {creativeResults && (
                   <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200 print-area">
-                    <h3 className="text-2xl font-bold text-purple-800 mb-6 text-center">نتائج اختبار التفكير الإبداعي</h3>
+      <h3 className="text-2xl font-bold text-purple-800 mb-6 text-center">نتائج التفكير الإبداعي</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div className="bg-white rounded-lg p-4 border border-purple-200">
@@ -6836,7 +6854,7 @@ function TestList() {
                       <Users className="w-8 h-8" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold">اختبار المهارات الاجتماعية</h2>
+      <h2 className="text-2xl font-bold">المهارات الاجتماعية</h2>
                       <p className="text-green-100">تقييم القدرة على التواصل والتعامل مع الآخرين</p>
                     </div>
                   </div>
@@ -7016,7 +7034,7 @@ function TestList() {
 
                 {socialResults && (
                   <div className="mt-8 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200 print-area">
-                    <h3 className="text-2xl font-bold text-green-800 mb-6 text-center">نتائج اختبار المهارات الاجتماعية</h3>
+      <h3 className="text-2xl font-bold text-green-800 mb-6 text-center">نتائج المهارات الاجتماعية</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                       <div className="bg-white rounded-lg p-4 border border-green-200">
                         <h4 className="font-semibold text-green-700 mb-3">التحليل</h4>

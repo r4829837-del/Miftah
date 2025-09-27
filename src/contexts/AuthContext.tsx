@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../lib/storage';
 import localforage from 'localforage';
 import { AUTHORIZED_USERS } from '../lib/authorizedUsers';
+import { analyticsService } from '../services/analyticsService';
 
 interface AuthContextType {
   user: User | null;
@@ -160,6 +161,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('currentUser', JSON.stringify(sessionUser));
       await authDB.setItem('currentUser', sessionUser);
       setUser(sessionUser);
+
+      // Démarrer le tracking de session
+      const schoolType = detection.type.toLowerCase() === 'lycée' ? 'lyce' : 'cem';
+      await analyticsService.startSession(sessionUser.id, sessionUser.email, schoolType, defaultCycle);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -168,6 +173,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      // Terminer le tracking de session avant la déconnexion
+      await analyticsService.endSession();
+      
       localStorage.removeItem('currentUser');
       await authDB.removeItem('currentUser');
       setUser(null);

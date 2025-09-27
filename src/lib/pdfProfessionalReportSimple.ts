@@ -122,7 +122,7 @@ const generatePage1 = (data: any) => {
             تم إعداد هذا التقرير من قبل:
           </p>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه:</strong> __________________________</p>
+              <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه النهائي:</strong> __________________________</p>
             <p style="font-size: 14px; margin: 0;"><strong>التوقيع:</strong> __________________________</p>
             <p style="font-size: 14px; margin: 0;"><strong>التاريخ:</strong> __________________________</p>
             
@@ -172,7 +172,7 @@ const generatePage2 = (data: any) => {
       </div>
       
       <div style="background: linear-gradient(135deg, #fef3c7, #fbbf24); padding: 25px; border-radius: 12px; border-right: 5px solid #f59e0b;">
-        <h2 style="color: #92400e; font-size: 22px; margin: 0 0 15px 0;">💭 تعليقات مستشار التوجيه</h2>
+          <h2 style="color: #92400e; font-size: 22px; margin: 0 0 15px 0;">💭 تعليقات مستشار التوجيه النهائي</h2>
         <div style="background: white; padding: 16px; border-radius: 8px; margin: 15px 0; border: 1px dashed #fbbf24;">
           <div style="color:#6b7280; font-size: 12px; margin-bottom: 8px;">مساحة مخصصة للكتابة اليدوية</div>
           <div style="height: 160px; background-image: repeating-linear-gradient(transparent, transparent 22px, #e5e7eb 23px); border-radius: 6px;"></div>
@@ -316,7 +316,7 @@ const generatePageRecommendations = (data: any) => {
         </div>
         <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: right;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; color: #ffffff;">
-            <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه:</strong> __________________________</p>
+              <p style="font-size: 14px; margin: 0;"><strong>مستشار التوجيه النهائي:</strong> __________________________</p>
             <p style="font-size: 14px; margin: 0;"><strong>التوقيع:</strong> __________________________</p>
             <p style="font-size: 14px; margin: 0;"><strong>التاريخ:</strong> __________________________</p>
             

@@ -1101,6 +1101,8 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.reports.map((report: any) => 
         reportsDb.setItem(report.id || uuidv4(), report)
       ));
+      // Sync to localStorage mirror for immediate UI availability
+      setCycleLocalStorage('reports', data.reports, currentCycle);
     }
 
     if (Array.isArray(data.goals)) {
@@ -1108,6 +1110,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.goals.map((goal: any) => 
         goalsDb.setItem(goal.id || uuidv4(), goal)
       ));
+      setCycleLocalStorage('goalsData', data.goals, currentCycle);
     }
 
     if (Array.isArray(data.news)) {
@@ -1115,6 +1118,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.news.map((news: any) => 
         newsDb.setItem(news.id || uuidv4(), news)
       ));
+      setCycleLocalStorage('newsData', data.news, currentCycle);
     }
 
     if (Array.isArray(data.intervention)) {
@@ -1122,6 +1126,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.intervention.map((intervention: any) => 
         interventionDb.setItem(intervention.id || uuidv4(), intervention)
       ));
+      setCycleLocalStorage('interventionData', data.intervention, currentCycle);
     }
 
     if (Array.isArray(data.counselor)) {
@@ -1129,6 +1134,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.counselor.map((counselor: any) => 
         counselorDb.setItem(counselor.id || uuidv4(), counselor)
       ));
+      setCycleLocalStorage('counselorData', data.counselor, currentCycle);
     }
 
     if (Array.isArray(data.schedule)) {
@@ -1136,6 +1142,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.schedule.map((schedule: any) => 
         scheduleDb.setItem(schedule.id || uuidv4(), schedule)
       ));
+      setCycleLocalStorage('scheduleData', data.schedule, currentCycle);
     }
 
     if (Array.isArray(data.analysis)) {
@@ -1143,6 +1150,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.analysis.map((analysis: any) => 
         analysisDb.setItem(analysis.id || uuidv4(), analysis)
       ));
+      setCycleLocalStorage('analysisData', data.analysis, currentCycle);
     }
 
     if (Array.isArray(data.recommendations)) {
@@ -1150,6 +1158,7 @@ export const importDatabase = async (data: any, cycle?: string) => {
       await Promise.all(data.recommendations.map((recommendation: any) => 
         recommendationsDb.setItem(recommendation.id || uuidv4(), recommendation)
       ));
+      setCycleLocalStorage('recommendations', data.recommendations, currentCycle);
     }
 
     emitGradesChanged({ reason: 'import', timestamp: new Date().toISOString(), meta: { counts: { students: data.students?.length, grades: data.grades?.length }, cycle: currentCycle } });
@@ -1158,6 +1167,40 @@ export const importDatabase = async (data: any, cycle?: string) => {
     console.error('Error importing database:', error);
     throw error;
   }
+};
+
+// Full-application export/import (both cycles + shared users)
+export const exportFullApplication = async () => {
+  const college = await exportDatabase('متوسط');
+  const secondary = await exportDatabase('ثانوي');
+  const users: User[] = [];
+  await usersDB.iterate((value: unknown) => {
+    users.push(value as User);
+  });
+  return {
+    cycles: {
+      'متوسط': college,
+      'ثانوي': secondary
+    },
+    users
+  };
+};
+
+export const importFullApplication = async (payload: any) => {
+  // Write users first (shared)
+  if (Array.isArray(payload?.users)) {
+    await usersDB.clear();
+    await Promise.all(payload.users.map((user: User) => usersDB.setItem(user.id, user)));
+  }
+
+  // Import both cycles if present
+  if (payload?.cycles?.['متوسط']) {
+    await importDatabase(payload.cycles['متوسط'], 'متوسط');
+  }
+  if (payload?.cycles?.['ثانوي']) {
+    await importDatabase(payload.cycles['ثانوي'], 'ثانوي');
+  }
+  return true;
 };
 
 // Force update timezone to Algeria if it's still Tunisia

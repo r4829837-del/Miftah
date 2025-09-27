@@ -268,9 +268,22 @@ export function calculateCompleteAnalysis(
 ): CompleteAnalysis {
   // 1. Calculer l'orientation pour chaque élève
   const studentsWithOrientation: StudentOrientation[] = students.map(student => {
+    // Calculate general average using BEM criteria
+    const generalAverage = student.moyenne || calculateMean(Object.values(student.notes).filter(v => typeof v === 'number' && v > 0));
+    
+  let orientation = "غير محدد";
+  if (generalAverage >= 16) {
+      orientation = "ثانوي علمي";
+    } else if (generalAverage >= 14) {
+      orientation = "ثانوي تقني";
+    } else if (generalAverage >= 10) {
+      orientation = "ثانوي مهني";
+    } else if (generalAverage > 0) {
+      orientation = "إعادة السنة";
+    }
+    
     const sciences = calculateMean([student.notes.طبيعة, student.notes.فيزياء, student.notes.رياضيات]);
     const arts = calculateMean([student.notes.عربية, student.notes.فرنسية, student.notes.تاريخ]);
-    const orientation = sciences > arts ? "جذع مشترك علوم وتكنولوجيا" : "جذع مشترك آداب";
     
     return {
       id: student.id,

@@ -4,9 +4,17 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/', // Base path pour Netlify
+  base: './', // Base path relatif pour Netlify
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'localforage',
+      'date-fns',
+      'uuid'
+    ]
   },
   build: {
     outDir: 'dist',
@@ -15,17 +23,56 @@ export default defineConfig({
     minify: 'esbuild', // Utiliser esbuild pour une meilleure compatibilité
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          utils: ['date-fns', 'uuid'],
-          charts: ['chart.js', 'react-chartjs-2'],
-          pdf: ['jspdf', 'html2canvas', 'jspdf-autotable'],
-          excel: ['xlsx'],
-          ui: ['lucide-react']
+        manualChunks: (id) => {
+          // React et React DOM
+          if (id.includes('react') || id.includes('react-dom')) {
+            return 'react-vendor';
+          }
+          // Chart.js et dépendances
+          if (id.includes('chart.js') || id.includes('react-chartjs-2')) {
+            return 'charts';
+          }
+          // PDF et dépendances
+          if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('pdf-lib') || id.includes('pdfmake')) {
+            return 'pdf';
+          }
+          // Excel et dépendances
+          if (id.includes('xlsx') || id.includes('file-saver')) {
+            return 'excel';
+          }
+          // UI et icônes
+          if (id.includes('lucide-react')) {
+            return 'ui';
+          }
+          // Utilitaires
+          if (id.includes('date-fns') || id.includes('uuid') || id.includes('localforage')) {
+            return 'utils';
+          }
+          // Composants de l'application - diviser en chunks plus petits
+          if (id.includes('/components/')) {
+            if (id.includes('/components/tests/')) {
+              return 'components-tests';
+            }
+            if (id.includes('Analysis') || id.includes('Reports')) {
+              return 'components-analysis';
+            }
+            if (id.includes('Student') || id.includes('Group')) {
+              return 'components-management';
+            }
+            return 'components-other';
+          }
+          // Services et libs
+          if (id.includes('/lib/') || id.includes('/services/')) {
+            return 'services';
+          }
+          // Node modules restants
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         }
       }
     },
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     // Optimisations pour la production
     target: 'es2015',
     cssCodeSplit: true,

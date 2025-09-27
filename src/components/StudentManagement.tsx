@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useParams } from 'react-router-dom';
-import { PlusCircle, Search, Pencil, Trash2, Eye, ArrowRight, Save, Upload, AlertCircle, AlertTriangle, CheckSquare, Square } from 'lucide-react';
+import { PlusCircle, Search, Pencil, Trash2, Eye, ArrowRight, Save, Upload, AlertCircle, AlertTriangle, CheckSquare, Square, ArrowDown, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import StudentForm from './StudentForm';
 import { getStudents, Student, deleteStudent, getSettings, AppSettings, getStudent, updateStudent, formatDate, addStudent, getStudentsDB } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
+import { applyRTLFormatting } from '../utils/excelTemplate';
 
 // Helper function to check if a grade value is valid and not empty
 const hasValidGrade = (grade: any): boolean => {
@@ -13,6 +14,51 @@ const hasValidGrade = (grade: any): boolean => {
   }
   const numGrade = parseFloat(grade);
   return !isNaN(numGrade) && numGrade > 0;
+};
+
+// Parse a grade to number or null
+const toNumber = (grade: any): number | null => {
+  if (!hasValidGrade(grade)) return null;
+  const n = parseFloat(grade);
+  return Number.isFinite(n) ? n : null;
+};
+
+// Render a small red drop indicator when next < prev
+const DropIndicator: React.FC<{ prev: any; next: any }> = ({ prev, next }) => {
+  const a = toNumber(prev);
+  const b = toNumber(next);
+  if (a == null || b == null) return null;
+  if (b < a) {
+    const diff = (a - b);
+    const shown = diff.toFixed(1);
+    return (
+      <span className="inline-flex items-center gap-1 ml-1 text-red-600 text-xs font-semibold" title={`انخفاض قدره ${shown}`}>
+        <ArrowDown className="w-3 h-3" />
+        {shown}
+      </span>
+    );
+  }
+  return null;
+};
+
+// Grade category badge (blinking dot):
+// - Green: excellent/good (>= 14)
+// - Yellow: passable (10 to < 14)
+// - Red: weak (< 10)
+const GradeBadge: React.FC<{ value: any }> = ({ value }) => {
+  const n = toNumber(value);
+  if (n == null) return null;
+  const { color, label } = n >= 14
+    ? { color: 'bg-green-500', label: 'ممتاز/جيد' }
+    : (n >= 10
+      ? { color: 'bg-yellow-500', label: 'مقبول' }
+      : { color: 'bg-red-500', label: 'ضعيف' });
+  return (
+    <span
+      className={`inline-block w-2.5 h-2.5 rounded-full ml-1 align-middle ${color} animate-pulse`}
+      title={label}
+    />
+  );
 };
 
 // Helper function to format date as YYYY/MM/DD
@@ -589,6 +635,42 @@ function StudentList() {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    // Créer un template Excel avec formatage RTL (ordre de droite à gauche)
+    const headers = [
+      'معدل الفصل 3',    // Colonne 1 (droite)
+      'معدل الفصل 2',    // Colonne 2
+      'معدل الفصل 1',    // Colonne 3
+      'الإعادة',         // Colonne 4
+      'الجنس',           // Colonne 5
+      'تاريخ الميلاد',   // Colonne 6
+      'القسم',           // Colonne 7
+      'اللقب و الاسم',    // Colonne 8
+      'الرقم'            // Colonne 9 (gauche)
+    ];
+
+    const sampleData = [
+      [18.73, 17.44, 18.31, 'لا', 'ذكر', '31/07/2009', '1 س 1 م', 'مثال: بلحسن عبد الرزاق', 1],
+      [16.80, 17.25, 16.50, 'لا', 'أنثى', '15/03/2009', '1 س 2 م', 'مثال: فاطمة علي', 2]
+    ];
+
+    // Créer les données avec en-têtes
+    const data = [headers, ...sampleData];
+    const worksheet = XLSX.utils.aoa_to_sheet(data);
+    
+    // Appliquer le formatage RTL (Right-to-Left)
+    const rowCount = data.length;
+    const colCount = headers.length;
+    applyRTLFormatting(worksheet, rowCount, colCount);
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'قائمة التلاميذ');
+    
+    // Télécharger le fichier
+    const fileName = `قالب_${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setImportError(null);
     const file = event.target.files?.[0];
@@ -599,7 +681,7 @@ function StudentList() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
       
       // Debug: Log available columns
       if (jsonData.length > 0) {
@@ -608,27 +690,58 @@ function StudentList() {
 
       // Validate and transform the data
       const importedStudents = await Promise.all(jsonData.map(async (row: any) => {
-        // Helper function to get value from either Arabic column names
-        const getValue = (key: string) => {
-          return row[key]?.toString() || '';
+        // Normalize headers per row and allow flexible variants
+        const normalizeArabic = (s: string) => String(s || '')
+          .replace(/[\u0617-\u061A\u064B-\u0652]/g, '')
+          .replace(/[أإآ]/g, 'ا')
+          .replace(/ة/g, 'ه')
+          .replace(/ى/g, 'ي')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+        const keyMap = new Map<string, any>();
+        Object.keys(row || {}).forEach((k) => {
+          keyMap.set(normalizeArabic(k), row[k]);
+        });
+        const getAny = (variants: string[], asString = true): string => {
+          for (const v of variants) {
+            const val = keyMap.get(normalizeArabic(v));
+            if (val !== undefined && val !== null && String(val).toString().trim() !== '') {
+              return asString ? String(val) : val;
+            }
+          }
+          return '';
+        };
+        const getNum = (variants: string[]): number | undefined => {
+          const raw = getAny(variants);
+          if (!raw) return undefined;
+          const n = parseFloat(String(raw).replace(',', '.'));
+          return Number.isFinite(n) ? n : undefined;
         };
 
-        // Parse the full name to extract first and last name
-        const fullName = getValue('اللقب و الاسم');
+        // Name handling (accept several variants)
+        const fullName = getAny(['اللقب و الاسم','الاسم و اللقب','الاسم واللقب','nom et prénom','nom et prenom','nom complet','nom','fullname']);
         const nameParts = fullName.trim().split(/\s+/);
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        // Map the student data according to the new template format
+        // Map the student data with flexible columns
         const studentData = {
-          studentId: getValue('الرقم'),
-          firstName: firstName,
-          lastName: lastName,
-          level: getCycleLevels()[0] || 'متوسط', // Use first available level from current cycle
-          group: settings.groups[0] || '01', // Use first available group
-          gender: getValue('الجنس') === 'أنثى' ? 'female' : 'male',
-          isRepeating: getValue('الإعادة') === 'نعم',
-          birthDate: formatBirthDate(getValue('تاريخ الميلاد')),
+          studentId: getAny(['الرقم','رقم','numero','id']),
+          firstName,
+          lastName,
+          level: getCycleLevels()[0] || 'متوسط',
+          group: settings.groups[0] || '01',
+          gender: (() => {
+            const g = getAny(['الجنس','sexe','gender']).toLowerCase();
+            if (g.includes('أنث') || g.includes('female') || g === 'f') return 'female' as const;
+            return 'male' as const;
+          })(),
+          isRepeating: (() => {
+            const r = getAny(['الإعادة','اعاده','redoublement','redouble','repeat']);
+            return ['نعم','oui','yes','1','true'].includes(r.toString().trim().toLowerCase());
+          })(),
+          birthDate: formatBirthDate(getAny(['تاريخ الميلاد','date de naissance','birthdate','dob'])),
           address: '',
           parentName: '',
           parentPhone: '',
@@ -638,9 +751,9 @@ function StudentList() {
           specialNeeds: '',
           notes: '',
           socialStatus: '',
-          semester1Grade: getValue('معدل الفصل 1') && getValue('معدل الفصل 1').trim() !== '' ? parseFloat(getValue('معدل الفصل 1')) : undefined,
-          semester2Grade: getValue('معدل الفصل 2') && getValue('معدل الفصل 2').trim() !== '' ? parseFloat(getValue('معدل الفصل 2')) : undefined,
-          semester3Grade: getValue('معدل الفصل 3') && getValue('معدل الفصل 3').trim() !== '' ? parseFloat(getValue('معدل الفصل 3')) : undefined
+          semester1Grade: getNum(['معدل الفصل 1','معدل الفصل الأول','moyenne s1','moyenne t1','s1','t1']),
+          semester2Grade: getNum(['معدل الفصل 2','معدل الفصل الثاني','moyenne s2','moyenne t2','s2','t2']),
+          semester3Grade: getNum(['معدل الفصل 3','معدل الفصل الثالث','moyenne s3','moyenne t3','s3','t3'])
         };
 
         // Validate required fields
@@ -763,6 +876,13 @@ function StudentList() {
           {currentCycle === 'ثانوي' ? 'قائمة الطلاب' : 'قائمة التلاميذ'}
         </h2>
         <div className="flex gap-2">
+            <button
+              onClick={handleDownloadTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors bg-green-500 hover:bg-green-600 text-white"
+            >
+              <Download className="w-4 h-4" />
+              <span>تحميل قالب</span>
+            </button>
             <input
             type="file"
               ref={fileInputRef}
@@ -896,8 +1016,8 @@ function StudentList() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full table-fixed">
+      <div>
+        <table className="w-full table-auto">
           <thead>
             <tr className="bg-gray-50">
               <th className="px-2 py-2 text-right w-12">
@@ -912,8 +1032,9 @@ function StudentList() {
                   )}
                 </button>
               </th>
-              <th className="px-2 py-2 text-right w-16">الرقم</th>
+              <th className="px-2 py-2 text-right w-12">الرقم</th>
               <th className="px-2 py-2 text-right w-32">اللقب و الاسم</th>
+              <th className="px-2 py-2 text-right w-20">القسم</th>
               <th className="px-2 py-2 text-right w-24">تاريخ الميلاد</th>
               <th className="px-2 py-2 text-right w-16">الجنس</th>
               <th className="px-2 py-2 text-right w-16">الإعادة</th>
@@ -942,17 +1063,29 @@ function StudentList() {
                 <td className="px-2 py-2 truncate" title={`${student.lastName} ${student.firstName}`.trim()}>
                   {`${student.lastName} ${student.firstName}`.trim()}
                 </td>
+                <td className="px-2 py-2 text-center">{student.level || ''}</td>
                 <td className="px-2 py-2 text-center">{formatBirthDate(student.birthDate)}</td>
                 <td className="px-2 py-2 text-center">{student.gender === 'male' ? 'ذكر' : 'أنثى'}</td>
                 <td className="px-2 py-2 text-center">{student.isRepeating ? 'نعم' : 'لا'}</td>
                 <td className="px-2 py-2 text-center">
-                  {hasValidGrade((student as any).semester1Grade) ? (student as any).semester1Grade : ''}
+                  <span>
+                    {hasValidGrade((student as any).semester1Grade) ? (student as any).semester1Grade : ''}
+                  </span>
+                  <GradeBadge value={(student as any).semester1Grade} />
                 </td>
                 <td className="px-2 py-2 text-center">
-                  {hasValidGrade((student as any).semester2Grade) ? (student as any).semester2Grade : ''}
+                  <span>
+                    {hasValidGrade((student as any).semester2Grade) ? (student as any).semester2Grade : ''}
+                  </span>
+                  <GradeBadge value={(student as any).semester2Grade} />
+                  <DropIndicator prev={(student as any).semester1Grade} next={(student as any).semester2Grade} />
                 </td>
                 <td className="px-2 py-2 text-center">
-                  {hasValidGrade((student as any).semester3Grade) ? (student as any).semester3Grade : ''}
+                  <span>
+                    {hasValidGrade((student as any).semester3Grade) ? (student as any).semester3Grade : ''}
+                  </span>
+                  <GradeBadge value={(student as any).semester3Grade} />
+                  <DropIndicator prev={(student as any).semester2Grade} next={(student as any).semester3Grade} />
                 </td>
                 <td className="px-2 py-2">
                   <div className="flex items-center gap-1">

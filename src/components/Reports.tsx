@@ -17,8 +17,21 @@ import { useCycle } from '../contexts/CycleContext';
 import { useCycleStorage } from '../hooks/useCycleStorage';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
 import WorkingPDFGenerator from './WorkingPDFGenerator';
 import MultiSelectTextarea from './MultiSelectTextarea';
+
+// Helper: safely parse JSON (handles BOM and whitespace)
+const safeParseJSON = (text: string): any | null => {
+  try {
+    // Remove BOM if present and trim whitespace/newlines
+    const cleaned = text.replace(/^\uFEFF/, '').trim();
+    if (!cleaned) return null;
+    return JSON.parse(cleaned);
+  } catch (_) {
+    return null;
+  }
+};
 
 // Générer les années scolaires (de l'année actuelle + 5 ans)
 const generateAcademicYears = () => {
@@ -183,7 +196,6 @@ const generalMawdooOptions = [
   'إكتشاف المواد المفضلة لدى التلاميذ',
   'اهم مصادر المعلومات للتلميذ'
 ];
-
 const getGeneralAhdafOptions = (cycle: string) => {
   const commonOptions = [
     'توعيتهم على أهمية دورهم في هذه المرحلة',
@@ -326,6 +338,75 @@ const generalNisbaOptions = [
   '-'
 ];
 
+// Options pour عمود "الأهداف" في جدول "التغطية الإعلامية"
+const getCoverageObjectivesOptions = (cycle: string) => {
+  // Adapter le libellé selon الدورة: "الطلاب" (ثانوي) vs "التلاميذ" (متوسط)
+  const commonObjectives = cycle === 'ثانوي'
+    ? [
+        'توعية الطلاب بأهمية المواظبة والانضباط الدراسي',
+        'تعزيز الدافعية للتحصيل وتحسين الاتجاه نحو الدراسة',
+        'تحسين مهارات المراجعة وتنظيم الوقت',
+        'تصحيح المفاهيم المتعلقة بالتوجيه المدرسي والمهني',
+        'التعريف بقواعد التقويم والانتقال والإنقاذ',
+        'تنمية مهارات التواصل واحترام قواعد القسم',
+        'معالجة الصعوبات الدراسية الشائعة وطرق تجاوزها',
+        'عرض نتائج التقويم التشخيصي وتحديد نقاط القوة والضعف',
+      ]
+    : [
+        'توعية التلاميذ بأهمية المواظبة والانضباط الدراسي',
+        'تعزيز الدافعية للتحصيل وتحسين الاتجاه نحو الدراسة',
+        'تحسين مهارات المراجعة وتنظيم الوقت',
+        'تصحيح المفاهيم المتعلقة بالتوجيه المدرسي والمهني',
+        'التعريف بقواعد التقويم والانتقال والإنقاذ',
+        'تنمية مهارات التواصل واحترام قواعد القسم',
+        'معالجة الصعوبات الدراسية الشائعة وطرق تجاوزها',
+        'عرض نتائج التقويم التشخيصي وتحديد نقاط القوة والضعف',
+      ];
+
+  if (cycle === 'ثانوي') {
+    return [
+      ...commonObjectives,
+      'التعريف بالشعب والتخصصات ومسارات ما بعد البكالوريا',
+      'التحضير للاختبارات والفروض والبكالوريا تدريجيا',
+      'مرافقة اختيار المسار والتخصص المناسب لكل طالب',
+    ];
+  }
+
+  return [
+    ...commonObjectives,
+    'التعريف بالشعب المتاحة في التعليم الثانوي وشروط القبول',
+    'التحضير للاختبارات الفصلية وتحسين عادات الدراسة',
+    'تنمية الوعي المهني الأولي وبناء مشروع شخصي مبكر',
+  ];
+};
+// Options pour عمود "الأهداف" في جدول "التغطية الإعلامية للأولياء"
+const getParentCoverageObjectivesOptions = (cycle: string) => {
+  const commonObjectives = [
+    'أهمية السنة الرابعة متوسط في تحديد المسار الدراسي والمهني للتلميذ',
+    'التعريف بأهمية امتحان شهادة التعليم المتوسط والتحضير لها',
+    'التعريف بجدول معاملات المواد للسنة الرابعة متوسط',
+    'التعريف بحساب بعض المعدلات',
+    'إعطائهم منهجية وطريقة عمل تساعدهم للتحضير للشهادة',
+    'التوضيح مدى تداخل مشروع التلميذ وملمحه الدراسي في الرغبة'
+  ];
+
+  if (cycle === 'ثانوي') {
+    return [
+      'أهمية المرحلة الثانوية في تحديد المسار الدراسي والمهني للطلاب',
+      'التعريف بأهمية امتحان البكالوريا والتحضير لها',
+      'التعريف بجدول معاملات المواد للمرحلة الثانوية',
+      'التعريف بحساب المعدلات والترتيب',
+      'إعطائهم منهجية وطريقة عمل تساعدهم للتحضير للبكالوريا',
+      'التوضيح مدى تداخل مشروع الطالب وملمحه الدراسي في الرغبة',
+      'التعريف بالشعب والتخصصات المتاحة في التعليم العالي',
+      'مرافقة اختيار المسار والتخصص المناسب لكل طالب',
+      'التعريف بآفاق التكوين المهني والتعليم العالي'
+    ];
+  }
+
+  return commonObjectives;
+};
+
 const generalMalahazaOptions = [
   'خلال مجلس الاقسام و مقابلات فردية',
   'من خلال مقابلات مع بعض الأولياء المهتمين',
@@ -384,7 +465,6 @@ const getReceptionTalabatOptions = (cycle: string) => {
     ];
   }
 };
-
 const getReceptionTakfulOptions = (cycle: string) => {
   const commonOptions = [
     'التكفل والتابعة',
@@ -473,7 +553,6 @@ const surveyFatratOptions = [
   'فترات متقطعة',
   'حسب الحاجة'
 ];
-
 const getSurveyIstintajatOptions = (cycle: string) => {
   const commonOptions = [
     'مستوى التحصيل الدراسي',
@@ -593,20 +672,6 @@ const reportTypes = (currentCycle: string) => [
     color: 'bg-purple-100 text-purple-600'
   },
   {
-    id: 'behavior',
-    title: 'تقرير السلوك والانضباط',
-    description: currentCycle === 'ثانوي' ? 'متابعة سلوك وانضباط الطلاب' : 'متابعة سلوك وانضباط التلاميذ',
-    icon: BookOpen,
-    color: 'bg-purple-100 text-purple-600'
-  },
-  {
-    id: 'objectives',
-    title: 'تقرير تحليل النتائج',
-    description: 'متابعة تحليل النتائج التربوية',
-    icon: Target,
-    color: 'bg-red-100 text-red-600'
-  },
-  {
     id: 'activities',
     title: 'تقرير النشاطات',
     description: 'تقرير عن النشاطات المدرسية والتربوية',
@@ -620,6 +685,16 @@ const reportTypes = (currentCycle: string) => [
     icon: FileText,
     color: 'bg-yellow-100 text-yellow-600'
   }
+];
+
+// Algerian wilayas (Arabic)
+const wilayaOptions = [
+  'أدرار', 'الشلف', 'الأغواط', 'أم البواقي', 'باتنة', 'بجاية', 'بسكرة', 'بشار', 'البليدة', 'البويرة',
+  'تمنراست', 'تبسة', 'تلمسان', 'تيارت', 'تيزي وزو', 'الجزائر', 'الجلفة', 'جيجل', 'سطيف', 'سعيدة',
+  'سكرية', 'سكيكدة', 'سيدي بلعباس', 'عنابة', 'قالمة', 'قسنطينة', 'المدية', 'مستغانم', 'المسيلة', 'معسكر',
+  'ورقلة', 'وهران', 'البيض', 'إليزي', 'برج بوعريريج', 'بومرداس', 'الطارف', 'تندوف', 'تيسمسيلت', 'الوادي',
+  'خنشلة', 'سوق أهراس', 'تيبازة', 'ميلة', 'عين الدفلى', 'النعامة', 'عين تموشنت', 'غرداية', 'غليزان',
+  'تيميمون', 'برج باجي مختار', 'أولاد جلال', 'بني عباس', 'عين صالح', 'عين قزام', 'تقرت', 'جانت', 'المغير', 'المنيعة'
 ];
 
 interface CoverageRow {
@@ -636,6 +711,7 @@ interface ParentCoverageRow {
   date: string;
   coverage: number;
   topics: string;
+  studentCount: number;
 }
 
 interface AnnualReportData {
@@ -657,7 +733,6 @@ interface VocationalInstitution {
   nationalTraining: boolean;
   requiredLevel: string;
 }
-
 interface CounselorData {
   id: string;
   number: string;
@@ -854,7 +929,6 @@ interface ExamPsychSupportRow {
   care: string;
   notes: string;
 }
-
 interface OrientationSummaryRow {
   id: string;
   label: string; // المسلك أو النهاية
@@ -862,17 +936,23 @@ interface OrientationSummaryRow {
   sciencesTech: string;
   total: string;
 }
-
-const defaultGroups = [
-  '1/1', '1/2', '1/3', '1/4',
-  '2/1', '2/2', '2/3', '2/4',
-  '3/1', '3/2', '3/3', '3/4',
-  '4/1', '4/2', '4/3', '4/4'
-];
 export default function Reports() {
   // const navigate = useNavigate();
   const { currentCycle, getCycleTitle, getCycleLevels, getCycleConfig } = useCycle();
   const { getStorage, setStorage } = useCycleStorage();
+  // Build default groups dynamically per cycle:
+  // - متوسط: 4 levels (1-4)
+  // - ثانوي: 3 levels (1-3)
+  const defaultGroups = React.useMemo(() => {
+    const levels = currentCycle === 'ثانوي' ? [1, 2, 3] : [1, 2, 3, 4];
+    const groups: string[] = [];
+    for (const level of levels) {
+      for (let num = 1; num <= 4; num++) {
+        groups.push(`${level}/${num}`);
+      }
+    }
+    return groups;
+  }, [currentCycle]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
   const [manualSchoolName, setManualSchoolName] = useState('');
@@ -939,8 +1019,23 @@ export default function Reports() {
         setSettings({
           schoolName: 'اسم المدرسة',
           counselorName: 'اسم المستشار',
+          highSchoolName: 'الثانوية',
+          highSchoolAddress: '',
           groups: [],
-          levels: []
+          levels: [],
+          semesters: ['الفصل الأول', 'الفصل الثاني', 'الفصل الثالث'],
+          timezone: 'Africa/Algiers',
+          enabledSections: {
+            general: true,
+            notifications: true,
+            security: true,
+            profile: true,
+            school: true,
+            highschool: true,
+            levels: true,
+            groups: true,
+            semesters: true
+          }
         });
       } finally {
         setIsLoadingSettings(false);
@@ -949,6 +1044,17 @@ export default function Reports() {
     
     loadSettings();
   }, [currentCycle]); // Recharger quand le cycle change
+
+  // Initialiser les données du rapport avec les paramètres configurés
+  useEffect(() => {
+    if (settings && !isLoadingSettings) {
+      setReportData(prev => ({
+        ...prev,
+        school: prev.school || settings.schoolName || '',
+        counselor: prev.counselor || settings.counselorName || ''
+      }));
+    }
+  }, [settings, isLoadingSettings]);
 
   // Écouter les changements de paramètres
   useEffect(() => {
@@ -959,13 +1065,28 @@ export default function Reports() {
           setSettings(loadedSettings);
         } catch (error) {
           console.error('Erreur lors du rechargement des paramètres:', error);
-          // Fournir des paramètres par défaut en cas d'erreur
-          setSettings({
-            schoolName: 'اسم المدرسة',
-            counselorName: 'اسم المستشار',
-            groups: [],
-            levels: []
-          });
+        // Fournir des paramètres par défaut en cas d'erreur
+        setSettings({
+          schoolName: 'اسم المدرسة',
+          counselorName: 'اسم المستشار',
+          highSchoolName: 'الثانوية',
+          highSchoolAddress: '',
+          groups: [],
+          levels: [],
+          semesters: ['الفصل الأول', 'الفصل الثاني', 'الفصل الثالث'],
+          timezone: 'Africa/Algiers',
+          enabledSections: {
+            general: true,
+            notifications: true,
+            security: true,
+            profile: true,
+            school: true,
+            highschool: true,
+            levels: true,
+            groups: true,
+            semesters: true
+          }
+        });
         }
       };
       loadSettings();
@@ -996,7 +1117,6 @@ export default function Reports() {
       clearInterval(interval);
     };
   }, []);
-
   // CSS pour masquer les éléments d'édition dans le PDF
   useEffect(() => {
     const style = document.createElement('style');
@@ -1020,6 +1140,20 @@ export default function Reports() {
   const [showActivitiesPreview, setShowActivitiesPreview] = useState(false);
   // Removed unused states (modal & selection) to satisfy linter
   const [reports, setReports] = useState<Report[]>([]);
+  // وحدة الاختيار بين الأفواج والأقسام
+  const [reportUnitMode, setReportUnitMode] = useState<'groups' | 'classes'>('groups');
+  const [parentUnitMode, setParentUnitMode] = useState<'groups' | 'classes'>('groups');
+  const classSections = (settings && settings.groups && settings.groups.length > 0)
+    ? settings.groups
+    : (getCycleConfig(currentCycle)?.groups || ['أ', 'ب', 'ج', 'د']);
+  // قوالب جاهزة لعمود الأهداف
+  const objectivesTemplates: string[] = [
+    '-  تذكير التلميذ ب :',
+    '-  مستشار التوجيه و الارشاد المدرسي و المهني',
+    '- مواقيت و معاملات المواد',
+    '- أساليب التقويم للفروض و الاختبارات',
+    '- أهمية السنة الثالثة متوسط في تحديد ملامح التوجيه و ادراكه لأهمية النتائج في هدا المستوى'
+  ];
 
   // États pour la section "تقديم مقاطعات تدخل المستشار"
   const [interventionData, setInterventionData] = useState<{
@@ -1144,7 +1278,8 @@ export default function Reports() {
     subject: '',
     coverageRows: [] as CoverageRow[],
     observations: '',
-    conclusions: ''
+    conclusions: '',
+    wilaya: ''
   });
 
   const [parentReportData, setParentReportData] = useState({
@@ -1158,7 +1293,8 @@ export default function Reports() {
     subject: '',
     coverageRows: [] as ParentCoverageRow[],
     observations: '',
-    conclusions: ''
+    conclusions: '',
+    wilaya: ''
   });
 
   const [annualReportData, setAnnualReportData] = useState<AnnualReportData>({
@@ -1174,7 +1310,6 @@ export default function Reports() {
 
   // État pour les institutions de formation professionnelle
   const [vocationalInstitutions, setVocationalInstitutions] = useState<VocationalInstitution[]>([]);
-
   // États pour la deuxième page remplissable
   const [secondPageData, setSecondPageData] = useState({
     schoolAddress: currentCycle === 'ثانوي' ? 'ثانوية حسن بن خير الدين تجديت مستغانم' : 'متوسطة حسن بن خير الدين تجديت مستغانم',
@@ -1274,7 +1409,6 @@ export default function Reports() {
   // const [testData, setTestData] = useState<TestData[]>([]);
   // const [meetingData, setMeetingData] = useState<MeetingData[]>([]);
   // const [middleSchoolResultsData, setMiddleSchoolResultsData] = useState<MiddleSchoolResultsData[]>([]);
-
   // États pour l'admission en première année secondaire
   const [highSchoolAdmissionYearData, setHighSchoolAdmissionYearData] = useState<HighSchoolAdmissionYearData[]>([
     {
@@ -1300,7 +1434,6 @@ export default function Reports() {
       lowestStudent: 'بعضير صادق'
     }
   ]);
-
   // États pour les documents d'information
   const [informationalDocumentsData, setInformationalDocumentsData] = useState<InformationalDocumentsData[]>([
     {
@@ -1353,7 +1486,6 @@ export default function Reports() {
       notes: ''
     }
   ]);
-
   useEffect(() => {
     loadSettings();
     // Charger les institutions de formation professionnelle
@@ -1471,6 +1603,26 @@ export default function Reports() {
     const todayISO = today.toISOString().split('T')[0]; // Format AAAA-MM-DD
     handleCoverageRowChange(index, 'date', todayISO);
   };
+
+  // Fonction pour gérer la saisie de date avec masque pour les parents
+  const handleParentDateChange = (index: number, value: string) => {
+    // Si c'est une date valide, on la formate
+    if (value && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      handleParentCoverageRowChange(index, 'date', value);
+    } else if (value) {
+      // Sinon on stocke la valeur telle quelle
+      handleParentCoverageRowChange(index, 'date', value);
+    } else {
+      handleParentCoverageRowChange(index, 'date', '');
+    }
+  };
+
+  // Fonction pour remplir automatiquement avec la date du jour pour les parents
+  const fillWithTodayParentDate = (index: number) => {
+    const today = new Date();
+    const todayISO = today.toISOString().split('T')[0]; // Format AAAA-MM-DD
+    handleParentCoverageRowChange(index, 'date', todayISO);
+  };
   const handleCoverageRowChange = (index: number, field: keyof CoverageRow, value: any) => {
     const newRows = [...reportData.coverageRows];
     newRows[index] = {
@@ -1509,6 +1661,68 @@ export default function Reports() {
         totalParents: total
       }));
     }
+  };
+
+  // إضافة/حذف أسطر التغطية الإعلامية (التلاميذ)
+  const addCoverageRow = () => {
+    const nextIndex = reportData.coverageRows.length;
+    const newRow: CoverageRow = {
+      group: defaultGroups[nextIndex] || '',
+      studentCount: 0,
+      date: '',
+      coverage: 0,
+      resultsAnalysis: ''
+    };
+    const newRows = [...reportData.coverageRows, newRow];
+    const newTotal = newRows.reduce((sum, r) => sum + (r.studentCount || 0), 0);
+    setReportData(prev => ({
+      ...prev,
+      coverageRows: newRows,
+      groupCount: newRows.length,
+      totalStudents: newTotal
+    }));
+  };
+  const removeCoverageRow = (index: number) => {
+    const newRows = reportData.coverageRows.filter((_, i) => i !== index);
+    const newTotal = newRows.reduce((sum, r) => sum + (r.studentCount || 0), 0);
+    setReportData(prev => ({
+      ...prev,
+      coverageRows: newRows,
+      groupCount: Math.max(0, newRows.length),
+      totalStudents: newTotal
+    }));
+  };
+
+  // إضافة/حذف أسطر التغطية الإعلامية للأولياء
+  const addParentCoverageRow = () => {
+    const nextIndex = parentReportData.coverageRows.length;
+    const newRow: ParentCoverageRow = {
+      group: defaultGroups[nextIndex] || '',
+      parentCount: 0,
+      date: '',
+      coverage: 0,
+      topics: '',
+      studentCount: 0
+    };
+    const newRows = [...parentReportData.coverageRows, newRow];
+    const newTotal = newRows.reduce((sum, r) => sum + (r.parentCount || 0), 0);
+    setParentReportData(prev => ({
+      ...prev,
+      coverageRows: newRows,
+      groupCount: newRows.length,
+      totalParents: newTotal
+    }));
+  };
+
+  const removeParentCoverageRow = (index: number) => {
+    const newRows = parentReportData.coverageRows.filter((_, i) => i !== index);
+    const newTotal = newRows.reduce((sum, r) => sum + (r.parentCount || 0), 0);
+    setParentReportData(prev => ({
+      ...prev,
+      coverageRows: newRows,
+      groupCount: Math.max(0, newRows.length),
+      totalParents: newTotal
+    }));
   };
 
   const handleSecondPageDataChange = (field: string, value: string) => {
@@ -1629,14 +1843,12 @@ export default function Reports() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        try {
-          const content = e.target?.result as string;
-          const importedInstitutions = JSON.parse(content);
-          if (Array.isArray(importedInstitutions)) {
-            setVocationalInstitutions(importedInstitutions);
-            saveVocationalInstitutions(importedInstitutions);
-          }
-        } catch (error) {
+        const content = (e.target?.result as string) ?? '';
+        const importedInstitutions = safeParseJSON(content);
+        if (Array.isArray(importedInstitutions)) {
+          setVocationalInstitutions(importedInstitutions);
+          saveVocationalInstitutions(importedInstitutions);
+        } else {
           alert('خطأ في قراءة الملف. تأكد من أن الملف صحيح.');
         }
       };
@@ -1663,7 +1875,6 @@ export default function Reports() {
     setVocationalInstitutions(updatedInstitutions);
     saveVocationalInstitutions(updatedInstitutions);
   };
-
   const updateVocationalInstitution = (id: string, field: keyof VocationalInstitution, value: any) => {
     const updatedInstitutions = vocationalInstitutions.map(inst => 
       inst.id === id ? { ...inst, [field]: value } : inst
@@ -1671,13 +1882,22 @@ export default function Reports() {
     setVocationalInstitutions(updatedInstitutions);
     saveVocationalInstitutions(updatedInstitutions);
   };
-
-  const handleGeneratePDF = async (type: 'student' | 'parent' | 'annual' | 'activities') => {
-    const contentId = type === 'student' ? 'report-preview' : type === 'parent' ? 'parent-report-preview' : type === 'annual' ? 'annual-report-preview' : 'activities-report-preview';
+  const handleGeneratePDF = async (type: 'student' | 'parent' | 'annual' | 'activities' | 'objectives') => {
+    const contentId =
+      type === 'student'
+        ? 'report-preview'
+        : type === 'parent'
+        ? 'parent-report-preview'
+        : type === 'annual'
+        ? 'annual-report-preview'
+        : type === 'activities'
+        ? 'activities-report-preview'
+        : 'objectives-report-preview';
     const content = document.getElementById(contentId);
     if (!content) return;
 
     try {
+      // For all types, render the visible preview (including objectives) to PDF via html2canvas
       // Ensure web fonts are fully loaded before rendering to canvas
       try {
         const fonts = (document as any).fonts;
@@ -1775,6 +1995,12 @@ export default function Reports() {
             page.style.minHeight = '297mm';
             page.style.boxSizing = 'border-box';
           });
+
+          // Force correct static label for school to avoid being replaced by value in PDF
+          const schoolLabel = clonedRoot.querySelector('.report-school-label') as HTMLElement | null;
+          if (schoolLabel) {
+            schoolLabel.textContent = (currentCycle === 'ثانوي') ? 'ثانوية :' : 'متوسطة :';
+          }
           
           // Ajouter une petite séparation entre les titres colorés et leurs traits
           clonedRoot.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((el) => {
@@ -1823,13 +2049,27 @@ export default function Reports() {
                 // Espacement normal pour les autres titres rouges
                 element.style.paddingBottom = `${currentPaddingBottom + 5}px`;
               }
+              
+              // Correction spécifique pour "متوسطة" et son champ de saisie
+              if (textContent.includes('متوسطة') || textContent.includes('ثانوية')) {
+                element.style.setProperty('margin-bottom', '2px', 'important');
+                element.style.setProperty('padding-bottom', '2px', 'important');
+                element.style.setProperty('line-height', '1.1', 'important');
+                element.style.setProperty('margin-right', '8px', 'important');
+              }
+              
+              // Correction pour les éléments suivants (champs de saisie)
+              const nextElement = element.nextElementSibling as HTMLElement;
+              if (nextElement && (textContent.includes('متوسطة') || textContent.includes('ثانوية'))) {
+                nextElement.style.setProperty('margin-top', '-5px', 'important');
+                nextElement.style.setProperty('margin-left', '8px', 'important');
+              }
             }
           });
           
           
         },
       } as Parameters<typeof html2canvas>[1];
-
       const pageElements = Array.from(content.querySelectorAll('.report-page'));
       if (pageElements.length > 0) {
         for (let idx = 0; idx < pageElements.length; idx++) {
@@ -1896,6 +2136,17 @@ export default function Reports() {
         title = '';
         typeName = 'تقرير النشاطات';
         fileName = 'تقرير_النشاطات.pdf';
+      } else if (type === 'objectives') {
+        // Try to attach minimal meta for saving to registry
+        try {
+          const existingReports = (getStorage('reports') || []) as any[];
+          const latest = existingReports.filter(r => r?.type === 'تقرير تحليل النتائج').slice(-1)[0];
+          const c = latest?.content || {};
+          data = c;
+          title = latest?.title || 'تقرير تحليل النتائج';
+        } catch (_) {}
+        typeName = 'تقرير تحليل النتائج';
+        fileName = 'تقرير_تحليل_النتائج.pdf';
       }
 
       const newReport: Report = {
@@ -2033,13 +2284,11 @@ export default function Reports() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        try {
-          const content = e.target?.result as string;
-          const importedData = JSON.parse(content);
-          if (Array.isArray(importedData)) {
-            setCounselors(importedData);
-          }
-        } catch (error) {
+        const content = (e.target?.result as string) ?? '';
+        const importedData = safeParseJSON(content);
+        if (Array.isArray(importedData)) {
+          setCounselors(importedData);
+        } else {
           alert('خطأ في قراءة الملف. تأكد من أن الملف صحيح.');
         }
       };
@@ -2105,13 +2354,11 @@ export default function Reports() {
       if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
-          try {
-            const content = e.target?.result as string;
-            const importedData = JSON.parse(content);
-            if (Array.isArray(importedData)) {
-              setData(importedData);
-            }
-          } catch (error) {
+          const content = (e.target?.result as string) ?? '';
+          const importedData = safeParseJSON(content);
+          if (Array.isArray(importedData)) {
+            setData(importedData);
+          } else {
             alert('خطأ في قراءة الملف. تأكد من أن الملف صحيح.');
           }
         };
@@ -2389,7 +2636,6 @@ export default function Reports() {
       </div>
     );
   }
-
   return (
     <div className="space-y-6">
       {/* Student Report Preview Modal */}
@@ -2410,25 +2656,49 @@ export default function Reports() {
                 الجمهورية الجزائرية الديمقراطية الشعبية
               </div>
 
+              <div className="text-center font-bold text-lg mb-4">
+                وزارة التربية الوطنية
+              </div>
+
               <div className="flex justify-between mb-2 text-lg">
-                <div className="font-bold">مديرية التربية لولاية مستغانم</div>
+                <div className="font-bold flex items-center gap-2">
+                  <span>مديرية التربية لولاية</span>
+                  <select
+                    value={reportData.wilaya || ''}
+                    onChange={(e) => setReportData(prev => ({ ...prev, wilaya: e.target.value }))}
+                    className="border-b border-gray-300 focus:border-blue-500 outline-none px-1 min-w-[160px] text-center text-lg bg-transparent"
+                    dir="rtl"
+                  >
+                    <option value="">اختر الولاية</option>
+                    {wilayaOptions.map(w => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="font-bold">مركز التوجيه و الإرشاد المدرسي و المهني</div>
               </div>
 
               <div className="space-y-2 text-lg">
                 <div className="flex justify-between">
                   <div className="flex items-center">
-                    <span className="underline ml-2 font-semibold">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
-                    <span className="mx-2">:</span>
-                    <span className="text-lg">{settings?.schoolName || 'اسم المدرسة'}</span>
+                    <span className="underline font-semibold report-school-label">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
+                    <span>:</span>
+                    <input
+                      type="text"
+                      value={reportData.school || settings?.schoolName || ''}
+                      onChange={(e) => setReportData(prev => ({ ...prev, school: e.target.value }))}
+                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-0 min-w-[220px] text-center text-lg bg-transparent report-school-field"
+                      dir="rtl"
+                      placeholder="اسم المدرسة"
+                    />
                   </div>
                   <div className="flex items-center">
-                    <span className="underline ml-2 font-semibold">السنة الدراسية</span>
-                    <span className="mx-2">:</span>
+                    <span className="underline font-semibold">السنة الدراسية</span>
+                    <span>:</span>
                     <select
                       value={reportData.academicYear}
                       onChange={(e) => setReportData(prev => ({ ...prev, academicYear: e.target.value }))}
-                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-2 w-32 text-center text-lg bg-transparent"
+                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-0 w-32 text-center text-lg bg-transparent"
                       dir="rtl"
                     >
                       {academicYears.map(year => (
@@ -2441,7 +2711,14 @@ export default function Reports() {
                 <div className="flex items-center">
                   <span className="underline ml-2 font-semibold">مستشار التوجيه</span>
                   <span className="mx-2">:</span>
-                  <span className="text-lg">{settings?.counselorName || 'اسم المستشار'}</span>
+                  <input
+                    type="text"
+                    value={reportData.counselor || getCycleConfig(currentCycle).counselorName || settings?.counselorName || ''}
+                    onChange={(e) => setReportData(prev => ({ ...prev, counselor: e.target.value }))}
+                    className="border-b border-gray-300 focus:border-blue-500 outline-none px-2 min-w-[220px] text-center text-lg bg-transparent"
+                    dir="rtl"
+                    placeholder="اسم المستشار"
+                  />
                 </div>
               </div>
 
@@ -2459,7 +2736,6 @@ export default function Reports() {
                   </select>
                 </div>
               </div>
-
               <div className="space-y-4">
                 <div className="flex items-center justify-center">
                   <span className="underline font-bold ml-2 text-lg">المستوى</span>
@@ -2479,11 +2755,35 @@ export default function Reports() {
                 </div>
 
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
+                    <div className="no-print text-sm flex items-center gap-3">
+                      <span className="font-semibold">الوحدة:</span>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-student"
+                          checked={reportUnitMode === 'groups'}
+                          onChange={() => setReportUnitMode('groups')}
+                        />
+                        <span>الأفواج</span>
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-student"
+                          checked={reportUnitMode === 'classes'}
+                          onChange={() => setReportUnitMode('classes')}
+                        />
+                        <span>الأقسام</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="no-print flex justify-end gap-2 mb-2"></div>
                   <table className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <tbody>
                       <tr>
-                        <td className="border-2 border-gray-700 p-2 font-bold text-center">عدد الأفواج</td>
+                        <td className="border-2 border-gray-700 p-2 font-bold text-center">{reportUnitMode === 'groups' ? 'عدد الأفواج' : 'عدد الأقسام'}</td>
                         <td className="border-2 border-gray-700 p-2 w-28">
                           <input
                             type="number"
@@ -2521,17 +2821,48 @@ export default function Reports() {
                     placeholder="أدخل موضوع التقرير"
                   />
                 </div>
-
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية:</div>
+                  <div className="flex items-center justify-between">
+                    <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية:</div>
+                    <div className="no-print text-sm flex items-center gap-3">
+                      <span className="font-semibold">الوحدة:</span>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-coverage-student"
+                          checked={reportUnitMode === 'groups'}
+                          onChange={() => setReportUnitMode('groups')}
+                        />
+                        <span>الأفواج</span>
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-coverage-student"
+                          checked={reportUnitMode === 'classes'}
+                          onChange={() => setReportUnitMode('classes')}
+                        />
+                        <span>الأقسام</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="no-print flex justify-end gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={addCoverageRow}
+                      className="px-2 py-0.5 text-sm bg-green-500 text-white rounded"
+                    >
+                      إضافة سطر
+                    </button>
+                  </div>
                   <table className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="border-2 border-gray-700 p-2 text-center">الأفواج</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">{reportUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
                         <th className="border-2 border-gray-700 p-2 text-center">{currentCycle === 'ثانوي' ? 'تعداد الطلاب' : 'تعداد التلاميذ'}</th>
                         <th className="border-2 border-gray-700 p-2 text-center">تاريخ التدخل</th>
                         <th className="border-2 border-gray-700 p-2 text-center">نسبة التغطية</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">تحليل النتائج</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">الأهداف</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2544,10 +2875,13 @@ export default function Reports() {
                               className="w-full text-center outline-none text-lg"
                               style={{ textAlign: 'center' }}
                             >
-                              <option value="">اختر الفوج</option>
-                              {defaultGroups.map(group => (
-                                <option key={group} value={group}>{group}</option>
-                              ))}
+                              <option value="">{reportUnitMode === 'groups' ? 'اختر الفوج' : 'اختر القسم'}</option>
+                              {(currentCycle === 'ثانوي' ? defaultGroups.filter(u => !u.startsWith('4/')) : defaultGroups).map(unit => {
+                                const label = reportUnitMode === 'classes' ? unit.replace('/', 'م') : unit;
+                                return (
+                                  <option key={unit} value={unit}>{label}</option>
+                                );
+                              })}
                             </select>
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
@@ -2558,6 +2892,7 @@ export default function Reports() {
                               onChange={(e) => handleCoverageRowChange(index, 'studentCount', parseInt(e.target.value) || 0)}
                               className="w-full text-center outline-none text-lg"
                               style={{ textAlign: 'center' }}
+                              list="student-count-options"
                             />
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
@@ -2599,23 +2934,37 @@ export default function Reports() {
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
                             <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={row.coverage}
-                              onChange={(e) => handleCoverageRowChange(index, 'coverage', parseInt(e.target.value) || 0)}
+                              type="text"
+                              value={`%${Math.max(0, Math.min(100, Number.isFinite(row.coverage) ? row.coverage : 0))}`}
+                              onChange={(e) => {
+                                const digits = (e.target.value || '').replace(/[^0-9]/g, '');
+                                const parsed = Math.max(0, Math.min(100, parseInt(digits || '0', 10)));
+                                handleCoverageRowChange(index, 'coverage', parsed);
+                              }}
                               className="w-full text-center outline-none text-lg"
                               style={{ textAlign: 'center' }}
+                              list="coverage-percentage-options"
+                              inputMode="numeric"
+                              dir="rtl"
                             />
                           </td>
                           <td className="border-r-2 border-l-2 border-gray-700 p-2 text-center">
-                            <input
-                              type="text"
-                              value={row.resultsAnalysis}
-                              onChange={(e) => handleCoverageRowChange(index, 'resultsAnalysis', e.target.value)}
-                              className="w-full text-center outline-none text-lg"
-                              style={{ textAlign: 'center' }}
+                            <MultiSelectTextarea
+                              className="w-full outline-none text-base leading-tight p-1"
+                              placeholder="اكتب أو اختر الأهداف"
+                              defaultValue={row.resultsAnalysis || ''}
+                              options={getCoverageObjectivesOptions(currentCycle)}
+                              onValueChange={(val) => handleCoverageRowChange(index, 'resultsAnalysis', val)}
                             />
+                          </td>
+                          <td className="border-2 border-gray-700 p-2 text-center no-print">
+                            <button
+                              type="button"
+                              onClick={() => removeCoverageRow(index)}
+                              className="px-2 py-1 bg-red-500 text-white rounded"
+                            >
+                              حذف
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -2638,6 +2987,28 @@ export default function Reports() {
                       </tr>
                     </tbody>
                   </table>
+                  {/* Suggestions lists for inputs (no-print so they're not captured visually) */}
+                  <datalist id="student-count-options">
+                    <option value="5" />
+                    <option value="10" />
+                    <option value="15" />
+                    <option value="20" />
+                    <option value="25" />
+                    <option value="30" />
+                    <option value="35" />
+                    <option value="40" />
+                  </datalist>
+                  <datalist id="coverage-percentage-options">
+                    <option value="0%" />
+                    <option value="10%" />
+                    <option value="30%" />
+                    <option value="45%" />
+                    <option value="50%" />
+                    <option value="75%" />
+                    <option value="80%" />
+                    <option value="90%" />
+                    <option value="100%" />
+                  </datalist>
                 </div>
 
                 <div>
@@ -2656,7 +3027,7 @@ export default function Reports() {
                     <div className="font-bold underline mb-8 text-lg">مستشار التوجيه و الإرشاد م.م</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">مدير {getCycleConfig(currentCycle).schoolName}</div>
+                    <div className="font-bold underline mb-8 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
                   </div>
                 </div>
               </div>
@@ -2698,8 +3069,25 @@ export default function Reports() {
                 الجمهورية الجزائرية الديمقراطية الشعبية
               </div>
 
+              <div className="text-center font-bold text-lg mb-4">
+                وزارة التربية الوطنية
+              </div>
+
               <div className="flex justify-between mb-2 text-lg">
-                <div className="font-bold">مديرية التربية لولاية مستغانم</div>
+                <div className="font-bold flex items-center gap-2">
+                  <span>مديرية التربية لولاية</span>
+                  <select
+                    value={parentReportData.wilaya || reportData.wilaya || ''}
+                    onChange={(e) => setParentReportData(prev => ({ ...prev, wilaya: e.target.value }))}
+                    className="border-b border-gray-300 focus:border-blue-500 outline-none px-1 min-w-[160px] text-center text-lg bg-transparent"
+                    dir="rtl"
+                  >
+                    <option value="">اختر الولاية</option>
+                    {wilayaOptions.map(w => (
+                      <option key={w} value={w}>{w}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="font-bold">مركز التوجيه و الإرشاد المدرسي و المهني</div>
               </div>
 
@@ -2708,7 +3096,14 @@ export default function Reports() {
                   <div className="flex items-center">
                     <span className="underline ml-2 font-semibold">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
                     <span className="mx-2">:</span>
-                    <span className="text-lg">{settings?.schoolName || 'اسم المدرسة'}</span>
+                    <input
+                      type="text"
+                      value={parentReportData.school || settings?.schoolName || ''}
+                      onChange={(e) => setParentReportData(prev => ({ ...prev, school: e.target.value }))}
+                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-2 min-w-[220px] text-center text-lg bg-transparent"
+                      dir="rtl"
+                      placeholder="اسم المدرسة"
+                    />
                   </div>
                   <div className="flex items-center">
                     <span className="underline ml-2 font-semibold">السنة الدراسية</span>
@@ -2729,7 +3124,14 @@ export default function Reports() {
                 <div className="flex items-center">
                   <span className="underline ml-2 font-semibold">مستشار التوجيه</span>
                   <span className="mx-2">:</span>
-                  <span className="text-lg">{settings?.counselorName || 'اسم المستشار'}</span>
+                  <input
+                    type="text"
+                    value={parentReportData.counselor || settings?.counselorName || ''}
+                    onChange={(e) => setParentReportData(prev => ({ ...prev, counselor: e.target.value }))}
+                    className="border-b border-gray-300 focus:border-blue-500 outline-none px-2 min-w-[220px] text-center text-lg bg-transparent"
+                    dir="rtl"
+                    placeholder="اسم المستشار"
+                  />
                 </div>
               </div>
 
@@ -2766,11 +3168,11 @@ export default function Reports() {
                 </div>
 
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي للأولياء في المستوى:</div>
+        <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
                   <table className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <tbody>
                       <tr>
-                        <td className="border-2 border-gray-700 p-2 font-bold text-center">عدد الأفواج</td>
+                        <td className="border-2 border-gray-700 p-2 font-bold text-center">{parentUnitMode === 'groups' ? 'عدد الأفواج' : 'عدد الأقسام'}</td>
                         <td className="border-2 border-gray-700 p-2 w-28">
                           <input
                             type="number"
@@ -2787,7 +3189,7 @@ export default function Reports() {
                         </td>
                       </tr>
                       <tr>
-                        <td className="border-2 border-gray-700 p-2 font-bold text-center">عدد الأولياء</td>
+                        <td className="border-2 border-gray-700 p-2 font-bold text-center">{currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}</td>
                         <td className="border-2 border-gray-700 p-2 text-center" dir="rtl">
                           {parentReportData.totalParents}
                         </td>
@@ -2810,78 +3212,169 @@ export default function Reports() {
                 </div>
 
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية للأولياء:</div>
+                  <div className="flex items-center justify-between">
+        <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية:</div>
+                    <div className="no-print text-sm flex items-center gap-3">
+                      <span className="font-semibold">الوحدة:</span>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-coverage-parent"
+                          checked={parentUnitMode === 'groups'}
+                          onChange={() => setParentUnitMode('groups')}
+                        />
+                        <span>الأفواج</span>
+                      </label>
+                      <label className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="unit-mode-coverage-parent"
+                          checked={parentUnitMode === 'classes'}
+                          onChange={() => setParentUnitMode('classes')}
+                        />
+                        <span>الأقسام</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="no-print flex justify-end gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={addParentCoverageRow}
+                      className="px-2 py-0.5 text-sm bg-green-500 text-white rounded"
+                    >
+                      إضافة سطر
+                    </button>
+                  </div>
                   <table className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="border-2 border-gray-700 p-2 text-center">الأفواج</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">عدد الأولياء</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">تاريخ اللقاء</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">نسبة الحضور</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">المواضيع المعالجة</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">{parentUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">
+                          {currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}
+                        </th>
+                        <th className="border-2 border-gray-700 p-2 text-center">تاريخ التدخل</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">نسبة التغطية</th>
+                        <th className="border-2 border-gray-700 p-2 text-center">الأهداف</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parentReportData.coverageRows.map((row, index) => (
                         <tr key={index}>
-                          <td className="border-2 border-gray-700 p-2">
-                            <select
-                              value={row.group}
-                              onChange={(e) => handleParentCoverageRowChange(index, 'group', e.target.value)}
-                              className="w-full text-center outline-none text-lg"
-                              dir="rtl"
-                            >
-                              <option value="">اختر الفوج</option>
-                              {defaultGroups.map(group => (
-                                <option key={group} value={group}>{group}</option>
-                              ))}
-                            </select>
+                          <td className="border-2 border-gray-700 p-2 no-print">
+                            {parentUnitMode === 'groups' ? (
+                              <select
+                                value={row.group}
+                                onChange={(e) => handleParentCoverageRowChange(index, 'group', e.target.value)}
+                                className="w-full text-center outline-none text-lg"
+                                dir="rtl"
+                              >
+                                <option value="">اختر الفوج</option>
+                                {defaultGroups.map(unit => (
+                                  <option key={unit} value={unit}>{unit}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="number"
+                                min="1"
+                                value={Number.isFinite(parseInt(String(row.group))) ? parseInt(String(row.group)) : ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const parsed = val === '' ? '' : Math.max(1, parseInt(val) || 1);
+                                  handleParentCoverageRowChange(index, 'group', parsed as any);
+                                }}
+                                className="w-full text-center outline-none text-lg"
+                                dir="rtl"
+                                placeholder="رقم القسم"
+                              />
+                            )}
                           </td>
-                          <td className="border-2 border-gray-700 p-2">
+                          <td className="border-2 border-gray-700 p-2 no-print">
                             <input
                               type="number"
                               min="0"
-                              value={row.parentCount}
-                              onChange={(e) => handleParentCoverageRowChange(index, 'parentCount', parseInt(e.target.value) || 0)}
+                              value={row.studentCount || 0}
+                              onChange={(e) => handleParentCoverageRowChange(index, 'studentCount', parseInt(e.target.value) || 0)}
                               className="w-full text-center outline-none text-lg"
                               dir="rtl"
                             />
                           </td>
                           <td className="border-2 border-gray-700 p-2">
+                            <div className="flex items-center gap-1 w-full" dir="rtl">
+                              <input
+                                type="text"
+                                value={formatDateToISO(row.date)}
+                                onChange={(e) => handleParentDateChange(index, e.target.value)}
+                                className="flex-1 text-center outline-none text-lg"
+                                style={{ textAlign: 'center' }}
+                                placeholder="AAAA-MM-DD"
+                                maxLength={10}
+                                onKeyDown={(e) => {
+                                  // Permettre seulement les chiffres et les tirets
+                                  if (!/[0-9-]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                onInput={(e) => {
+                                  let value = e.currentTarget.value.replace(/\D/g, '');
+                                  if (value.length >= 4) {
+                                    value = value.substring(0, 4) + '-' + value.substring(4);
+                                  }
+                                  if (value.length >= 7) {
+                                    value = value.substring(0, 7) + '-' + value.substring(7, 9);
+                                  }
+                                  e.currentTarget.value = value;
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => fillWithTodayParentDate(index)}
+                                className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors no-print ml-auto"
+                                title="Remplir avec la date du jour"
+                              >
+                                اليوم
+                              </button>
+                            </div>
+                          </td>
+                          <td className="border-2 border-gray-700 p-2">
                             <input
-                              type="date"
-                              value={row.date}
-                              onChange={(e) => handleParentCoverageRowChange(index, 'date', e.target.value)}
+                              type="text"
+                              value={`%${Math.max(0, Math.min(100, Number.isFinite(row.coverage) ? row.coverage : 0))}`}
+                              onChange={(e) => {
+                                const digits = (e.target.value || '').replace(/[^0-9]/g, '');
+                                const parsed = Math.max(0, Math.min(100, parseInt(digits || '0', 10)));
+                                handleParentCoverageRowChange(index, 'coverage', parsed);
+                              }}
                               className="w-full text-center outline-none text-lg"
                               dir="rtl"
+                              inputMode="numeric"
+                              list="coverage-percentage-options"
                               style={{ textAlign: 'center' }}
                             />
                           </td>
-                          <td className="border-2 border-gray-700 p-2">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              value={row.coverage}
-                              onChange={(e) => handleParentCoverageRowChange(index, 'coverage', parseInt(e.target.value) || 0)}
-                              className="w-full text-center outline-none text-lg"
-                              dir="rtl"
+                          <td className="border-r-2 border-l-2 border-gray-700 p-2 text-center">
+                            <MultiSelectTextarea
+                              className="w-full outline-none text-base leading-tight p-1"
+                              placeholder="اكتب أو اختر الأهداف"
+                              defaultValue={row.topics || ''}
+                              options={getParentCoverageObjectivesOptions(currentCycle)}
+                              onValueChange={(val) => handleParentCoverageRowChange(index, 'topics', val)}
                             />
                           </td>
-                          <td className="border-r-2 border-l-2 border-gray-700 p-2">
-                            <input
-                              type="text"
-                              value={row.topics}
-                              onChange={(e) => handleParentCoverageRowChange(index, 'topics', e.target.value)}
-                              className="w-full text-center outline-none text-lg"
-                              dir="rtl"
-                            />
+                          <td className="border-2 border-gray-700 p-2 no-print">
+                            <button
+                              type="button"
+                              onClick={() => removeParentCoverageRow(index)}
+                              className="px-2 py-1 bg-red-500 text-white rounded"
+                            >
+                              حذف
+                            </button>
                           </td>
                         </tr>
                       ))}
                       <tr className="bg-gray-50 font-bold">
-                        <td className="border-2 border-gray-700 p-2 text-center">مج</td>
-                        <td className="border-2 border-gray-700 p-2 text-center">{getTotalParentCount()}</td>
+                        <td className="border-2 border-gray-700 p-2 text-center no-print">مج</td>
+                        <td className="border-2 border-gray-700 p-2 text-center no-print">{parentReportData.coverageRows.reduce((sum, row) => sum + (row.studentCount || 0), 0)}</td>
                         <td className="border-2 border-gray-700 p-2 text-center">-</td>
                         <td className="border-2 border-gray-700 p-2 text-center">{calculateTotalCoverage('parent')}%</td>
                         <td className="border-r-2 border-l-2 border-gray-700 p-2 text-center">-</td>
@@ -2907,7 +3400,7 @@ export default function Reports() {
                     <div className="font-bold underline mb-8 text-lg">مستشار التوجيه و الإرشاد م.م</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">مدير {getCycleConfig(currentCycle).schoolName}</div>
+                    <div className="font-bold underline mb-8 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
                   </div>
                 </div>
               </div>
@@ -2981,13 +3474,13 @@ export default function Reports() {
                       placeholder="أدخل اسم المركز"
                     />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold">{currentCycle === 'ثانوي' ? 'ثانوية :' : 'متوسطة :'}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold report-school-label">{currentCycle === 'ثانوي' ? 'ثانوية :' : 'متوسطة :'}</span>
                     <input
                       type="text"
                       value={annualReportData.school}
                       onChange={(e) => setAnnualReportData(prev => ({ ...prev, school: e.target.value }))}
-                      className="text-right outline-none bg-transparent text-lg min-w-[100px]"
+                      className="text-right outline-none bg-transparent text-lg min-w-[100px] report-school-field"
                       dir="rtl"
                       placeholder={`أدخل اسم ${getCycleConfig(currentCycle).schoolName}`}
                     />
@@ -3125,120 +3618,122 @@ export default function Reports() {
                        </button>
                      </div>
                      
-                     {/* Student Distribution Table */}
-                     <div className="mb-6">
-                       <div className="overflow-x-auto">
-                         <table className="w-full border-collapse border border-gray-400 text-base">
+                    {/* Student Distribution Table */}
+                    <div className="mb-6">
+                      <div className="overflow-x-visible" style={{ overflowX: 'visible' }}>
+                        <table className="w-full table-fixed border-collapse border border-gray-400 text-sm" style={{ tableLayout: 'fixed' }}>
                            <thead>
                              <tr className="bg-gray-100">
-                               <th className="border border-gray-400 p-3 text-center">الرقم</th>
-                               <th className="border border-gray-400 p-3 text-center">اسم و لقب المستشار</th>
-                               <th className="border border-gray-400 p-3 text-center">{getCycleConfig(currentCycle).schoolName}</th>
-                               <th className="border border-gray-400 p-3 text-center">المجموع العام للتلاميذ</th>
-                               <th className="border border-gray-400 p-3 text-center" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الأولى<br/>متوسط</span></th>
-                               <th className="border border-gray-400 p-3 text-center" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الثانية<br/>متوسط</span></th>
-                               <th className="border border-gray-400 p-3 text-center" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الثالثة<br/>متوسط</span></th>
-                               <th className="border border-gray-400 p-3 text-center" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الرابعة<br/>متوسط</span></th>
-                               <th className="border border-gray-400 p-3 text-center no-print">إجراءات</th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words">الرقم</th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" style={{ width: '10%' }}>اسم و لقب المستشار</th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" style={{ width: '10%' }}>المتوسطة</th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words">المجموع العام للتلاميذ</th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الأولى<br/>متوسط</span></th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الثانية<br/>متوسط</span></th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الثالثة<br/>متوسط</span></th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words" colSpan={2}><span style={{lineHeight:'1.2', display:'inline-block'}}>الرابعة<br/>متوسط</span></th>
+                              <th className="border border-gray-400 p-2 text-center whitespace-normal break-words no-print" style={{ width: '10%' }}>إجراءات</th>
                              </tr>
                              <tr className="bg-gray-50">
-                               <th className="border border-gray-400 p-2 text-center"></th>
-                               <th className="border border-gray-400 p-2 text-center"></th>
-                               <th className="border border-gray-400 p-2 text-center"></th>
-                               <th className="border border-gray-400 p-2 text-center"></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">ع/ الأفواج</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">ع/ الأفواج</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">ع/ الأفواج</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
-                                <th className="border border-gray-400 text-center vertical-header-cell"><span className="vertical-header-label">ع/ الأفواج</span></th>
+                              <th className="border border-gray-400 p-2 text-center" style={{ width: '10%' }}></th>
+                              <th className="border border-gray-400 p-2 text-center" style={{ width: '10%' }}></th>
+                              <th className="border border-gray-400 p-2 text-center"></th>
+                              <th className="border border-gray-400 p-2 text-center"></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">ع/ الأفواج</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">ع/ الأفواج</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">ع/ الأفواج</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">{currentCycle === 'ثانوي' ? 'ع/ الطلاب' : 'ع/ التلاميذ'}</span></th>
+                               <th className="border border-gray-400 text-center vertical-header-cell whitespace-normal break-words"><span className="vertical-header-label">ع/ الأفواج</span></th>
                              </tr>
                            </thead>
                            <tbody>
                              {counselors.map((counselor) => (
                                <tr key={counselor.id}>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.number}
                                      onChange={(e) => updateCounselor(counselor.id, 'number', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
-                                   <input
-                                     type="text"
-                                     value={counselor.counselorName}
-                                     onChange={(e) => updateCounselor(counselor.id, 'counselorName', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
-                                     placeholder="اسم المستشار"
-                                   />
-                                 </td>
-                                 <td className="border border-gray-400 p-3 text-center">
-                                   <input
-                                     type="text"
-                                     value={counselor.schoolName}
-                                     onChange={(e) => updateCounselor(counselor.id, 'schoolName', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
-                                     placeholder="أدخل اسم المؤسسة"
-                                   />
-                                 </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words align-top" style={{ width: '10%' }}>
+                                  <textarea
+                                    value={counselor.counselorName}
+                                    onChange={(e) => updateCounselor(counselor.id, 'counselorName', e.target.value)}
+                                    rows={3}
+                                    dir="rtl"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm leading-snug whitespace-pre-wrap break-words resize-none"
+                                    placeholder="اسم و لقب المستشار"
+                                  />
+                                </td>
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words align-top" style={{ width: '10%' }}>
+                                  <textarea
+                                    value={counselor.schoolName}
+                                    onChange={(e) => updateCounselor(counselor.id, 'schoolName', e.target.value)}
+                                    rows={3}
+                                    dir="rtl"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm leading-snug whitespace-pre-wrap break-words resize-none"
+                                    placeholder="أدخل اسم المؤسسة"
+                                  />
+                                </td>
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.totalStudents}
                                      onChange={(e) => updateCounselor(counselor.id, 'totalStudents', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.firstYearStudents}
                                      onChange={(e) => updateCounselor(counselor.id, 'firstYearStudents', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.firstYearGroups}
                                      onChange={(e) => updateCounselor(counselor.id, 'firstYearGroups', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.secondYearStudents}
                                      onChange={(e) => updateCounselor(counselor.id, 'secondYearStudents', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.secondYearGroups}
                                      onChange={(e) => updateCounselor(counselor.id, 'secondYearGroups', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.thirdYearStudents}
                                      onChange={(e) => updateCounselor(counselor.id, 'thirdYearStudents', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center">
+                                <td className="border border-gray-400 p-2 text-center whitespace-normal break-words">
                                    <input
                                      type="text"
                                      value={counselor.thirdYearGroups}
                                      onChange={(e) => updateCounselor(counselor.id, 'thirdYearGroups', e.target.value)}
-                                     className="w-full text-center border-none outline-none bg-transparent"
+                                    className="w-full text-center border-none outline-none bg-transparent text-sm"
                                    />
                                  </td>
                                  <td className="border border-gray-400 p-3 text-center">
@@ -3257,7 +3752,7 @@ export default function Reports() {
                                      className="w-full text-center border-none outline-none bg-transparent"
                                    />
                                  </td>
-                                 <td className="border border-gray-400 p-3 text-center no-print">
+                                 <td className="border border-gray-400 p-3 text-center no-print" style={{ width: '10%' }}>
                                    <button
                                      onClick={() => removeCounselor(counselor.id)}
                                      className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs"
@@ -3315,21 +3810,21 @@ export default function Reports() {
                        <table className="w-full border-collapse border border-gray-400 text-sm annual-table-2">
                          <thead>
                            <tr className="bg-gray-100">
-                             <th className="border border-gray-400 p-2 text-center">{getCycleConfig(currentCycle).schoolName}</th>
+                             <th className="border border-gray-400 p-2 text-center" style={{ width: '10%' }}>المتوسطة</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={2}>الحاضرون في شهادة التعليم المتوسط</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={4}>{currentCycle === 'ثانوي' ? 'الطلاب المقبولين في السنة الأولى ثانوي' : 'التلاميذ المقبولين في السنة الأولى ثانوي'}</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={8}>{currentCycle === 'ثانوي' ? 'توزيع الطلاب المقبولين حسب فئات المعدلات (معدلات القبول)' : 'توزيع التلاميذ المقبولين حسب فئات المعدلات (معدلات القبول)'}</th>
                            </tr>
                            <tr className="bg-gray-50">
-                             <th className="border border-gray-400 p-2 text-center"></th>
+                             <th className="border border-gray-400 p-2 text-center" style={{ width: '10%' }}></th>
                              <th className="border border-gray-400 p-2 text-center">مج</th>
                              <th className="border border-gray-400 p-2 text-center">إناث</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={2}>مجموع المقبولين</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={2}>من بينهم الإناث</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>11,99-10.00</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>13,99-12</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>15,99-14</th>
                              <th className="border border-gray-400 p-2 text-center" colSpan={2}>16 و أكثر</th>
+                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>15,99-14</th>
+                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>13,99-12</th>
+                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>11,99-10.00</th>
                            </tr>
                            <tr className="bg-gray-50">
                              <th className="border border-gray-400 p-2 text-center"></th>
@@ -3351,13 +3846,21 @@ export default function Reports() {
                          </thead>
                          <tbody>
                            <tr>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">م. حسن بن خير الدين</td>
+                             <td className="border border-gray-400 px-1 py-1 text-center align-middle" style={{ width: '15%' }} rowSpan={3}>
+                               <textarea
+                                 className="w-full text-center border-none outline-none bg-transparent text-xs resize-none"
+                                 rows={3}
+                                 defaultValue="م. حسن بن خير الدين"
+                                 style={{ minHeight: '60px', lineHeight: '1.2', width: '100%' }}
+                               />
+                             </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
                                <input
                                  type="text"
                                  value={secondPageData.examTotal}
                                  onChange={(e) => handleSecondPageDataChange('examTotal', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="53"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3366,6 +3869,7 @@ export default function Reports() {
                                  value={secondPageData.examFemales}
                                  onChange={(e) => handleSecondPageDataChange('examFemales', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="26"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3374,6 +3878,7 @@ export default function Reports() {
                                  value={secondPageData.successTotal}
                                  onChange={(e) => handleSecondPageDataChange('successTotal', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="34"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3382,6 +3887,7 @@ export default function Reports() {
                                  value={secondPageData.successPercentage}
                                  onChange={(e) => handleSecondPageDataChange('successPercentage', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="64.15"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3390,6 +3896,7 @@ export default function Reports() {
                                  value={secondPageData.successFemales}
                                  onChange={(e) => handleSecondPageDataChange('successFemales', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="16"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3398,6 +3905,7 @@ export default function Reports() {
                                  value={secondPageData.successFemalesPercentage}
                                  onChange={(e) => handleSecondPageDataChange('successFemalesPercentage', e.target.value)}
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue="47.05"
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3406,8 +3914,7 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="37"
-                                 defaultValue={37}
+                                 defaultValue={0}
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3416,8 +3923,7 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="39"
-                                 defaultValue={39}
+                                 defaultValue={0}
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3426,8 +3932,7 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="76"
-                                 defaultValue={76}
+                                 defaultValue={0}
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3436,8 +3941,7 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="41"
-                                 defaultValue={41}
+                                 defaultValue={0}
                                />
                              </td>
                              <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -3446,7 +3950,24 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="26"
+                                 defaultValue={8}
+                               />
+                             </td>
+                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                               <input
+                                 type="number"
+                                 inputMode="numeric"
+                                 dir="ltr"
+                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
+                                 defaultValue={15.09}
+                               />
+                             </td>
+                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                               <input
+                                 type="number"
+                                 inputMode="numeric"
+                                 dir="ltr"
+                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
                                  defaultValue={26}
                                />
                              </td>
@@ -3456,98 +3977,7 @@ export default function Reports() {
                                  inputMode="numeric"
                                  dir="ltr"
                                  className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="67"
-                                 defaultValue={67}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="27"
-                                 defaultValue={27}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="22"
-                                 defaultValue={22}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="49"
-                                 defaultValue={49}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="29"
-                                 defaultValue={29}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="21"
-                                 defaultValue={21}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="50"
-                                 defaultValue={50}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="134"
-                                 defaultValue={134}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="108"
-                                 defaultValue={108}
-                               />
-                             </td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                               <input
-                                 type="number"
-                                 inputMode="numeric"
-                                 dir="ltr"
-                                 className="w-full text-center border-none outline-none bg-transparent text-xs py-0"
-                                 placeholder="242"
-                                 defaultValue={242}
+                                 defaultValue={49.05}
                                />
                              </td>
                            </tr>
@@ -3575,64 +4005,64 @@ export default function Reports() {
                          <X className="w-4 h-4" /> مسح الجدول
                        </button>
                      </div>
-                     <div className="overflow-x-auto">
-                       <table className="w-full border-collapse border border-gray-400 text-sm">
+                     <div className="overflow-x-visible" style={{ overflowX: 'visible' }}>
+                       <table className="w-full table-fixed border-collapse border border-gray-400 text-xs" style={{ tableLayout: 'fixed' }}>
                          <thead>
                            <tr className="bg-gray-100">
-                             <th className="border border-gray-400 p-2 text-center">{getCycleConfig(currentCycle).schoolName}</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>الحاضرون في شهادة التعليم المتوسط</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={4}>{currentCycle === 'ثانوي' ? 'الطلاب الناجحون في شهادة التعليم المتوسط' : 'التلاميذ الناجحون في شهادة التعليم المتوسط'}</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={8}>توزيع المعدلات العامة للتلاميذ في شهادة التعليم المتوسط</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" style={{ width: '15%' }}>{currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2} style={{ width: '16%' }}>الحاضرون في شهادة التعليم المتوسط</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={4} style={{ width: '24%' }}>{currentCycle === 'ثانوي' ? 'الطلاب الناجحون في شهادة التعليم المتوسط' : 'التلاميذ الناجحون في شهادة التعليم المتوسط'}</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={8} style={{ width: '48%' }}>توزيع المعدلات العامة للتلاميذ في شهادة التعليم المتوسط</th>
                            </tr>
                            <tr className="bg-gray-50">
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center">مجموع</th>
-                             <th className="border border-gray-400 p-2 text-center">الإناث</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>مجموع المقبولين</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>من بينهم الإناث</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>11.99-10.00</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>13,99-12</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>15,99-14</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>16 و أكثر</th>
+                             <th className="border border-gray-400 p-1 text-center" style={{ width: '12%' }}></th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">مجموع</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">الإناث</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>مجموع المقبولين</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>من بينهم الإناث</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>11.99-10.00</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>13,99-12</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>15,99-14</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words" colSpan={2}>16 و أكثر</th>
                            </tr>
                            <tr className="bg-gray-50">
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center" style={{ width: '12%' }}></th>
+                             <th className="border border-gray-400 p-1 text-center"></th>
+                             <th className="border border-gray-400 p-1 text-center"></th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">العدد</th>
+                             <th className="border border-gray-400 p-1 text-center whitespace-normal break-words">النسبة</th>
                            </tr>
                          </thead>
                          <tbody>
                            {studentResultsRows.map((row)=> (
                              <tr key={row.id}>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                 <input type="text" value={row.schoolName} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'schoolName',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" />
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words" style={{ width: '12%' }}>
+                                 <input type="text" value={row.schoolName} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'schoolName',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" />
                                </td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.examTotal} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'examTotal',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.examFemales} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'examFemales',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.successTotal} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successTotal',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.successPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.successFemales} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successFemales',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.successFemalesPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successFemalesPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade10to11Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade10to11Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade10to11Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade10to11Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade12to13Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade12to13Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade12to13Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade12to13Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade14to15Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade14to15Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade14to15Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade14to15Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade16PlusCount} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade16PlusCount',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
-                               <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.grade16PlusPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade16PlusPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-sm" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.examTotal} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'examTotal',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.examFemales} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'examFemales',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.successTotal} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successTotal',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.successPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.successFemales} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successFemales',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.successFemalesPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'successFemalesPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade10to11Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade10to11Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade10to11Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade10to11Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade12to13Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade12to13Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade12to13Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade12to13Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade14to15Count} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade14to15Count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade14to15Percentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade14to15Percentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade16PlusCount} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade16PlusCount',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
+                               <td className="border border-gray-400 px-1 py-1 text-center align-middle whitespace-normal break-words"><input type="text" value={row.grade16PlusPercentage} onChange={(e)=>studentResultsFunctions.updateItem(row.id,'grade16PlusPercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent text-xs" /></td>
                                <td className="border border-gray-400 p-2 text-center no-print">
                                  <button onClick={()=>studentResultsFunctions.removeItem(row.id)} className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs" title="حذف">
                                    <Trash2 className="w-3 h-3" /> حذف
@@ -3645,76 +4075,10 @@ export default function Reports() {
                      </div>
                    </div>
 
-                   {/* 2-3 نتائج التلاميذ في امتحان شهادة التعليم المتوسط */}
-                   <div className="mb-6">
-                        <h4 className="text-lg font-bold mb-3 text-right">{currentCycle === 'ثانوي' ? '2-3- نتائج الطلاب في امتحان شهادة التعليم المتوسط:' : '2-3- نتائج التلاميذ في امتحان شهادة التعليم المتوسط:'}</h4>
-                     
-                     {/* Successful Students Table */}
-                     <div className="overflow-x-auto">
-                       <table className="w-full border-collapse border border-gray-400 text-sm">
-                         <thead>
-                           <tr className="bg-gray-100">
-                             <th className="border border-gray-400 p-2 text-center">{getCycleConfig(currentCycle).schoolName}</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>الحاضرون في شهادة التعليم المتوسط</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={4}>{currentCycle === 'ثانوي' ? 'الطلاب الناجحون في شهادة التعليم المتوسط' : 'التلاميذ الناجحون في شهادة التعليم المتوسط'}</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={8}>توزيع المعدلات العامة للتلاميذ في شهادة التعليم المتوسط</th>
-                           </tr>
-                           <tr className="bg-gray-50">
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center">مجموع</th>
-                             <th className="border border-gray-400 p-2 text-center">الإناث</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>مجموع المقبولين</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>من بينهم الإناث</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>11.99-10.00</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>13,99-12</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>15,99-14</th>
-                             <th className="border border-gray-400 p-2 text-center" colSpan={2}>16 و أكثر</th>
-                           </tr>
-                           <tr className="bg-gray-50">
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center"></th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                             <th className="border border-gray-400 p-2 text-center">العدد</th>
-                             <th className="border border-gray-400 p-2 text-center">النسبة</th>
-                           </tr>
-                         </thead>
-                         <tbody>
-                           <tr>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">م. حسن بن خير الدين</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">53</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">26</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">25</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">47.17</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">11</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">20.75</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">17</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">32.07</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">08</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">15.09</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">00</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">00</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">00</td>
-                             <td className="border border-gray-400 px-1 py-1 text-center align-middle">00</td>
-                           </tr>
-                         </tbody>
-                       </table>
-                     </div>
-                   </div>
 
                 
                   </div>
                 </div>
-
                 {/* Third Page - Media and Information Section */}
                 <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                   <div className="space-y-6" dir="rtl">
@@ -3766,66 +4130,223 @@ export default function Reports() {
                         </button>
                       </div>
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse border border-gray-400 text-base">
+                        <table className="w-full border-collapse border border-gray-400 text-base" style={{ tableLayout: 'auto', minWidth: '100%' }}>
                           <thead>
                             <tr className="bg-gray-100">
-                              <th className="border border-gray-400 p-2 text-center w-36">السندات الإعلامية (نوعها)</th>
-                              <th className="border border-gray-400 p-2 text-center">الموضوع</th>
-                              <th className="border border-gray-400 p-2 text-center">الفئة المستهدفة</th>
-                              <th className="border border-gray-400 p-2 text-center">الهيئة المنجزة لها</th>
-                              <th className="border border-gray-400 p-2 text-center w-28">تاريخ الإنجاز</th>
-                              <th className="border border-gray-400 p-2 text-center no-print">إجراءات</th>
+                              <th className="border border-gray-400 p-3 text-center" style={{ width: '18%', minWidth: '150px' }}>السندات الإعلامية (نوعها)</th>
+                              <th className="border border-gray-400 p-3 text-center" style={{ width: '25%', minWidth: '200px' }}>الموضوع</th>
+                              <th className="border border-gray-400 p-3 text-center" style={{ width: '15%', minWidth: '120px' }}>الفئة المستهدفة</th>
+                              <th className="border border-gray-400 p-3 text-center" style={{ width: '22%', minWidth: '180px' }}>الهيئة المنجزة لها</th>
+                              <th className="border border-gray-400 p-3 text-center" style={{ width: '12%', minWidth: '100px' }}>تاريخ الإنجاز</th>
+                              <th className="border border-gray-400 p-3 text-center no-print" style={{ width: '8%', minWidth: '80px' }}>إجراءات</th>
                             </tr>
                           </thead>
                           <tbody>
                             {informationalDocumentsData.map((item) => (
                               <tr key={item.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                  <input
-                                    type="text"
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '18%', minWidth: '150px' }}>
+                                  <div className="relative h-full flex items-center justify-center">
+                                    <textarea
                                     value={item.documentType}
                                     onChange={(e) => informationalDocumentsFunctions.updateItem(item.id, 'documentType', e.target.value)}
-                                    className="w-full text-center border-none outline-none bg-transparent"
-                                    placeholder="نوع السند"
-                                  />
+                                      className="w-full text-center border-none outline-none bg-transparent text-sm resize-none pr-6"
+                                      style={{ 
+                                        minHeight: '60px', 
+                                        lineHeight: '1.4',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'pre-wrap'
+                                      }}
+                                      rows={3}
+                                      placeholder="اكتب أو اختر نوع السند"
+                                    />
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const currentValue = item.documentType || '';
+                                          const newValue = currentValue ? `${currentValue}\n${e.target.value}` : e.target.value;
+                                          informationalDocumentsFunctions.updateItem(item.id, 'documentType', newValue);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="absolute top-0 right-0 w-4 h-full border-none outline-none bg-transparent text-xs opacity-0 cursor-pointer"
+                                      style={{ fontSize: '10px' }}
+                                    >
+                                      <option value="">اختر</option>
+                                      <option value="ملصقات">ملصقات</option>
+                                      <option value="كتيبات">كتيبات</option>
+                                      <option value="مطويات">مطويات</option>
+                                      <option value="دليل التكوينات">دليل التكوينات</option>
+                                      <option value="وثائق حول">وثائق حول</option>
+                                      <option value="وثائق حول التسجيلات في الجامعة">وثائق حول التسجيلات في الجامعة</option>
+                                    </select>
+                                  </div>
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                  <input
-                                    type="text"
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '25%', minWidth: '200px' }}>
+                                  <div className="relative h-full flex items-center justify-center">
+                                    <textarea
                                     value={item.targetLevel}
                                     onChange={(e) => informationalDocumentsFunctions.updateItem(item.id, 'targetLevel', e.target.value)}
-                                    className="w-full text-center border-none outline-none bg-transparent"
-                                    placeholder="الموضوع"
-                                  />
+                                      className="w-full text-center border-none outline-none bg-transparent text-sm resize-none pr-6"
+                                      style={{ 
+                                        minHeight: '60px', 
+                                        lineHeight: '1.4',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'pre-wrap'
+                                      }}
+                                      rows={3}
+                                      placeholder="اكتب أو اختر الموضوع"
+                                    />
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const currentValue = item.targetLevel || '';
+                                          const newValue = currentValue ? `${currentValue}\n${e.target.value}` : e.target.value;
+                                          informationalDocumentsFunctions.updateItem(item.id, 'targetLevel', newValue);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="absolute top-0 right-0 w-4 h-full border-none outline-none bg-transparent text-xs opacity-0 cursor-pointer"
+                                      style={{ fontSize: '10px' }}
+                                    >
+                                      <option value="">اختر</option>
+                                      <option value="التحسيس بأهمية الرياضيات">التحسيس بأهمية الرياضيات</option>
+                                      <option value="التحسيس بمخاطر المخدرات">التحسيس بمخاطر المخدرات</option>
+                                      <option value="التحسيس بمخاطر مشروب اميلا">التحسيس بمخاطر مشروب اميلا</option>
+                                      <option value="القبول و التوجيه فى السنة اولى ثانوي">القبول و التوجيه فى السنة اولى ثانوي</option>
+                                      <option value="اهمية الرياضيات فى الحياة">اهمية الرياضيات فى الحياة</option>
+                                      <option value="كيف استعد لامتحان ش ت م">كيف استعد لامتحان ش ت م</option>
+                                      <option value="معا من اجل مستقبل زاهر">معا من اجل مستقبل زاهر</option>
+                                      <option value="حدد هدفك لبناء مشروعك المستقبلى">حدد هدفك لبناء مشروعك المستقبلى</option>
+                                      <option value="كيف نستعد لامتحان شهادة التعليم المتوسط">كيف نستعد لامتحان شهادة التعليم المتوسط</option>
+                                      <option value="حقق نجاحك">حقق نجاحك</option>
+                                    </select>
+                                  </div>
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                  <input
-                                    type="text"
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '15%', minWidth: '120px' }}>
+                                  <div className="relative h-full flex items-center justify-center">
+                                    <textarea
                                     value={item.quantity}
                                     onChange={(e) => informationalDocumentsFunctions.updateItem(item.id, 'quantity', e.target.value)}
-                                    className="w-full text-center border-none outline-none bg-transparent"
-                                    placeholder="الفئة المستهدفة"
-                                  />
+                                      className="w-full text-center border-none outline-none bg-transparent text-sm resize-none pr-6"
+                                      style={{ 
+                                        minHeight: '60px', 
+                                        lineHeight: '1.4',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'pre-wrap'
+                                      }}
+                                      rows={3}
+                                      placeholder="اكتب أو اختر الفئة المستهدفة"
+                                    />
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const currentValue = item.quantity || '';
+                                          const newValue = currentValue ? `${currentValue}\n${e.target.value}` : e.target.value;
+                                          informationalDocumentsFunctions.updateItem(item.id, 'quantity', newValue);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="absolute top-0 right-0 w-4 h-full border-none outline-none bg-transparent text-xs opacity-0 cursor-pointer"
+                                      style={{ fontSize: '10px' }}
+                                    >
+                                      <option value="">اختر</option>
+                                      <option value="جميع المستويات">جميع المستويات</option>
+                                      <option value="السنة الرابعة متوسط">السنة الرابعة متوسط</option>
+                                    </select>
+                                  </div>
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                  <input
-                                    type="text"
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '22%', minWidth: '180px' }}>
+                                  <div className="relative h-full flex items-center justify-center">
+                                    <textarea
                                     value={item.notes}
                                     onChange={(e) => informationalDocumentsFunctions.updateItem(item.id, 'notes', e.target.value)}
-                                    className="w-full text-center border-none outline-none bg-transparent"
-                                    placeholder="الهيئة المنجزة"
-                                  />
+                                      className="w-full text-center border-none outline-none bg-transparent text-sm resize-none pr-6"
+                                      style={{ 
+                                        minHeight: '60px', 
+                                        lineHeight: '1.4',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'pre-wrap'
+                                      }}
+                                      rows={3}
+                                      placeholder="اكتب أو اختر الهيئة المنجزة"
+                                    />
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const currentValue = item.notes || '';
+                                          const newValue = currentValue ? `${currentValue}\n${e.target.value}` : e.target.value;
+                                          informationalDocumentsFunctions.updateItem(item.id, 'notes', newValue);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="absolute top-0 right-0 w-4 h-full border-none outline-none bg-transparent text-xs opacity-0 cursor-pointer"
+                                      style={{ fontSize: '10px' }}
+                                    >
+                                      <option value="">اختر</option>
+                                      <option value="مركز التوجيه المدرسى و المهنى لولاية مستغانم">مركز التوجيه المدرسى و المهنى لولاية مستغانم</option>
+                                      <option value="مديرية التربية لولاية مستغانم">مديرية التربية لولاية مستغانم</option>
+                                    </select>
+                                  </div>
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
-                                  <input
-                                    type="text"
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '12%', minWidth: '100px' }}>
+                                  <div className="relative h-full flex items-center justify-center">
+                                    <textarea
                                     value={item.distributionDate}
                                     onChange={(e) => informationalDocumentsFunctions.updateItem(item.id, 'distributionDate', e.target.value)}
-                                    className="w-full text-center border-none outline-none bg-transparent"
-                                    placeholder="تاريخ الإنجاز"
-                                  />
+                                      className="w-full text-center border-none outline-none bg-transparent text-sm resize-none pr-6"
+                                      style={{ 
+                                        minHeight: '60px', 
+                                        lineHeight: '1.4',
+                                        textAlign: 'center',
+                                        overflow: 'hidden',
+                                        wordWrap: 'break-word',
+                                        whiteSpace: 'pre-wrap'
+                                      }}
+                                      rows={3}
+                                      placeholder="اكتب أو اختر تاريخ الإنجاز"
+                                    />
+                                    <select
+                                      value=""
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const currentValue = item.distributionDate || '';
+                                          const newValue = currentValue ? `${currentValue}\n${e.target.value}` : e.target.value;
+                                          informationalDocumentsFunctions.updateItem(item.id, 'distributionDate', newValue);
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="absolute top-0 right-0 w-4 h-full border-none outline-none bg-transparent text-xs opacity-0 cursor-pointer"
+                                      style={{ fontSize: '10px' }}
+                                    >
+                                      <option value="">اختر</option>
+                                      <option value="يناير">يناير</option>
+                                      <option value="فبراير">فبراير</option>
+                                      <option value="مارس">مارس</option>
+                                      <option value="أبريل">أبريل</option>
+                                      <option value="مايو">مايو</option>
+                                      <option value="يونيو">يونيو</option>
+                                      <option value="يوليو">يوليو</option>
+                                      <option value="أغسطس">أغسطس</option>
+                                      <option value="سبتمبر">سبتمبر</option>
+                                      <option value="أكتوبر">أكتوبر</option>
+                                      <option value="نوفمبر">نوفمبر</option>
+                                      <option value="ديسمبر">ديسمبر</option>
+                                    </select>
+                                  </div>
                                 </td>
-                                <td className="border border-gray-400 p-2 text-center no-print">
+                                <td className="border border-gray-400 px-2 py-4 text-center no-print" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell', width: '8%', minWidth: '80px' }}>
                                   <button
                                     onClick={() => informationalDocumentsFunctions.removeItem(item.id)}
                                     className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs"
@@ -3951,7 +4472,7 @@ export default function Reports() {
                                     placeholder="اسم المؤسسة"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="checkbox"
                                     checked={institution.localTraining}
@@ -3959,7 +4480,7 @@ export default function Reports() {
                                     className="w-4 h-4 text-blue-600"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="checkbox"
                                     checked={institution.regionalTraining}
@@ -3967,7 +4488,7 @@ export default function Reports() {
                                     className="w-4 h-4 text-blue-600"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="checkbox"
                                     checked={institution.nationalTraining}
@@ -4060,7 +4581,7 @@ export default function Reports() {
                             <tbody>
                               {coordinationData.map((item) => (
                                 <tr key={item.id}>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.number}
@@ -4068,7 +4589,7 @@ export default function Reports() {
                                       className="w-full text-center border-none outline-none bg-transparent"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.coordinationType}
@@ -4077,7 +4598,7 @@ export default function Reports() {
                                       placeholder="نوع التنسيق"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.coordinationSubject}
@@ -4086,7 +4607,7 @@ export default function Reports() {
                                       placeholder="موضوع التنسيق"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.date}
@@ -4095,7 +4616,7 @@ export default function Reports() {
                                       placeholder="التاريخ"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.notes}
@@ -4120,7 +4641,6 @@ export default function Reports() {
                           </table>
                         </div>
                       </div>
-
                       {/* B. Joint Awareness Program */}
                       <div className="mb-6">
                         <h4 className="text-lg font-bold mb-2 text-right">ب- البرنامج الإعلامي التحسيسي المشترك :</h4>
@@ -4177,7 +4697,7 @@ export default function Reports() {
                             <tbody>
                               {awarenessProgramData.map((item) => (
                                 <tr key={item.id}>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.number}
@@ -4185,7 +4705,7 @@ export default function Reports() {
                                       className="w-full text-center border-none outline-none bg-transparent"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.targetLevel}
@@ -4194,7 +4714,7 @@ export default function Reports() {
                                       placeholder="المستوى المستهدف"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.plannedActivity}
@@ -4203,7 +4723,7 @@ export default function Reports() {
                                       placeholder="النشاط المبرمج"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.completionDate}
@@ -4212,7 +4732,7 @@ export default function Reports() {
                                       placeholder="تاريخ الإنجاز"
                                     />
                                   </td>
-                                  <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                  <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                     <input
                                       type="text"
                                       value={item.notes}
@@ -4303,7 +4823,6 @@ export default function Reports() {
                           مسح الجدول
                         </button>
                       </div>
-                      
                       <div className="overflow-x-auto mb-4">
                         <table className="w-full border-collapse border border-gray-400 text-base">
                           <thead>
@@ -4320,7 +4839,7 @@ export default function Reports() {
                           <tbody>
                             {studentInfoData.map((item) => (
                               <tr key={item.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.level}
@@ -4329,7 +4848,7 @@ export default function Reports() {
                                     placeholder="المستوى"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.registeredStudents}
@@ -4338,7 +4857,7 @@ export default function Reports() {
                                     placeholder={currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.followUp}
@@ -4347,7 +4866,7 @@ export default function Reports() {
                                     placeholder="المتابعة"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.interventions}
@@ -4356,7 +4875,7 @@ export default function Reports() {
                                     placeholder="عدد التدخلات"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.objective}
@@ -4365,7 +4884,7 @@ export default function Reports() {
                                     placeholder="الهدف"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.beneficiaryPercentage}
@@ -4445,22 +4964,22 @@ export default function Reports() {
                           <tbody>
                             {parentAttendanceData.map((row) => (
                               <tr key={row.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.level} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'level',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.registeredStudents} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'registeredStudents',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.individualMeetings} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'individualMeetings',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.groupMeetings} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'groupMeetings',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.total} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'total',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input type="text" value={row.attendancePercentage} onChange={(e)=>parentAttendanceFunctions.updateItem(row.id,'attendancePercentage',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" />
                                 </td>
                                 <td className="border border-gray-400 p-2 text-center no-print">
@@ -4515,16 +5034,16 @@ export default function Reports() {
                           <tbody>
                              {informationalDocumentsData.map((row) => (
                                <tr key={row.id}>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                    <input type="text" value={row.documentType} onChange={(e)=>informationalDocumentsFunctions.updateItem(row.id,'documentType',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" placeholder="عنوان الوثيقة" />
                                  </td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                    <input type="text" value={row.targetLevel} onChange={(e)=>informationalDocumentsFunctions.updateItem(row.id,'targetLevel',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" placeholder="المستوى" />
                                  </td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                    <input type="text" value={row.quantity} onChange={(e)=>informationalDocumentsFunctions.updateItem(row.id,'quantity',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" placeholder="عدد النسخ" />
                                  </td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                    <input type="text" value={row.notes} onChange={(e)=>informationalDocumentsFunctions.updateItem(row.id,'notes',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" placeholder="%" />
                                  </td>
                                  <td className="border border-gray-400 p-2 text-center no-print">
@@ -4597,7 +5116,7 @@ export default function Reports() {
                           <tbody>
                             {nationalWeekData.map((item) => (
                               <tr key={item.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.activityName}
@@ -4606,7 +5125,7 @@ export default function Reports() {
                                     placeholder="الوسائل المعتمدة"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.targetLevel}
@@ -4723,7 +5242,7 @@ export default function Reports() {
                           <tbody>
                             {highSchoolAdmissionYearData.map((item) => (
                               <tr key={item.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.academicYear}
@@ -4732,7 +5251,7 @@ export default function Reports() {
                                     placeholder="السنة الدراسية"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.fourthYearCount}
@@ -4741,7 +5260,7 @@ export default function Reports() {
                                     placeholder="في السنة الرابعة متوسط"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.admittedCount}
@@ -4750,7 +5269,7 @@ export default function Reports() {
                                     placeholder="المقبولون في السنة الأولى ثانوي"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.percentage}
@@ -4759,7 +5278,7 @@ export default function Reports() {
                                     placeholder="النسبة"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.highestAverage}
@@ -4768,7 +5287,7 @@ export default function Reports() {
                                     placeholder="أعلى معدل"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.highestStudent}
@@ -4777,7 +5296,7 @@ export default function Reports() {
                                     placeholder="التلميذ"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.lowestAverage}
@@ -4786,7 +5305,7 @@ export default function Reports() {
                                     placeholder="أدنى معدل"
                                   />
                                 </td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}>
                                   <input
                                     type="text"
                                     value={item.lowestStudent}
@@ -4844,10 +5363,10 @@ export default function Reports() {
                           <tbody>
                              {orientationSummaryRows.map((row)=>(
                                <tr key={row.id}>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.label} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'label',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.commonArts} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'commonArts',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.sciencesTech} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'sciencesTech',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                 <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.total} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'total',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.label} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'label',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.commonArts} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'commonArts',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.sciencesTech} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'sciencesTech',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                 <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.total} onChange={(e)=>orientationSummaryFunctions.updateItem(row.id,'total',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
                                  <td className="border border-gray-400 p-2 text-center no-print">
                                    <button onClick={()=>orientationSummaryFunctions.removeItem(row.id)} className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs" title="حذف">
                                      <Trash2 className="w-3 h-3" /> حذف
@@ -5052,13 +5571,13 @@ export default function Reports() {
                           <tbody>
                             {examPsychSupportRows.map((row)=> (
                               <tr key={row.id}>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.number} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'number',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.caseType} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'caseType',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.count} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.stream} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'stream',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.subject} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'subject',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.care} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'care',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
-                                <td className="border border-gray-400 px-1 py-1 text-center align-middle"><input type="text" value={row.notes} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'notes',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.number} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'number',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.caseType} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'caseType',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.count} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'count',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.stream} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'stream',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.subject} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'subject',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.care} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'care',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
+                                <td className="border border-gray-400 px-2 py-4 text-center align-middle" style={{ minHeight: '80px', verticalAlign: 'middle', display: 'table-cell' }}><input type="text" value={row.notes} onChange={(e)=>examPsychSupportFunctions.updateItem(row.id,'notes',e.target.value)} className="w-full text-center border-none outline-none bg-transparent" /></td>
                                 <td className="border border-gray-400 p-2 text-center no-print">
                                   <button onClick={()=>examPsychSupportFunctions.removeItem(row.id)} className="inline-flex items-center gap-1 px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs" title="حذف">
                                     <Trash2 className="w-3 h-3" /> حذف
@@ -5221,8 +5740,8 @@ export default function Reports() {
                  </div>
                )}
                
-               {/* Organiser les rapports par trimestre */}
-               {(() => {
+              {/* Organiser les rapports par trimestre */}
+              {(() => {
                  const analysisReports = reports.filter(r => r.type === 'تقرير تحليل النتائج');
                  const reportsBySemester = {
                    'الفصل الأول': analysisReports.filter(r => r.content?.semester === 'الفصل الأول'),
@@ -5231,7 +5750,9 @@ export default function Reports() {
                    'النتائج السنوية': analysisReports.filter(r => r.content?.semester === 'النتائج السنوية')
                  };
                  
-                 return Object.entries(reportsBySemester).map(([semester, semesterReports]) => {
+                return (
+                  <>
+                    {Object.entries(reportsBySemester).map(([semester, semesterReports]) => {
                    if (semesterReports.length === 0) return null;
                    
                    return (
@@ -5241,7 +5762,7 @@ export default function Reports() {
                          <p className="text-sm text-blue-600">{semesterReports.length} تقرير محفوظ</p>
                        </div>
                        <div className="divide-y">
-                         {semesterReports.map((r) => (
+                        {semesterReports.map((r) => (
                            <div key={r.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
                              <div className="text-right flex-1">
                                <div className="font-semibold text-gray-900">{r.title}</div>
@@ -5379,7 +5900,6 @@ export default function Reports() {
                                            }
                                          }
                                        });
-                                       
                                        // Graphique des meilleurs étudiants
                                        const topPerformersCtx = document.getElementById('topPerformersChart').getContext('2d');
                                        const topPerformersData = ${JSON.stringify(c.topPerformers || [])};
@@ -5612,16 +6132,18 @@ export default function Reports() {
                                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
                                >
                                  حذف
-                               </button>
-                   </div>
-                 </div>
-               ))}
-                       </div>
-                     </div>
-                   );
-                 });
-               })()}
-             </div>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
            </div>
          </div>
        )}
@@ -5645,8 +6167,25 @@ export default function Reports() {
                      <div className="w-48 h-0.5 bg-gray-400 mx-auto mt-4"></div>
                    </div>
 
-                   <div className="flex justify-between mb-2 text-lg">
-                     <div className="font-bold">مديرية التربية لولاية مستغانم</div>
+                   <div className="text-center font-bold text-lg mb-4">
+                     وزارة التربية الوطنية
+                   </div>
+
+                  <div className="flex justify-between mb-2 text-lg">
+                    <div className="font-bold flex items-center gap-2">
+                      <span>مديرية التربية لولاية</span>
+                      <select
+                        value={reportData.wilaya || ''}
+                        onChange={(e) => setReportData(prev => ({ ...prev, wilaya: e.target.value }))}
+                        className="border-b border-gray-300 focus:border-blue-500 outline-none px-1 min-w-[160px] text-center text-lg bg-transparent"
+                        dir="rtl"
+                      >
+                        <option value="">اختر الولاية</option>
+                        {wilayaOptions.map(w => (
+                          <option key={w} value={w}>{w}</option>
+                        ))}
+                      </select>
+                    </div>
                      <div className="font-bold">مركز التوجيه و الإرشاد المدرسي و المهني</div>
                    </div>
 
@@ -5720,7 +6259,7 @@ export default function Reports() {
                      
                      {/* Signature */}
                      <div className="mt-12">
-                        <div className="font-bold text-lg">مدير {getCycleConfig(currentCycle).schoolName}</div>
+                        <div className="font-bold text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
                      </div>
                    </div>
                  </div>
@@ -6763,7 +7302,7 @@ export default function Reports() {
                    <div className="flex justify-between items-end pt-16 mt-8">
                      <div className="text-center">
                        <div className="text-sm text-gray-600 mb-4">حرر ب........</div>
-                        <div className="font-bold">مدير {getCycleConfig(currentCycle).schoolName}</div>
+                      <div className="font-bold">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
                      </div>
                      <div className="text-center">
                        <div className="font-bold">مستشار التوجيه والإرشاد المدرسي</div>
@@ -6809,14 +7348,6 @@ export default function Reports() {
             </div>
             <p className="text-gray-600 mb-6">{type.description}</p>
             {type.id === 'annual' ? (
-              <button
-                disabled
-                className="w-full bg-orange-400 text-white px-4 py-2 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Download className="w-5 h-5" />
-                <span>90% مكتمل - قريباً</span>
-              </button>
-            ) : type.id === 'behavior' ? (
               <button
                 disabled
                 className="w-full bg-orange-400 text-white px-4 py-2 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"

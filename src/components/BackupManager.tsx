@@ -65,6 +65,10 @@ export const BackupManager: React.FC<BackupManagerProps> = ({ onClose }) => {
       await restoreFromBackup(backupId);
       setMessage({ type: 'success', text: 'Sauvegarde restaurée avec succès' });
       await checkIntegrity();
+      // Recharger l'application pour refléter immédiatement les données restaurées
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
     } catch (error) {
       setMessage({ type: 'error', text: 'Erreur lors de la restauration' });
     } finally {

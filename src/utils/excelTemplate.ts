@@ -134,7 +134,7 @@ const createGradesSheet = (config: ExcelTemplateConfig): XLSX.WorkSheet => {
 /**
  * Apply RTL formatting to worksheet
  */
-const applyRTLFormatting = (worksheet: XLSX.WorkSheet, rowCount: number, colCount: number) => {
+export const applyRTLFormatting = (worksheet: XLSX.WorkSheet, rowCount: number, colCount: number) => {
   // Set RTL direction for all cells
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
   
@@ -143,26 +143,47 @@ const applyRTLFormatting = (worksheet: XLSX.WorkSheet, rowCount: number, colCoun
       const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
       if (!worksheet[cellAddress]) continue;
       
-      // Set RTL alignment
+      // Set RTL alignment and reading order
       worksheet[cellAddress].s = {
         ...worksheet[cellAddress].s,
         alignment: {
           horizontal: 'right',
           vertical: 'middle',
           textRotation: 0,
-          wrapText: true
+          wrapText: true,
+          readingOrder: 2, // RTL reading order
+          indent: 0
         }
       };
     }
   }
 
-  // Set column widths
-  const colWidths = Array(colCount).fill(15);
-  worksheet['!cols'] = colWidths.map(w => ({ wch: w }));
+  // Set column widths (optimized for Arabic text)
+  const colWidths = [
+    { wch: 12 },  // معدل الفصل 3
+    { wch: 12 },  // معدل الفصل 2
+    { wch: 12 },  // معدل الفصل 1
+    { wch: 10 },  // الإعادة
+    { wch: 10 },  // الجنس
+    { wch: 15 },  // تاريخ الميلاد
+    { wch: 12 },  // القسم
+    { wch: 25 },  // اللقب و الاسم
+    { wch: 8 }    // الرقم
+  ];
+  worksheet['!cols'] = colWidths;
 
   // Set row heights
-  const rowHeights = Array(rowCount).fill(20);
+  const rowHeights = Array(rowCount).fill(25);
   worksheet['!rows'] = rowHeights.map(h => ({ hpt: h }));
+
+  // Set sheet properties for RTL
+  worksheet['!sheet'] = {
+    ...worksheet['!sheet'],
+    '!sheetFormatPr': {
+      baseColWidth: 10,
+      defaultRowHeight: 25
+    }
+  };
 };
 
 /**

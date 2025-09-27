@@ -105,7 +105,7 @@ const generateProfessionalHTML = (data: any) => {
           </div>
           <div style="margin-top: 40px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
             <p style="font-size: 14px; margin: 0; opacity: 0.8;">
-              تم إعداد هذا التقرير من قبل مستشار التوجيه المدرسي
+              تم إعداد هذا التقرير من قبل مستشار التوجيه النهائي المدرسي
             </p>
             <p style="font-size: 12px; margin: 5px 0 0 0; opacity: 0.7;">
             
@@ -154,7 +154,7 @@ const generateProfessionalHTML = (data: any) => {
         
         <!-- Commentaires du conseiller -->
         <div style="background: linear-gradient(135deg, #fef3c7, #fbbf24); padding: 25px; border-radius: 12px; border-right: 5px solid #f59e0b;">
-          <h2 style="color: #92400e; font-size: 22px; margin: 0 0 15px 0;">💭 تعليقات مستشار التوجيه</h2>
+          <h2 style="color: #92400e; font-size: 22px; margin: 0 0 15px 0;">💭 تعليقات مستشار التوجيه النهائي</h2>
           <div style="background: white; padding: 20px; border-radius: 8px; margin: 15px 0;">
             <p style="margin: 0; font-size: 16px; line-height: 1.8; color: #374151;">
               <strong>التحليل العام:</strong> تشير النتائج إلى ${data.average >= 15 ? 'مستوى جيد' : data.average >= 12 ? 'مستوى متوسط' : 'مستوى يحتاج إلى تحسين'} في الأداء الأكاديمي. 
@@ -401,7 +401,7 @@ const generateProfessionalHTML = (data: any) => {
           </div>
           <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
             <p style="font-size: 14px; margin: 0; opacity: 0.9;">
-              تم إعداد هذا التقرير بواسطة مستشار التوجيه المدرسي
+              تم إعداد هذا التقرير بواسطة مستشار التوجيه النهائي المدرسي
             </p>
             <p style="font-size: 12px; margin: 5px 0 0 0; opacity: 0.7;">
             

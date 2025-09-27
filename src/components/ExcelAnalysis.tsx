@@ -57,6 +57,13 @@ const ExcelAnalysis: React.FC<ExcelAnalysisProps> = ({ onAnalysisComplete }) => 
     });
   };
 
+  const downloadCustomTemplate = () => {
+    // Import the custom template function dynamically
+    import('../utils/customTemplate').then(({ downloadCustomTemplate }) => {
+      downloadCustomTemplate();
+    });
+  };
+
   const levels = [
     { id: '1AF', label: 'السنة الأولى متوسط' },
     { id: '2AF', label: 'السنة الثانية متوسط' },
@@ -87,6 +94,21 @@ const ExcelAnalysis: React.FC<ExcelAnalysisProps> = ({ onAnalysisComplete }) => 
               <span className="text-sm font-medium">{level.label}</span>
             </button>
           ))}
+        </div>
+        
+        {/* Template personnalisé basé sur votre structure */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="text-md font-semibold text-blue-800 mb-2">قالب مخصص</h4>
+          <p className="text-sm text-blue-700 mb-3">
+            قالب مبني على هيكل البيانات الخاص بك مع دعم الحساب التلقائي للمعدلات
+          </p>
+          <button
+            onClick={downloadCustomTemplate}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            <span>تحميل القالب المخصص</span>
+          </button>
         </div>
         <p className="text-sm text-gray-500 mt-2">
           القوالب مُنسقة باللغة العربية من اليمين إلى اليسار
@@ -206,7 +228,7 @@ const ExcelAnalysis: React.FC<ExcelAnalysisProps> = ({ onAnalysisComplete }) => 
                       <div className="text-lg font-bold text-orange-600">{analysisReport.analyseGenerale.classificationQualitativeGenerale.tableauHonneur}</div>
                     </div>
                     <div className="bg-white p-3 rounded text-center">
-                      <div className="text-sm text-gray-600">ملاحظة (<12)</div>
+                      <div className="text-sm text-gray-600">{'ملاحظة (<12)'}</div>
                       <div className="text-lg font-bold text-red-600">{analysisReport.analyseGenerale.classificationQualitativeGenerale.observation}</div>
                     </div>
                   </div>

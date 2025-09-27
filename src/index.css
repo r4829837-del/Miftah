@@ -35,6 +35,18 @@
     animation: dataFlow 12s linear infinite;
   }
   
+  .animate-fadeIn {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slideIn {
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  .animate-scaleIn {
+    animation: scaleIn 0.2s ease-out;
+  }
+  
   @keyframes pulse {
     0%, 100% {
       opacity: 1;
@@ -461,11 +473,58 @@ body {
 }
 
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out forwards;
+  animation: fade-in 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .animate-scale-in {
   animation: scale-in 0.5s ease-out forwards;
+}
+
+/* Correction d'espacement pour les rapports PDF */
+.report-school-field {
+  margin-top: -5px !important;
+  margin-bottom: 2px !important;
+  line-height: 1.1 !important;
+}
+
+.report-school-label {
+  margin-bottom: 2px !important;
+  padding-bottom: 2px !important;
+  line-height: 1.1 !important;
+  margin-right: 8px !important;
 }
 
 .animate-fade-in-delayed {

@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BookOpen, Search, Archive, Upload, Save, X } from 'lucide-react';
 import { useCycle } from '../contexts/CycleContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useCycleStorage } from '../hooks/useCycleStorage';
+import { exportDatabase, importDatabase, exportFullApplication, importFullApplication } from '../lib/storage';
+import CycleIsolationMonitor from './CycleIsolationMonitor';
 
 import {
   Users,
@@ -12,7 +15,8 @@ import {
   Target,
   FileText,
   Settings,
-  Brain
+  Brain,
+  Video
 } from 'lucide-react';
 
 const getDashboardCards = (currentCycle: string) => [
@@ -28,7 +32,9 @@ const getDashboardCards = (currentCycle: string) => [
 
 function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentCycle } = useCycle();
+  const { logout } = useAuth();
   const { getStorage, setStorage } = useCycleStorage();
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredCards, setFilteredCards] = useState(getDashboardCards(currentCycle));
@@ -36,11 +42,23 @@ function Dashboard() {
   // États pour la gestion des sauvegardes
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupName, setBackupName] = useState('');
+  const [postBackupLogout, setPostBackupLogout] = useState(false);
 
   // Mettre à jour les cartes quand le cycle change
   React.useEffect(() => {
     setFilteredCards(getDashboardCards(currentCycle));
   }, [currentCycle]);
+
+  // Open full backup modal when navigating from logout confirmation
+  useEffect(() => {
+    const state = location.state as { openBackupModalFromLogout?: boolean } | null;
+    if (state?.openBackupModalFromLogout) {
+      setShowBackupModal(true);
+      setPostBackupLogout(true);
+      // Clear the state to avoid reopening on back/refresh
+      navigate('.', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -63,43 +81,28 @@ function Dashboard() {
     }
   };
 
-  // Fonction de sauvegarde complète de l'application
-  const saveCompleteApplication = () => {
+  // Fonction de sauvegarde complète de l'application (toute l'application)
+  const saveCompleteApplication = async () => {
     if (!backupName.trim()) {
       alert('يرجى إدخال اسم للنسخة الاحتياطية');
       return;
     }
 
     try {
-      // Collecter toutes les données de l'application depuis localStorage
-      const allApplicationData = {
-        // Métadonnées de la sauvegarde
+      const full = await exportFullApplication();
+      const payload = {
+        ...full,
         backupInfo: {
           id: Date.now().toString(),
           name: backupName,
           date: new Date().toLocaleString('ar-DZ'),
           version: '1.0',
-          type: 'complete_application_backup'
-        },
-        
-        // Toutes les données stockées par cycle
-        students: getStorage('students') || [],
-        groups: getStorage('groups') || [],
-        tests: getStorage('tests') || [],
-        recommendations: getStorage('recommendations') || [],
-        analysisData: getStorage('analysisData') || [],
-        settings: getStorage('appSettings') || {},
-        auth: getStorage('auth') || {},
-        reports: getStorage('reports') || [],
-        interventionData: getStorage('interventionData') || {},
-        counselorData: getStorage('counselorData') || [],
-        testResults: getStorage('testResults') || [],
-        goalsData: getStorage('goalsData') || [],
-        scheduleData: getStorage('scheduleData') || []
+          type: 'complete_application_backup_all'
+        }
       };
 
       // Créer et télécharger le fichier
-      const dataStr = JSON.stringify(allApplicationData, null, 2);
+      const dataStr = JSON.stringify(payload, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
@@ -113,6 +116,15 @@ function Dashboard() {
       setBackupName('');
       setShowBackupModal(false);
       alert('تم تحميل النسخة الاحتياطية الكاملة للتطبيق بنجاح');
+
+      if (postBackupLogout) {
+        try {
+          await logout();
+          navigate('/login');
+        } catch (e) {
+          console.error('Auto-logout after backup failed:', e);
+        }
+      }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde complète:', error);
       alert('حدث خطأ أثناء الحفظ. يرجى المحاولة مرة أخرى.');
@@ -125,35 +137,16 @@ function Dashboard() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const importedData = JSON.parse(e.target?.result as string);
         
         // Vérifier si c'est un fichier de sauvegarde complète valide
-        if (importedData.backupInfo && importedData.backupInfo.type === 'complete_application_backup') {
+        if (importedData.backupInfo && importedData.backupInfo.type === 'complete_application_backup_all') {
           if (confirm('هل تريد استعادة النسخة الاحتياطية الكاملة للتطبيق؟ سيتم استبدال جميع البيانات الحالية.')) {
-            
-            // Restaurer toutes les données par cycle
-            if (importedData.students) setStorage('students', importedData.students);
-            if (importedData.groups) setStorage('groups', importedData.groups);
-            if (importedData.tests) setStorage('tests', importedData.tests);
-            if (importedData.recommendations) setStorage('recommendations', importedData.recommendations);
-            if (importedData.analysisData) setStorage('analysisData', importedData.analysisData);
-            if (importedData.settings) setStorage('appSettings', importedData.settings);
-            if (importedData.auth) setStorage('auth', importedData.auth);
-            if (importedData.reports) setStorage('reports', importedData.reports);
-            if (importedData.interventionData) setStorage('interventionData', importedData.interventionData);
-            if (importedData.counselorData) setStorage('counselorData', importedData.counselorData);
-            if (importedData.testResults) setStorage('testResults', importedData.testResults);
-            if (importedData.goalsData) setStorage('goalsData', importedData.goalsData);
-            if (importedData.scheduleData) setStorage('scheduleData', importedData.scheduleData);
-            
-            alert('تم استعادة النسخة الاحتياطية الكاملة للتطبيق بنجاح. يرجى إعادة تحميل الصفحة.');
-            
-            // Recharger la page pour appliquer tous les changements
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
+            await importFullApplication(importedData);
+            alert('تم استعادة النسخة الاحتياطية بنجاح، سيتم إعادة تحميل الصفحة الآن.');
+            setTimeout(() => window.location.reload(), 800);
           }
         } else {
           alert('ملف غير صالح. يرجى اختيار ملف نسخة احتياطية كاملة للتطبيق.');
@@ -199,7 +192,7 @@ function Dashboard() {
               className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors text-sm font-medium"
             >
               <BookOpen className="w-4 h-4" />
-              <span>الدليل المستخدم</span>
+              <span>دليل المستخدم</span>
             </button>
             <button
               onClick={() => navigate('/method-guide')}
@@ -212,6 +205,11 @@ function Dashboard() {
         </div>
       </div>
       
+      {/* Moniteur d'isolation des cycles */}
+      <div className="mb-6">
+        <CycleIsolationMonitor showDetails={false} className="justify-center" />
+      </div>
+
       <div className="flex items-center mb-8">
         <div className="relative flex-1">
           <input
@@ -290,7 +288,103 @@ function Dashboard() {
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={async () => {
+                    try {
+                      const data = await exportDatabase('متوسط');
+                      const dataStr = JSON.stringify({ cycle: 'متوسط', ...data }, null, 2);
+                      const blob = new Blob([dataStr], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `Miftah_Backup_Middle_${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      alert('تعذر حفظ نسخة احتياطية لدورة التعليم المتوسط');
+                    }
+                  }}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>حفظ (التعليم المتوسط فقط)</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const data = await exportDatabase('ثانوي');
+                      const dataStr = JSON.stringify({ cycle: 'ثانوي', ...data }, null, 2);
+                      const blob = new Blob([dataStr], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `Miftah_Backup_Secondary_${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      alert('تعذر حفظ نسخة احتياطية لدورة التعليم الثانوي');
+                    }
+                  }}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>حفظ (التعليم الثانوي فقط)</span>
+                </button>
+              </div>
+              {/* Restore per-cycle */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="w-full">
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const text = await file.text();
+                        const json = JSON.parse(text);
+                        await importDatabase(json, 'متوسط');
+                        alert('تمت استعادة نسخة دورة التعليم المتوسط بنجاح');
+                      } catch (err) {
+                        alert('تعذر استعادة نسخة دورة التعليم المتوسط');
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                    استعادة (التعليم المتوسط)
+                  </span>
+                </label>
+                <label className="w-full">
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const text = await file.text();
+                        const json = JSON.parse(text);
+                        await importDatabase(json, 'ثانوي');
+                        alert('تمت استعادة نسخة دورة التعليم الثانوي بنجاح');
+                      } catch (err) {
+                        alert('تعذر استعادة نسخة دورة التعليم الثانوي');
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                    استعادة (التعليم الثانوي)
+                  </span>
+                </label>
+              </div>
+              <div className="flex gap-3">
               <button
                 onClick={saveCompleteApplication}
                 className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
@@ -304,6 +398,7 @@ function Dashboard() {
               >
                 إلغاء
               </button>
+              </div>
             </div>
           </div>
         </div>
