@@ -1294,8 +1294,17 @@ const AnalysisResults: React.FC = () => {
             <button 
               onClick={() => {
                 const level = currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط';
-                const filename = `template_${level}_${new Date().getFullYear()}.xlsx`;
-                downloadExcelTemplate(level, filename);
+                
+                // Determine semester based on current URL
+                let semester = 1; // Default to semester 1
+                if (location.pathname.includes('/sem2')) {
+                  semester = 2;
+                } else if (location.pathname.includes('/sem3')) {
+                  semester = 3;
+                }
+                
+                const filename = `template_${level}_sem${semester}_${new Date().getFullYear()}.xlsx`;
+                downloadExcelTemplate(level, filename, semester);
               }}
               className="bg-green-50 text-green-600 px-6 py-3 rounded-lg hover:bg-green-100 flex items-center gap-2 font-semibold shadow-lg transition-all duration-200 hover:shadow-xl"
               title={`تحميل قالب Excel للمرحلة ${currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}`}

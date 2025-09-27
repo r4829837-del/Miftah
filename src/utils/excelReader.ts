@@ -203,22 +203,25 @@ export async function extractStudents(file: File): Promise<Eleve[]> {
 }
 
 // Helper function to create Excel template with RTL formatting
-export function createExcelTemplate(level: string): string {
+export function createExcelTemplate(level: string, semester?: number): string {
+  // Determine the semester average column based on the semester parameter
+  const semesterAverage = semester ? `معدل الفصل ${semester}` : 'معدل الفصل 1';
+  
   // Template structure based on the image requirements - all subjects included
   const headers = [
-    'معدل الفصل 1', 'التربية البدنية والرياضية', 'التربية الموسيقية', 'التربية التشكيلية', 
+    semesterAverage, 'التربية البدنية والرياضية', 'التربية الموسيقية', 'التربية التشكيلية', 
     'المعلوماتية', 'العلوم الفيزيائية والتكنولوجيا', 'العلوم الطبيعية', 'الرياضيات', 
     'التاريخ والجغرافيا', 'التربية المدنية', 'التربية الإسلامية', 'اللغة الإنجليزية', 
-    'اللغة الفرنسية', 'اللغة الأمازيغية', 'اللغة العربية', 'الإعادة', 'الجنس', 'اللقب و الاسم'
+    'اللغة الفرنسية', 'اللغة الأمازيغية', 'اللغة العربية', 'الإعادة', 'الجنس', 'الرقم', 'اللقب و الاسم'
   ];
   
   // Create workbook with RTL support
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'ذكر', 'محمد أحمد'],
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'أنثى', 'علي فاطمة'],
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'نعم', 'ذكر', 'يوسف علي']
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'ذكر', 1, 'محمد أحمد'],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'أنثى', 2, 'علي فاطمة'],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'نعم', 'ذكر', 3, 'يوسف علي']
   ]);
   
   // Apply RTL formatting to the worksheet
@@ -260,16 +263,18 @@ export function createExcelTemplate(level: string): string {
     }
   }
   
-  // Set column widths for better RTL display - adjusted for new structure
+  // Set column widths for better RTL display - adjusted for new structure with 19 columns
   const colWidths = [];
   for (let col = 0; col <= range.e.c; col++) {
-    if (col === 17) { // Name column (اللقب و الاسم) - last column
+    if (col === 18) { // Name column (اللقب و الاسم) - last column
       colWidths[col] = { wch: 20 };
+    } else if (col === 17) { // Number column (الرقم)
+      colWidths[col] = { wch: 8 };
     } else if (col === 16) { // Gender column (الجنس)
       colWidths[col] = { wch: 8 };
     } else if (col === 15) { // Repeat column (الإعادة)
       colWidths[col] = { wch: 10 };
-    } else if (col === 0) { // Average column (معدل الفصل 1)
+    } else if (col === 0) { // Average column (معدل الفصل X)
       colWidths[col] = { wch: 12 };
     } else { // Subject columns
       colWidths[col] = { wch: 15 };
@@ -277,9 +282,10 @@ export function createExcelTemplate(level: string): string {
   }
   ws['!cols'] = colWidths;
   
-  // Set sheet name
-  wb.SheetNames[0] = 'نتائج_الفصل_الأول';
-  wb.Sheets['نتائج_الفصل_الأول'] = ws;
+  // Set sheet name based on semester
+  const sheetName = semester ? `نتائج_الفصل_${semester === 2 ? 'الثاني' : semester === 3 ? 'الثالث' : 'الأول'}` : 'نتائج_الفصل_الأول';
+  wb.SheetNames[0] = sheetName;
+  wb.Sheets[sheetName] = ws;
   
   // Convert to base64
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
@@ -287,8 +293,8 @@ export function createExcelTemplate(level: string): string {
 }
 
 // Function to download Excel template
-export function downloadExcelTemplate(level: string, filename?: string): void {
-  const template = createExcelTemplate(level);
+export function downloadExcelTemplate(level: string, filename?: string, semester?: number): void {
+  const template = createExcelTemplate(level, semester);
   const blob = new Blob([Uint8Array.from(atob(template), c => c.charCodeAt(0))], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });
@@ -296,7 +302,7 @@ export function downloadExcelTemplate(level: string, filename?: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || `template_${level}_RTL.xlsx`;
+  a.download = filename || `template_${level}_sem${semester || 1}_RTL.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
