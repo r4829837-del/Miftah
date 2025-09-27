@@ -184,9 +184,12 @@ export default function AnalysisBEM() {
       const hasBem = !!bemRows.length && !!bem;
       const moyBEM = hasBem ? getBemAverage(bem) : null;
       
-      // معدل الإنتقال ne peut être calculé que si معدل ش.ت.م est disponible
-      const moyPassage = (moyBEM != null && moyBEM > 0) ? 
-        ((moyT1 + moyT2 + moyT3 + moyBEM) / 4) : null;
+      // معدل التقويم = utiliser uniquement la valeur importée du fichier Excel
+      const moyEvaluation = getMoy(bem, ['معدل التقويم', 'moyenneEvaluation', 'moyenne_evaluation']);
+      
+      // معدل الإنتقال ne peut être calculé que si معدل ش.ت.م et معدل التقويم sont disponibles
+      const moyPassage = (moyBEM != null && moyBEM > 0 && moyEvaluation > 0) ? 
+        ((moyBEM + moyEvaluation) / 2) : null;
 
       // التوجيه النهائي ne peut être calculé que si معدل الإنتقال est disponible
       let orientation = '';
@@ -231,7 +234,7 @@ export default function AnalysisBEM() {
 
       // Use original display name if possible
       const displayName = (t3?.['اللقب و الاسم'] || t3?.nom || rawName);
-      out.push({ name: String(displayName || '').trim(), moyT1, moyT2, moyT3, moyBEM, moyPassage, orientation });
+      out.push({ name: String(displayName || '').trim(), moyT1, moyT2, moyT3, moyBEM, moyEvaluation, moyPassage, orientation });
     });
 
     // Sort: primary = معدل الإنتقال desc when available; fallback = المعدل السنوي العام desc
@@ -263,6 +266,7 @@ export default function AnalysisBEM() {
         'معدل الفصل 3': Number(e.moyT3 || 0).toFixed(2),
         'المعدل السنوي العام': annualAvg.toFixed(2),
         'معدل ش.ت.م': e.moyBEM == null ? '' : Number(e.moyBEM || 0).toFixed(2),
+        'معدل التقويم': e.moyEvaluation == null ? '' : Number(e.moyEvaluation || 0).toFixed(2),
         'معدل الإنتقال': e.moyPassage == null ? '' : Number(e.moyPassage || 0).toFixed(2),
         'التوجيه النهائي': e.orientation || ''
       };
@@ -380,7 +384,8 @@ export default function AnalysisBEM() {
           <div className="font-semibold mb-2">⚠️ لم يتم استيراد ملف BEM بعد</div>
           <div className="text-sm">
             <p>• يجب رفع ملف BEM يحتوي على عمود "معدل ش.ت.م"</p>
-            <p>• "معدل الإنتقال" = (الفصل الأول + الفصل الثاني + الفصل الثالث + معدل ش.ت.م) ÷ 4</p>
+              <p>• "معدل التقويم" = (الفصل الأول + الفصل الثاني + الفصل الثالث) ÷ 3</p>
+              <p>• "معدل الإنتقال" = (معدل ش.ت.م + معدل التقويم) ÷ 2</p>
             <p>• "التوجيه النهائي": جدع مشترك علوم أو جدع مشترك أداب</p>
             <p>• التوجيه يعتمد على أداء التلميذ في المواد العلمية مقابل الأدبية</p>
           </div>
@@ -421,6 +426,7 @@ export default function AnalysisBEM() {
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثالث</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">المعدل السنوي العام</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل ش.ت.م</th>
+              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل التقويم</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل الإنتقال</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">التوجيه النهائي</th>
             </tr>
@@ -438,7 +444,8 @@ export default function AnalysisBEM() {
                     <td className="border border-gray-300 p-3 text-center">{Number(e.moyT3 || 0).toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center font-semibold text-blue-700 bg-blue-50">{annualAvg.toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center">{e.moyBEM == null ? '—' : Number(e.moyBEM || 0).toFixed(2)}</td>
-                    <td className="border border-gray-300 p-3 text-center font-semibold bg-green-50">{e.moyPassage == null ? '—' : Number(e.moyPassage || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 p-3 text-center font-semibold text-purple-700 bg-purple-50">{e.moyEvaluation == null ? '—' : e.moyEvaluation.toFixed(2)}</td>
+                    <td className="border border-gray-300 p-3 text-center font-semibold bg-green-50">{e.moyPassage == null ? '—' : e.moyPassage.toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center">
                       {e.orientation ? (
                         <span className={
@@ -455,7 +462,7 @@ export default function AnalysisBEM() {
               })
             ) : (
               <tr>
-                <td colSpan={9} className="border border-gray-300 p-8 text-center text-gray-500 bg-gray-50">
+                <td colSpan={10} className="border border-gray-300 p-8 text-center text-gray-500 bg-gray-50">
                   <div className="flex flex-col items-center space-y-2">
                     <div className="text-4xl mb-2">📊</div>
                     <div className="font-semibold text-gray-600">لا توجد بيانات للعرض</div>
@@ -479,6 +486,8 @@ export default function AnalysisBEM() {
               <p>• رفع ملف BEM يحتوي على عمود "معدل ش.ت.م"</p>
               <p>• استيراد ملفات الفصول 1 و 2 و 3 لنفس الدورة</p>
               <p>• التأكد من تطابق أسماء التلاميذ في جميع الملفات</p>
+              <p>• "معدل التقويم" = (الفصل الأول + الفصل الثاني + الفصل الثالث) ÷ 3</p>
+              <p>• "معدل الإنتقال" = (معدل ش.ت.م + معدل التقويم) ÷ 2</p>
             </div>
           </div>
         </div>

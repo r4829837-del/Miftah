@@ -11,20 +11,21 @@ export function createCustomTemplate(): XLSX.WorkBook {
     const headers = [
       'التوجيه النهائي',      // Colonne 1 (droite)
       'معدل الانتقال',        // Colonne 2
-      'معدل ش.ت.م',          // Colonne 3
-      'معدل الفصل 3',        // Colonne 4
-      'معدل الفصل 2',        // Colonne 5
-      'معدل الفصل 1',        // Colonne 6
-      'الإعادة',             // Colonne 7
-      'الجنس',               // Colonne 8
-      'اللقب و الاسم',        // Colonne 9
-      'الرقم'                // Colonne 10 (gauche)
+      'معدل التقويم',          // Colonne 3
+      'معدل ش.ت.م',          // Colonne 4
+      'معدل الفصل 3',        // Colonne 5
+      'معدل الفصل 2',        // Colonne 6
+      'معدل الفصل 1',        // Colonne 7
+      'الإعادة',             // Colonne 8
+      'الجنس',               // Colonne 9
+      'اللقب و الاسم',        // Colonne 10
+      'الرقم'                // Colonne 11 (gauche)
     ];
 
     // Données d'exemple basées sur votre template (ordre RTL)
     const sampleData = [
-      ['', '', '', '18', '', '', 'لا', 'ذكر', 'بلحسن عبد الرزاق', 1],
-      ['', '', '', '18', '', '', 'لا', 'أنثى', 'طعام خلود', 2]
+      ['', '', '', '', '18', '', '', 'لا', 'ذكر', 'بلحسن عبد الرزاق', 1],
+      ['', '', '', '', '18', '', '', 'لا', 'أنثى', 'طعام خلود', 2]
     ];
 
     const data = [headers, ...sampleData];
@@ -37,14 +38,15 @@ export function createCustomTemplate(): XLSX.WorkBook {
     const colWidths = [
       { wch: 15 },  // التوجيه النهائي (colonne 1 - droite)
       { wch: 12 },  // معدل الانتقال (colonne 2)
-      { wch: 12 },  // معدل ش.ت.م (colonne 3)
-      { wch: 12 },  // معدل الفصل 3 (colonne 4)
-      { wch: 12 },  // معدل الفصل 2 (colonne 5)
-      { wch: 12 },  // معدل الفصل 1 (colonne 6)
-      { wch: 10 },  // الإعادة (colonne 7)
-      { wch: 10 },  // الجنس (colonne 8)
-      { wch: 20 },  // اللقب و الاسم (colonne 9)
-      { wch: 8 }    // الرقم (colonne 10 - gauche)
+      { wch: 12 },  // معدل التقويم (colonne 3)
+      { wch: 12 },  // معدل ش.ت.م (colonne 4)
+      { wch: 12 },  // معدل الفصل 3 (colonne 5)
+      { wch: 12 },  // معدل الفصل 2 (colonne 6)
+      { wch: 12 },  // معدل الفصل 1 (colonne 7)
+      { wch: 10 },  // الإعادة (colonne 8)
+      { wch: 10 },  // الجنس (colonne 9)
+      { wch: 20 },  // اللقب و الاسم (colonne 10)
+      { wch: 8 }    // الرقم (colonne 11 - gauche)
     ];
     worksheet['!cols'] = colWidths;
     

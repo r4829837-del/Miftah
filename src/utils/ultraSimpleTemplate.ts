@@ -9,15 +9,15 @@ export function downloadUltraSimpleTemplate(): void {
     
     // Données minimales
     const data = [
-      ['التوجيه النهائي', 'معدل الانتقال', 'معدل ش.ت.م', 'معدل الفصل 3', 'معدل الفصل 2', 'معدل الفصل 1', 'الإعادة', 'الجنس', 'اللقب و الاسم', 'الرقم'],
-      ['', '', '', '18', '', '', 'لا', 'ذكر', 'بلحسن عبد الرزاق', 1],
-      ['', '', '', '18', '', '', 'لا', 'أنثى', 'طعام خلود', 2]
+      ['التوجيه النهائي', 'معدل الانتقال', 'معدل التقويم', 'معدل ش.ت.م', 'معدل الفصل 3', 'معدل الفصل 2', 'معدل الفصل 1', 'الإعادة', 'الجنس', 'اللقب و الاسم', 'الرقم'],
+      ['', '', '', '', '18', '', '', 'لا', 'ذكر', 'بلحسن عبد الرزاق', 1],
+      ['', '', '', '', '18', '', '', 'لا', 'أنثى', 'طعام خلود', 2]
     ];
     
     const worksheet = XLSX.utils.aoa_to_sheet(data);
     
     // Formatage RTL minimal
-    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:J3');
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:K3');
     for (let row = range.s.r; row <= range.e.r; row++) {
       for (let col = range.s.c; col <= range.e.c; col++) {
         const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
@@ -43,7 +43,7 @@ export function downloadUltraSimpleTemplate(): void {
     
     // Largeurs de colonnes
     worksheet['!cols'] = [
-      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
       { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 20 }, { wch: 8 }
     ];
     
