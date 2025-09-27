@@ -208,20 +208,21 @@ export function createExcelTemplate(level: string, semester?: number): string {
   const semesterAverage = semester ? `معدل الفصل ${semester}` : 'معدل الفصل 1';
   
   // Template structure based on the image requirements - all subjects included
+  // Order: الرقم first (rightmost in RTL), then اللقب و الاسم, then other columns
   const headers = [
     semesterAverage, 'التربية البدنية والرياضية', 'التربية الموسيقية', 'التربية التشكيلية', 
     'المعلوماتية', 'العلوم الفيزيائية والتكنولوجيا', 'العلوم الطبيعية', 'الرياضيات', 
     'التاريخ والجغرافيا', 'التربية المدنية', 'التربية الإسلامية', 'اللغة الإنجليزية', 
-    'اللغة الفرنسية', 'اللغة الأمازيغية', 'اللغة العربية', 'الإعادة', 'الجنس', 'الرقم', 'اللقب و الاسم'
+    'اللغة الفرنسية', 'اللغة الأمازيغية', 'اللغة العربية', 'الإعادة', 'الجنس', 'اللقب و الاسم', 'الرقم'
   ];
   
   // Create workbook with RTL support
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'ذكر', 1, 'محمد أحمد'],
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'أنثى', 2, 'علي فاطمة'],
-    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'نعم', 'ذكر', 3, 'يوسف علي']
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'ذكر', 'محمد أحمد', 1],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'لا', 'أنثى', 'علي فاطمة', 2],
+    ['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 'نعم', 'ذكر', 'يوسف علي', 3]
   ]);
   
   // Apply RTL formatting to the worksheet
@@ -266,10 +267,10 @@ export function createExcelTemplate(level: string, semester?: number): string {
   // Set column widths for better RTL display - adjusted for new structure with 19 columns
   const colWidths = [];
   for (let col = 0; col <= range.e.c; col++) {
-    if (col === 18) { // Name column (اللقب و الاسم) - last column
-      colWidths[col] = { wch: 20 };
-    } else if (col === 17) { // Number column (الرقم)
+    if (col === 18) { // Number column (الرقم) - now last column (rightmost in RTL)
       colWidths[col] = { wch: 8 };
+    } else if (col === 17) { // Name column (اللقب و الاسم) - second to last
+      colWidths[col] = { wch: 20 };
     } else if (col === 16) { // Gender column (الجنس)
       colWidths[col] = { wch: 8 };
     } else if (col === 15) { // Repeat column (الإعادة)

@@ -415,7 +415,7 @@ export default function AnalysisBEM() {
           <thead>
             <tr className="bg-blue-50 border-b-2 border-blue-200">
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الترتيب</th>
-              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الاسم</th>
+              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">اللقب و الاسم</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الأول</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثاني</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثالث</th>
