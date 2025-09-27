@@ -8,6 +8,9 @@
 [build.environment]
   # Version de Node.js
   NODE_VERSION = "18"
+  # Variables d'environnement
+  VITE_SYNC_SERVER_URL = "https://your-sync-server.com/api"
+  VITE_DEV_MODE = "false"
 
 # Redirections pour SPA (Single Page Application)
 # Note: Les redirections sont gérées par le fichier _redirects dans le dossier public
@@ -43,5 +46,5 @@
   skip_processing = false
 
 # Configuration pour les fonctions serverless (si nécessaire)
-[functions]
-  directory = "netlify/functions"
+# [functions]
+#   directory = "netlify/functions"
