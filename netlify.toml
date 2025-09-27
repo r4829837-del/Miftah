@@ -10,10 +10,7 @@
   NODE_VERSION = "18"
 
 # Redirections pour SPA (Single Page Application)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Note: Les redirections sont gérées par le fichier _redirects dans le dossier public
 
 # Headers de sécurité
 [[headers]]
