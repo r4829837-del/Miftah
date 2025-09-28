@@ -1226,6 +1226,19 @@ export default function Reports() {
     });
   }, [currentCycle]);
 
+  // Mettre à jour les données de rapport quand le cycle change
+  useEffect(() => {
+    const defaultLevel = currentCycle === 'متوسط' ? 'الأولى متوسط' : 'الأولى ثانوي';
+    setReportData(prev => ({
+      ...prev,
+      level: defaultLevel
+    }));
+    setParentReportData(prev => ({
+      ...prev,
+      level: defaultLevel
+    }));
+  }, [currentCycle]);
+
   // Charger les données d'intervention depuis localStorage
   useEffect(() => {
     try {
@@ -2117,22 +2130,22 @@ export default function Reports() {
       let fileName: string = 'report.pdf';
       
       if (type === 'student') {
-        data = reportData;
+        data = { ...reportData, cycle: currentCycle };
         title = `تقرير ${data.level} - ${data.semester}`;
         typeName = 'تقرير عملية الإعلام';
         fileName = 'تقرير_التوجيه.pdf';
       } else if (type === 'parent') {
-        data = parentReportData;
+        data = { ...parentReportData, cycle: currentCycle };
         title = `تقرير ${data.level} - ${data.semester}`;
         typeName = 'تقرير عملية إعلام الأولياء';
         fileName = 'تقرير_إعلام_الأولياء.pdf';
       } else if (type === 'annual') {
-        data = annualReportData;
+        data = { ...annualReportData, cycle: currentCycle };
         title = `التقرير السنوي - ${data.academicYear}`;
         typeName = 'التقرير السنوي';
         fileName = 'التقرير_السنوي.pdf';
       } else if (type === 'activities') {
-        data = {};
+        data = { cycle: currentCycle };
         title = '';
         typeName = 'تقرير النشاطات';
         fileName = 'تقرير_النشاطات.pdf';
@@ -2142,9 +2155,11 @@ export default function Reports() {
           const existingReports = (getStorage('reports') || []) as any[];
           const latest = existingReports.filter(r => r?.type === 'تقرير تحليل النتائج').slice(-1)[0];
           const c = latest?.content || {};
-          data = c;
+          data = { ...c, cycle: currentCycle };
           title = latest?.title || 'تقرير تحليل النتائج';
-        } catch (_) {}
+        } catch (_) {
+          data = { cycle: currentCycle };
+        }
         typeName = 'تقرير تحليل النتائج';
         fileName = 'تقرير_تحليل_النتائج.pdf';
       }

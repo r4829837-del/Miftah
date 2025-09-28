@@ -50,12 +50,47 @@ function Sidebar() {
   });
 
   useEffect(() => {
+    console.log(`Sidebar: Cycle changé vers ${currentCycle}`);
     loadSettings();
   }, [currentCycle]); // Recharger les paramètres quand le cycle change
 
+  // Écouter les changements de paramètres dans localStorage
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      const cycleKey = `appSettings_${currentCycle}`;
+      if (e.key === cycleKey) {
+        console.log(`Sidebar: Changement détecté pour le cycle ${currentCycle}`);
+        loadSettings();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Écouter aussi les changements de paramètres dans la même fenêtre
+    const handleCustomSettingsChange = () => {
+      console.log('Sidebar: Changement de paramètres détecté');
+      loadSettings();
+    };
+
+    window.addEventListener('settingsUpdated', handleCustomSettingsChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('settingsUpdated', handleCustomSettingsChange);
+    };
+  }, [currentCycle]);
+
   const loadSettings = async () => {
-    const loadedSettings = await getSettings();
-    setSettings(loadedSettings);
+    try {
+      const loadedSettings = await getSettings(currentCycle);
+      console.log(`Sidebar: Chargement des paramètres pour le cycle ${currentCycle}:`, {
+        schoolName: loadedSettings?.schoolName,
+        counselorName: loadedSettings?.counselorName
+      });
+      setSettings(loadedSettings);
+    } catch (error) {
+      console.error('Erreur lors du chargement des paramètres dans la sidebar:', error);
+    }
   };
 
   // No local logout action; logout button moved to top header
@@ -102,18 +137,29 @@ function Sidebar() {
             <span className="underline font-semibold">{getCycleTitle()}</span>
             <span className="text-gray-300">:</span>
             <span className="text-gray-300 font-medium">
-              {getCycleConfig(currentCycle).schoolName}
+              {settings.schoolName || 'غير محدد'}
             </span>
           </div>
         </div>
         <div className="text-base text-gray-300 flex items-center gap-2">
           <span className="underline">مستشار(ة) التوجيه</span>:
           <div className="flex items-center gap-2">
-            <strong>{settings.counselorName}</strong>
+            <strong>{settings.counselorName || 'غير محدد'}</strong>
             {user && (
               <span className="status-indicator inline-block w-2 h-2 bg-green-500 rounded-full"></span>
             )}
           </div>
+        </div>
+        
+        {/* Bouton de rechargement pour la sidebar */}
+        <div className="mt-2">
+          <button
+            onClick={loadSettings}
+            className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            title="إعادة تحميل الإعدادات"
+          >
+            🔄 تحديث
+          </button>
         </div>
       </div>
       <nav className="flex flex-col flex-1">

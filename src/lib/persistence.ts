@@ -211,26 +211,31 @@ export const restoreFromLocalStorage = async (key: string): Promise<void> => {
 /**
  * Initialise le système de persistance automatique
  */
-export const initializePersistence = (): void => {
-  // Sauvegarde automatique toutes les 30 secondes
-  setInterval(() => {
-    createAutoBackup();
-  }, PERSISTENCE_CONFIG.AUTO_SAVE_INTERVAL);
-
-  // Sauvegarde lors de la fermeture de la page
-  window.addEventListener('beforeunload', () => {
-    createAutoBackup();
-    saveToLocalStorage();
-  });
-
-  // Sauvegarde lors des changements de visibilité
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
+export const initializePersistence = async (): Promise<void> => {
+  try {
+    // Sauvegarde automatique toutes les 30 secondes
+    setInterval(() => {
       createAutoBackup();
-    }
-  });
+    }, PERSISTENCE_CONFIG.AUTO_SAVE_INTERVAL);
 
-  console.log('🔄 Système de persistance automatique initialisé');
+    // Sauvegarde lors de la fermeture de la page
+    window.addEventListener('beforeunload', () => {
+      createAutoBackup();
+      saveToLocalStorage();
+    });
+
+    // Sauvegarde lors des changements de visibilité
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        createAutoBackup();
+      }
+    });
+
+    console.log('🔄 Système de persistance automatique initialisé');
+  } catch (error) {
+    console.error('Erreur lors de l\'initialisation de la persistance:', error);
+    throw error;
+  }
 };
 
 /**

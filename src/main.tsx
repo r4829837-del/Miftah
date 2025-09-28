@@ -7,10 +7,12 @@ import './index.css';
 // Gestion d'erreur pour l'initialisation
 try {
   // Initialiser le système de persistance automatique de manière sécurisée
-  import('./lib/persistence').then(({ initializePersistence }) => {
-    initializePersistence().catch((error) => {
+  import('./lib/persistence').then(async ({ initializePersistence }) => {
+    try {
+      await initializePersistence();
+    } catch (error) {
       console.warn('Erreur lors de l\'initialisation de la persistance:', error);
-    });
+    }
   }).catch((error) => {
     console.warn('Impossible de charger le module de persistance:', error);
   });

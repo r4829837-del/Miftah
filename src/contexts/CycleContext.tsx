@@ -71,10 +71,10 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
       title: 'التعليم المتوسط',
       description: 'نظام إدارة التعليم المتوسط',
       levels: [
-        'الأولى متوسط',
-        'الثانية متوسط',
-        'الثالثة متوسط',
-        'الرابعة متوسط'
+        'السنة الأولى متوسط',
+        'السنة الثانية متوسط',
+        'السنة الثالثة متوسط',
+        'السنة الرابعة متوسط'
       ],
       schoolName: 'المتوسطة',
       counselorName: 'مستشار(ة) التوجيه',
@@ -117,9 +117,9 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
       title: 'التعليم الثانوي',
       description: 'نظام إدارة التعليم الثانوي',
       levels: [
-        'الأولى ثانوي',
-        'الثانية ثانوي',
-        'الثالثة ثانوي'
+        'السنة الأولى ثانوي',
+        'السنة الثانية ثانوي',
+        'السنة الثالثة ثانوي'
       ],
       schoolName: 'الثانوية',
       counselorName: 'مستشار(ة) التوجيه',
@@ -225,12 +225,19 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
       const highSchoolSettings = await getSettings('ثانوي');
       
       // Mettre à jour les configurations avec les paramètres sauvegardés pour chaque cycle
+      // IMPORTANT: Toujours utiliser les niveaux par défaut corrects selon le cycle
       setCycleConfigs(prev => ({
         متوسط: {
           ...prev.متوسط,
           schoolName: collegeSettings.schoolName || prev.متوسط.schoolName,
           counselorName: collegeSettings.counselorName || prev.متوسط.counselorName,
-          levels: collegeSettings.levels || prev.متوسط.levels,
+          // Toujours utiliser les niveaux par défaut pour le collège
+          levels: [
+            'السنة الأولى متوسط',
+            'السنة الثانية متوسط',
+            'السنة الثالثة متوسط',
+            'السنة الرابعة متوسط'
+          ],
           academicYear: collegeSettings.academicYear || prev.متوسط.academicYear,
           maxStudentsPerClass: collegeSettings.maxStudentsPerClass || prev.متوسط.maxStudentsPerClass,
           gradingScale: collegeSettings.gradingScale || prev.متوسط.gradingScale,
@@ -244,7 +251,12 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
           ...prev.ثانوي,
           schoolName: highSchoolSettings.schoolName || prev.ثانوي.schoolName,
           counselorName: highSchoolSettings.counselorName || prev.ثانوي.counselorName,
-          levels: highSchoolSettings.levels || prev.ثانوي.levels,
+          // Toujours utiliser les niveaux par défaut pour le secondaire
+          levels: [
+            'السنة الأولى ثانوي',
+            'السنة الثانية ثانوي',
+            'السنة الثالثة ثانوي'
+          ],
           academicYear: highSchoolSettings.academicYear || prev.ثانوي.academicYear,
           maxStudentsPerClass: highSchoolSettings.maxStudentsPerClass || prev.ثانوي.maxStudentsPerClass,
           gradingScale: highSchoolSettings.gradingScale || prev.ثانوي.gradingScale,
@@ -324,7 +336,8 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
       
       const updatedSettings = {
         ...settings,
-        schoolName: config.schoolName || settings.schoolName,
+        schoolName: config.schoolName !== undefined ? config.schoolName : settings.schoolName,
+        counselorName: config.counselorName !== undefined ? config.counselorName : settings.counselorName,
         levels: config.levels || settings.levels,
         academicYear: config.academicYear || settings.academicYear,
         maxStudentsPerClass: config.maxStudentsPerClass || settings.maxStudentsPerClass,
@@ -338,8 +351,8 @@ export const CycleProvider: React.FC<CycleProviderProps> = ({ children }) => {
       
       await updateSettings(updatedSettings, cycle);
       
-      // Recharger les configurations pour le cycle spécifique
-      await loadCycleConfigs();
+      // Ne pas recharger toutes les configurations, juste mettre à jour le cycle concerné
+      console.log(`Configuration mise à jour pour le cycle: ${cycle}`);
     } catch (error) {
       console.error('Error updating cycle config:', error);
     }

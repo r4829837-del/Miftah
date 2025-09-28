@@ -171,7 +171,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 // Get default settings for specific cycle
-const getDefaultSettingsForCycle = (cycle: string): AppSettings => {
+export const getDefaultSettingsForCycle = (cycle: string): AppSettings => {
   const isSecondary = cycle === 'ثانوي';
   return {
     schoolName: isSecondary ? 'الثانوية' : 'المتوسطة',
