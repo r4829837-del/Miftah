@@ -367,10 +367,9 @@ export default function AnalysisResultsCompare() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">التحليل السنوي - {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}</h1>
-            <p className="text-blue-100">تحليل إجمالي لأداء الفصول الثلاثة وتقييم نهاية السنة</p>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={handleReset} className="bg-white text-red-600 px-4 py-2 rounded-md hover:bg-red-50 flex items-center gap-2 font-semibold shadow-sm transition-all duration-200 hover:shadow">
+            <button onClick={handleReset} className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 flex items-center gap-2 font-medium shadow-md transition-all duration-200 hover:shadow-lg text-sm">
               <RefreshCw className="w-4 h-4" />
               تهيئة البيانات
             </button>

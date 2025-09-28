@@ -1270,17 +1270,6 @@ const AnalysisResults: React.FC = () => {
             <h1 className="text-3xl font-bold mb-2">
           تحليل النتائج - {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}
         </h1>
-            <p className="text-blue-100">تحليل شامل لأداء {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} والإحصائيات التربوية</p>
-            
-            {/* Indicateur d'indépendance des cycles */}
-            <div className="mt-3 p-3 bg-white bg-opacity-20 rounded-lg">
-              <div className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-                <span className="font-semibold">بيانات مستقلة لكل مرحلة</span>
-                <span className="text-blue-200">•</span>
-                <span>المرحلة الحالية: {currentCycle === 'ثانوي' ? 'الثانوي' : 'المتوسط'}</span>
-              </div>
-            </div>
           </div>
           <div className="flex items-center gap-4">
             <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange} />
