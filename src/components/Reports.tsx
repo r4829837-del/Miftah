@@ -1159,50 +1159,89 @@ export default function Reports() {
   const [interventionData, setInterventionData] = useState<{
     متوسط: { [key: string]: { male: number; female: number; total: number } };
     ثانوي: { [key: string]: { male: number; female: number; total: number } };
-    grandTotal: { male: number; female: number; total: number };
+    totals: {
+      متوسط: { male: number; female: number; total: number };
+      ثانوي: { male: number; female: number; total: number };
+    };
   }>({
-    // Données pour le cycle moyen
+    // Données pour le cycle moyen - tous à zéro
     متوسط: {
-      'الأولى متوسط': { male: 37, female: 39, total: 76 },
-      'الثانية متوسط': { male: 41, female: 26, total: 67 },
-      'الثالثة متوسط': { male: 27, female: 22, total: 49 },
-      'الرابعة متوسط': { male: 29, female: 21, total: 50 }
+      'الأولى متوسط': { male: 0, female: 0, total: 0 },
+      'الثانية متوسط': { male: 0, female: 0, total: 0 },
+      'الثالثة متوسط': { male: 0, female: 0, total: 0 },
+      'الرابعة متوسط': { male: 0, female: 0, total: 0 }
     },
-    // Données pour le cycle secondaire
+    // Données pour le cycle secondaire - tous à zéro
     ثانوي: {
       'الأولى ثانوي': { male: 0, female: 0, total: 0 },
       'الثانية ثانوي': { male: 0, female: 0, total: 0 },
       'الثالثة ثانوي': { male: 0, female: 0, total: 0 }
     },
-    grandTotal: { male: 134, female: 108, total: 242 }
+    totals: {
+      متوسط: { male: 0, female: 0, total: 0 },
+      ثانوي: { male: 0, female: 0, total: 0 }
+    }
   });
 
-  // Fonction pour mettre à jour les données d'intervention
-  const updateInterventionData = (level: string, field: 'male' | 'female', value: number) => {
+  // Helpers cycles/levels
+  const getLevelsForCycle = (cycleName: 'متوسط' | 'ثانوي'): string[] => (
+    cycleName === 'متوسط'
+      ? ['الأولى متوسط', 'الثانية متوسط', 'الثالثة متوسط', 'الرابعة متوسط']
+      : ['الأولى ثانوي', 'الثانية ثانوي', 'الثالثة ثانوي']
+  );
+  const getTitleForCycle = (cycleName: 'متوسط' | 'ثانوي'): string => (
+    cycleName === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'
+  );
+
+  // Fonction pour réinitialiser les compteurs (global ou par cycle)
+  const resetInterventionData = (cycleName?: 'متوسط' | 'ثانوي') => {
+    setInterventionData(prev => {
+      // Réinitialiser tout
+      if (!cycleName) {
+        const copyAll = { ...prev } as typeof prev;
+        (['متوسط', 'ثانوي'] as const).forEach(cn => {
+          Object.keys(copyAll[cn]).forEach(levelKey => {
+            copyAll[cn][levelKey] = { male: 0, female: 0, total: 0 };
+          });
+          copyAll.totals[cn] = { male: 0, female: 0, total: 0 };
+        });
+        return copyAll;
+      }
+      // Réinitialiser uniquement le cycle demandé avec les clés réellement présentes
+      const copy = { ...prev } as typeof prev;
+      Object.keys(copy[cycleName]).forEach(levelKey => {
+        copy[cycleName][levelKey] = { male: 0, female: 0, total: 0 };
+      });
+      copy.totals[cycleName] = { male: 0, female: 0, total: 0 };
+      return copy;
+    });
+  };
+
+  // Fonction pour mettre à jour les données d'intervention (indépendante par cycle)
+  const updateInterventionData = (cycleName: 'متوسط' | 'ثانوي', level: string, field: 'male' | 'female', value: number) => {
     console.log('Updating intervention data:', level, field, value);
     setInterventionData(prev => {
       const newData = { ...prev };
       
-      // Trouver le cycle auquel appartient ce niveau
-      const cycle = currentCycle;
-      newData[cycle][level] = {
-        ...newData[cycle][level],
+      // Mettre à jour le niveau du cycle ciblé
+      newData[cycleName][level] = {
+        ...newData[cycleName][level],
         [field]: value
       };
       
       // Recalculer le total pour ce niveau
-      newData[cycle][level].total = newData[cycle][level].male + newData[cycle][level].female;
+      newData[cycleName][level].total = newData[cycleName][level].male + newData[cycleName][level].female;
       
-      // Recalculer le grand total pour le cycle actuel
+      // Recalculer le total du cycle ciblé uniquement
       let totalMale = 0;
       let totalFemale = 0;
-      Object.values(newData[cycle]).forEach(levelData => {
+      Object.values(newData[cycleName]).forEach(levelData => {
         totalMale += levelData.male;
         totalFemale += levelData.female;
       });
-      newData.grandTotal.male = totalMale;
-      newData.grandTotal.female = totalFemale;
-      newData.grandTotal.total = totalMale + totalFemale;
+      newData.totals[cycleName].male = totalMale;
+      newData.totals[cycleName].female = totalFemale;
+      newData.totals[cycleName].total = totalMale + totalFemale;
       
       console.log('New data after calculation:', newData);
       return newData;
@@ -1256,30 +1295,29 @@ export default function Reports() {
     setStorage('interventionData', interventionData);
   }, [interventionData]);
 
-  // Recalculer les totaux au chargement initial et quand le cycle change
+  // Recalculer les totaux au chargement initial (pour chaque cycle)
   useEffect(() => {
     setInterventionData(prev => {
       const newData = { ...prev };
-      
-      // Recalculer le total pour chaque niveau du cycle actuel
-      Object.keys(newData[currentCycle]).forEach(level => {
-        newData[currentCycle][level].total = newData[currentCycle][level].male + newData[currentCycle][level].female;
+      (['متوسط', 'ثانوي'] as const).forEach(cycleName => {
+        // Recalculer le total pour chaque niveau du cycle
+        Object.keys(newData[cycleName]).forEach(level => {
+          newData[cycleName][level].total = newData[cycleName][level].male + newData[cycleName][level].female;
+        });
+        // Recalculer les totaux du cycle
+        let totalMale = 0;
+        let totalFemale = 0;
+        Object.values(newData[cycleName]).forEach(levelData => {
+          totalMale += levelData.male;
+          totalFemale += levelData.female;
+        });
+        newData.totals[cycleName].male = totalMale;
+        newData.totals[cycleName].female = totalFemale;
+        newData.totals[cycleName].total = totalMale + totalFemale;
       });
-      
-      // Recalculer le grand total pour le cycle actuel
-      let totalMale = 0;
-      let totalFemale = 0;
-      Object.values(newData[currentCycle]).forEach(levelData => {
-        totalMale += levelData.male;
-        totalFemale += levelData.female;
-      });
-      newData.grandTotal.male = totalMale;
-      newData.grandTotal.female = totalFemale;
-      newData.grandTotal.total = totalMale + totalFemale;
-      
       return newData;
     });
-  }, [currentCycle]); // Exécuter quand le cycle change
+  }, []);
   const [reportData, setReportData] = useState({
     school: '',
     counselor: '',
@@ -6117,25 +6155,7 @@ export default function Reports() {
                                >
                                  طباعة
                                </button>
-                               <WorkingPDFGenerator
-                                 reportData={{
-                                   title: r.title,
-                                   school: r.content?.school || 'غير محدد',
-                                   level: r.content?.level || 'غير محدد',
-                                   semester: r.content?.semester || 'غير محدد',
-                                   average: r.content?.average || 0,
-                                   totals: r.content?.totals || {
-                                     totalStudents: 0,
-                                     excellent: 0,
-                                     good: 0,
-                                     average: 0,
-                                     weak: 0
-                                   },
-                                   subjects: r.content?.subjects || [],
-                                   topPerformers: r.content?.topPerformers || [],
-                                   reportDate: r.content?.reportDate || r.date
-                                 }}
-                               />
+                               <WorkingPDFGenerator />
                                <button
                                  onClick={() => {
                                    if (confirm('هل أنت متأكد من حذف هذا التقرير؟')) {
@@ -6283,14 +6303,23 @@ export default function Reports() {
                <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                  <div className="space-y-6" dir="rtl">
                    <div className="space-y-2 -mt-1">
-                     <h3 className="text-lg font-bold text-red-600 inline-block pb-1">
-                       <span className="border-b border-red-600">تقديم مقاطعات تدخل المستشار:</span>
-                       <div className="mt-2">
-                         <h4 className="text-base font-bold text-blue-600 inline-block pb-1">
-                           <span className="border-b border-blue-600">{getCycleTitle()}:</span>
-                         </h4>
-                       </div>
-                     </h3>
+                     <div className="flex justify-between items-center">
+                       <h3 className="text-lg font-bold text-red-600 inline-block pb-1">
+                         <span className="border-b border-red-600">تقديم مقاطعات تدخل المستشار:</span>
+                         <div className="mt-2">
+                           <h4 className="text-base font-bold text-blue-600 inline-block pb-1">
+                             <span className="border-b border-blue-600">{getCycleTitle()}:</span>
+                           </h4>
+                         </div>
+                       </h3>
+                      <button
+                        onClick={() => resetInterventionData(currentCycle as 'متوسط' | 'ثانوي')}
+                        className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                        title="إعادة تعيين جميع القيم إلى الصفر"
+                      >
+                        إعادة تعيين
+                      </button>
+                     </div>
                    </div>
                    
                    <div className="overflow-x-auto">
@@ -6327,8 +6356,8 @@ export default function Reports() {
                                    dir="ltr" 
                                    className="w-full text-center border-none outline-none bg-transparent text-xs py-0" 
                                    placeholder="0" 
-                                   value={interventionData[currentCycle]?.[level]?.male ?? 0}
-                                   onChange={(e) => updateInterventionData(level, 'male', parseInt(e.target.value) || 0)}
+                                  value={interventionData[currentCycle]?.[level]?.male ?? 0}
+                                  onChange={(e) => updateInterventionData(currentCycle as 'متوسط' | 'ثانوي', level, 'male', parseInt(e.target.value) || 0)}
                                  />
                                </td>
                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -6338,8 +6367,8 @@ export default function Reports() {
                                    dir="ltr" 
                                    className="w-full text-center border-none outline-none bg-transparent text-xs py-0" 
                                    placeholder="0" 
-                                   value={interventionData[currentCycle]?.[level]?.female ?? 0}
-                                   onChange={(e) => updateInterventionData(level, 'female', parseInt(e.target.value) || 0)}
+                                  value={interventionData[currentCycle]?.[level]?.female ?? 0}
+                                  onChange={(e) => updateInterventionData(currentCycle as 'متوسط' | 'ثانوي', level, 'female', parseInt(e.target.value) || 0)}
                                  />
                                </td>
                                <td className="border border-gray-400 px-1 py-1 text-center align-middle">
@@ -6364,7 +6393,7 @@ export default function Reports() {
                                dir="ltr" 
                                className="w-full text-center border-none outline-none bg-transparent text-sm font-bold bg-blue-50 py-0" 
                                placeholder="0" 
-                               value={interventionData.grandTotal?.male ?? 0}
+                              value={interventionData.totals?.[currentCycle as 'متوسط' | 'ثانوي']?.male ?? 0}
                                readOnly
                              />
                            </td>
@@ -6375,7 +6404,7 @@ export default function Reports() {
                                dir="ltr" 
                                className="w-full text-center border-none outline-none bg-transparent text-sm font-bold bg-blue-50 py-0" 
                                placeholder="0" 
-                               value={interventionData.grandTotal?.female ?? 0}
+                              value={interventionData.totals?.[currentCycle as 'متوسط' | 'ثانوي']?.female ?? 0}
                                readOnly
                              />
                            </td>
@@ -6386,7 +6415,7 @@ export default function Reports() {
                                dir="ltr" 
                                className="w-full text-center border-none outline-none bg-transparent text-sm font-bold bg-blue-50 py-0" 
                                placeholder="0" 
-                               value={interventionData.grandTotal?.total ?? 0}
+                              value={interventionData.totals?.[currentCycle as 'متوسط' | 'ثانوي']?.total ?? 0}
                                readOnly
                              />
                            </td>
