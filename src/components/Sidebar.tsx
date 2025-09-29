@@ -12,7 +12,9 @@ import {
   Brain,
   GraduationCap,
   BookOpen,
-  Video
+  Video,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCycle } from '../contexts/CycleContext';
@@ -32,7 +34,11 @@ const getMenuItems = (currentCycle: string) => [
   { icon: Settings, label: 'الإعدادات', path: '/settings' }
 ];
 
-function Sidebar() {
+interface SidebarProps {
+  onToggle?: (isCollapsed: boolean) => void;
+}
+
+function Sidebar({ onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -48,6 +54,7 @@ function Sidebar() {
     schoolName: 'المدرسة',
     counselorName: 'أمين بوسحبة'
   });
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     console.log(`Sidebar: Cycle changé vers ${currentCycle}`);
@@ -95,9 +102,24 @@ function Sidebar() {
 
   // No local logout action; logout button moved to top header
 
+  const toggleSidebar = () => {
+    const newCollapsedState = !isCollapsed;
+    setIsCollapsed(newCollapsedState);
+    onToggle?.(newCollapsedState);
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="mb-8">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      {/* Bouton de toggle */}
+      <button
+        onClick={toggleSidebar}
+        className="absolute top-4 left-4 z-10 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+        title={isCollapsed ? 'Développer la sidebar' : 'Rétracter la sidebar'}
+      >
+        {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
+
+      <div className={`mb-8 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Sélecteur de cycle dynamique */}
         <div className="mb-4">
           <div className="text-sm text-gray-400 mb-2">اختر المرحلة التعليمية:</div>
@@ -151,42 +173,37 @@ function Sidebar() {
           </div>
         </div>
         
-        {/* Bouton de rechargement pour la sidebar */}
-        <div className="mt-2">
-          <button
-            onClick={loadSettings}
-            className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            title="إعادة تحميل الإعدادات"
-          >
-            🔄 تحديث
-          </button>
-        </div>
       </div>
       <nav className="flex flex-col flex-1">
         {getMenuItems(currentCycle).map((item, index) => (
           <div
             key={index}
-            className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+            className={`menu-item ${location.pathname === item.path ? 'active' : ''} ${isCollapsed ? 'collapsed' : ''}`}
             onClick={() => navigate(item.path)}
             role="button"
             tabIndex={0}
+            title={isCollapsed ? item.label : ''}
           >
             <item.icon className="w-5 h-5" />
-            <span>{item.label}</span>
+            {!isCollapsed && <span>{item.label}</span>}
           </div>
         ))}
         
         {/* Informations utilisateur */}
-        <div className="px-4 py-2">
-          <UserInfo />
-        </div>
+        {!isCollapsed && (
+          <div className="px-4 py-2">
+            <UserInfo />
+          </div>
+        )}
         
         <div className="flex-1"></div>
         
         {/* Indicateur de synchronisation */}
-        <div className="px-4 py-2 border-t border-gray-700">
-          <SyncIndicator />
-        </div>
+        {!isCollapsed && (
+          <div className="px-4 py-2 border-t border-gray-700">
+            <SyncIndicator />
+          </div>
+        )}
       </nav>
     </aside>
   );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Lightbulb, Users, Plus, Save, Trash2, Edit2, X, AlertTriangle, CheckCircle2, UserCircle, UsersIcon, Search } from 'lucide-react';
+import { Lightbulb, Users, Plus, Save, Trash2, Edit2, X, AlertTriangle, CheckCircle2, UserCircle, UsersIcon, Search, ArrowRight } from 'lucide-react';
 import { getStudents, Student, getSettings, AppSettings } from '../lib/storage';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 
 interface Recommendation {
   id: string;
@@ -67,6 +68,7 @@ const mockRecommendations: Recommendation[] = [
 ];
 
 export default function Recommendations() {
+  const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState<Recommendation[]>(mockRecommendations);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -489,8 +491,20 @@ export default function Recommendations() {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-800">التوصيات</h1>
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+            title="Retour à la لوحة القيادة"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          
+          <h1 className="text-3xl font-bold text-gray-800">التوصيات</h1>
+        </div>
+        
         <button
           onClick={() => setShowAddModal(true)}
           className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"

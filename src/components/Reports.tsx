@@ -10,11 +10,13 @@ import {
   Activity,
   UserPlus,
   Save,
-  Upload
+  Upload,
+  ArrowRight
 } from 'lucide-react';
 import { getSettings, type AppSettings } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
 import { useCycleStorage } from '../hooks/useCycleStorage';
+import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
@@ -937,7 +939,7 @@ interface OrientationSummaryRow {
   total: string;
 }
 export default function Reports() {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const { currentCycle, getCycleTitle, getCycleLevels, getCycleConfig } = useCycle();
   const { getStorage, setStorage } = useCycleStorage();
   // Build default groups dynamically per cycle:
@@ -7376,9 +7378,18 @@ export default function Reports() {
          </div>
        )}
 
-       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">إدارة التقارير</h1>
-      </div>
+       {/* En-tête avec flèche de retour */}
+       <div className="flex items-center gap-4 mb-8">
+         <button
+           onClick={() => navigate('/')}
+           className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+           title="Retour à la لوحة القيادة"
+         >
+           <ArrowRight className="w-5 h-5" />
+         </button>
+         
+         <h1 className="text-3xl font-bold text-gray-800">إدارة التقارير</h1>
+       </div>
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

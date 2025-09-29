@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight } from 'lucide-react';
 import { useCycle } from '../contexts/CycleContext';
 import { getAnalysisDB } from '../lib/storage';
 
@@ -11,6 +11,7 @@ type SemesterRecord = { students: any[]; semester: number };
 export default function AnalysisBEM() {
   const { currentCycle } = useCycle();
   const location = useLocation();
+  const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1416,6 +1417,19 @@ export default function AnalysisBEM() {
         </div>
       ) : (
         <>
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center gap-4 mb-8">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          title="Retour à la لوحة القيادة"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </button>
+        
+        <h1 className="text-3xl font-bold text-gray-800">تحليل ش.ت.م - التعليم المتوسط</h1>
+      </div>
+
       {/* Header to keep tabs at same vertical position */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
         <div className="flex items-center justify-between">

@@ -1123,14 +1123,26 @@ function StudentList() {
 
 function StudentManagement() {
   const { getCycleTitle, currentCycle } = useCycle();
+  const navigate = useNavigate();
   
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">
-        {currentCycle === 'ثانوي'
-          ? 'إدارة الطلاب'
-          : 'إدارة التلاميذ'}
-      </h1>
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center gap-4 mb-8">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          title="Retour à la لوحة القيادة"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </button>
+        
+        <h1 className="text-3xl font-bold text-gray-800">
+          {currentCycle === 'ثانوي'
+            ? 'إدارة الطلاب'
+            : 'إدارة التلاميذ'}
+        </h1>
+      </div>
       <Routes>
         <Route index element={<StudentList />} />
         <Route path="new" element={<StudentForm />} />

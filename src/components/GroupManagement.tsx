@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Users, GraduationCap, Search, Filter, Pencil, Trash2, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { PlusCircle, Users, GraduationCap, Search, Filter, Pencil, Trash2, AlertTriangle, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
 import { getSettings, type AppSettings, getStudents, type Student } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
+import { useNavigate } from 'react-router-dom';
 
 interface Group {
   id: string;
@@ -13,6 +14,7 @@ interface Group {
 
 export default function GroupManagement() {
   const { currentCycle } = useCycle();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState<Group[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('');
@@ -227,17 +229,27 @@ export default function GroupManagement() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-800">إدارة الأقسام</h1>
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setShowNewGroupModal(true)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+            onClick={() => navigate('/')}
+            className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+            title="Retour à la لوحة القيادة"
           >
-            <PlusCircle className="w-5 h-5" />
-            <span>إضافة قسم جديد</span>
+            <ArrowRight className="w-5 h-5" />
           </button>
+          
+          <h1 className="text-3xl font-bold text-gray-800">إدارة الأقسام</h1>
         </div>
+        
+        <button
+          onClick={() => setShowNewGroupModal(true)}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
+        >
+          <PlusCircle className="w-5 h-5" />
+          <span>إضافة قسم جديد</span>
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { Brain, Briefcase, Lightbulb, UserCircle2, Users, Sparkles, PlusCircle, PlayCircle, X, Save, Settings, FileText, Heart, Calculator, RefreshCw } from 'lucide-react';
+import { Brain, Briefcase, Lightbulb, UserCircle2, Users, Sparkles, PlusCircle, PlayCircle, X, Save, Settings, FileText, Heart, Calculator, RefreshCw, ArrowRight } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import NewTest from './tests/NewTest';
@@ -5246,6 +5246,19 @@ function TestList() {
         </div>
       )}
 
+
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center gap-4 mb-8">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          title="Retour à la لوحة القيادة"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </button>
+        
+        <h1 className="text-3xl font-bold text-gray-800">إدارة الإختبارات</h1>
+      </div>
 
       {/* Header Section with Enhanced Design */}
       <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 mb-6 border border-blue-100 shadow-lg">

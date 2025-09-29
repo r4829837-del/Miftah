@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarRange, Plus, X, Edit2, Save, AlertTriangle, Users } from 'lucide-react';
+import { CalendarRange, Plus, X, Edit2, Save, AlertTriangle, Users, ArrowRight } from 'lucide-react';
 import { getStudents, Student, getSettings, AppSettings } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
+import { useNavigate } from 'react-router-dom';
 
 const weekDays = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس'];
 const timeSlots = ['08:00', '09:30', '11:00', '13:30', '15:00'];
@@ -20,6 +21,7 @@ interface Session {
 
 export default function Schedule() {
   const { getCycleLevels } = useCycle();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -131,7 +133,18 @@ export default function Schedule() {
 
   return (
     <div className="relative">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">الجدول الزمني للمقابلات</h1>
+      {/* En-tête avec flèche de retour */}
+      <div className="flex items-center gap-4 mb-8">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          title="Retour à la لوحة القيادة"
+        >
+          <ArrowRight className="w-5 h-5" />
+        </button>
+        
+        <h1 className="text-3xl font-bold text-gray-800">الجدول الزمني للمقابلات</h1>
+      </div>
       <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">جدول المقابلات</h2>

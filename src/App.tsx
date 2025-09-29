@@ -39,6 +39,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     const { trackAction } = useAnalytics();
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const handleRequestLogout = () => {
       setShowLogoutModal(true);
@@ -64,8 +65,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
       <div className="min-h-screen bg-gray-100">
-        <Sidebar />
-        <main className="main-content">
+        <Sidebar onToggle={setIsSidebarCollapsed} />
+        <main className={`main-content ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+
           {/* En-tête avec indicateur du cycle */}
           <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-3">
             <div className="flex items-center justify-between">

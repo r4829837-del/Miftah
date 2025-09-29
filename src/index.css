@@ -351,7 +351,19 @@ body {
 }
 
 .sidebar {
-  @apply fixed right-0 top-0 h-full w-64 bg-[#2c3e50] text-white p-4 flex flex-col;
+  @apply fixed right-0 top-0 h-full w-64 bg-[#2c3e50] text-white p-4 flex flex-col transition-all duration-300 ease-in-out;
+}
+
+.sidebar.collapsed {
+  @apply w-16;
+}
+
+.sidebar.collapsed .menu-item {
+  @apply justify-center;
+}
+
+.sidebar.collapsed .menu-item span {
+  @apply hidden;
 }
 
 /* Force black borders for all report tables (preview and PDF capture) */
@@ -408,7 +420,11 @@ body {
 }
 
 .main-content {
-  @apply mr-64 p-6;
+  @apply mr-64 p-6 transition-all duration-300 ease-in-out;
+}
+
+.main-content.sidebar-collapsed {
+  @apply mr-16;
 }
 
 .menu-item {
