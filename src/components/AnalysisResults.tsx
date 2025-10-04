@@ -3349,7 +3349,7 @@ const AnalysisResults: React.FC = () => {
                           
                           if (grade !== null) {
                             displayValue = Math.round(grade * 100) / 100;
-                            displaySubtext = 'درجة الطالب';
+                            displaySubtext = 'درجة التلميذ';
                             
                             // Color coding based on grade
                             if (grade >= 16) {

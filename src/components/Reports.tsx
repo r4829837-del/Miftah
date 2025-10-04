@@ -5,7 +5,6 @@ import {
   Plus, 
   X, 
   Trash2, 
-  BookOpen,
   Target,
   Activity,
   UserPlus,
@@ -19,7 +18,6 @@ import { useCycleStorage } from '../hooks/useCycleStorage';
 import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { createProfessionalReport } from '../lib/pdfProfessionalReportSimple';
 import WorkingPDFGenerator from './WorkingPDFGenerator';
 import MultiSelectTextarea from './MultiSelectTextarea';
 
@@ -683,9 +681,9 @@ const reportTypes = (currentCycle: string) => [
   {
     id: 'annual',
     title: 'التقرير السنوي',
-    description: 'تقرير سنوي لمستشار التوجيه',
+    description: 'فتح نسخة PDF ثابتة للتقرير السنوي',
     icon: FileText,
-    color: 'bg-yellow-100 text-yellow-600'
+    color: 'bg-green-100 text-green-600'
   }
 ];
 
@@ -716,16 +714,7 @@ interface ParentCoverageRow {
   studentCount: number;
 }
 
-interface AnnualReportData {
-  wilaya: string;
-  center: string;
-  school: string;
-  counselor: string;
-  academicYear: string;
-  activities: string;
-  conclusions: string;
-  recommendations: string;
-}
+// interface AnnualReportData removed (annual report deleted)
 
 interface VocationalInstitution {
   id: string;
@@ -779,39 +768,7 @@ interface StudentInfoData {
   beneficiaryPercentage: string;
 }
 
-interface TestData {
-  id: string;
-  testName: string;
-  testDate: string;
-  studentCount: string;
-  results: string;
-  notes: string;
-}
-
-interface MeetingData {
-  id: string;
-  meetingType: string;
-  participants: string;
-  date: string;
-  duration: string;
-  topics: string;
-  conclusions: string;
-}
-
-interface MiddleSchoolResultsData {
-  id: string;
-  studentName: string;
-  arabic: string;
-  french: string;
-  math: string;
-  science: string;
-  history: string;
-  geography: string;
-  islamic: string;
-  total: string;
-  average: string;
-  result: string;
-}
+// Removed unused demo interfaces (TestData, MeetingData, MiddleSchoolResultsData)
 
 interface InformationalDocumentsData {
   id: string;
@@ -905,22 +862,7 @@ interface StudentResultsRow {
   grade16PlusPercentage: string;
 }
 
-interface GenderOrientationYear4Row {
-  id: string;
-  trackLabel: string; // مثل: ج.م. آداب
-  fDesired: string;
-  fFinal: string;
-  mDesired: string;
-  mFinal: string;
-  tDesired: string;
-  tFinal: string;
-  fDesiredPct: string;
-  fFinalPct: string;
-  mDesiredPct: string;
-  mFinalPct: string;
-  tDesiredPct: string;
-  tFinalPct: string;
-}
+// Removed unused interface: GenderOrientationYear4Row
 interface ExamPsychSupportRow {
   id: string;
   number: string;
@@ -977,6 +919,9 @@ export default function Reports() {
     level2: '1و2و3م'
   });
   const [mawdooOptions, setMawdooOptions] = useState(getMawdooOptions(currentCycle));
+  // Fallback no-op states to avoid references after removing annual report
+  const [showAnnualPreview, setShowAnnualPreview] = useState(false); // kept for compatibility, modal disabled
+  const [annualReportData, setAnnualReportData] = useState<any>({ wilaya: '', center: '', school: '', counselor: '', academicYear: '' });
 
 
   // Mettre à jour les niveaux quand le cycle change
@@ -1137,7 +1082,7 @@ export default function Reports() {
   }, []);
   const [showPreview, setShowPreview] = useState(false);
   const [showParentPreview, setShowParentPreview] = useState(false);
-  const [showAnnualPreview, setShowAnnualPreview] = useState(false);
+  // Removed: annual preview state
   const [showObjectivesPreview, setShowObjectivesPreview] = useState(false);
   const [showActivitiesPreview, setShowActivitiesPreview] = useState(false);
   // Removed unused states (modal & selection) to satisfy linter
@@ -1145,17 +1090,7 @@ export default function Reports() {
   // وحدة الاختيار بين الأفواج والأقسام
   const [reportUnitMode, setReportUnitMode] = useState<'groups' | 'classes'>('groups');
   const [parentUnitMode, setParentUnitMode] = useState<'groups' | 'classes'>('groups');
-  const classSections = (settings && settings.groups && settings.groups.length > 0)
-    ? settings.groups
-    : (getCycleConfig(currentCycle)?.groups || ['أ', 'ب', 'ج', 'د']);
-  // قوالب جاهزة لعمود الأهداف
-  const objectivesTemplates: string[] = [
-    '-  تذكير التلميذ ب :',
-    '-  مستشار التوجيه و الارشاد المدرسي و المهني',
-    '- مواقيت و معاملات المواد',
-    '- أساليب التقويم للفروض و الاختبارات',
-    '- أهمية السنة الثالثة متوسط في تحديد ملامح التوجيه و ادراكه لأهمية النتائج في هدا المستوى'
-  ];
+  // Removed unused variables: classSections, objectivesTemplates
 
   // États pour la section "تقديم مقاطعات تدخل المستشار"
   const [interventionData, setInterventionData] = useState<{
@@ -1185,15 +1120,7 @@ export default function Reports() {
     }
   });
 
-  // Helpers cycles/levels
-  const getLevelsForCycle = (cycleName: 'متوسط' | 'ثانوي'): string[] => (
-    cycleName === 'متوسط'
-      ? ['الأولى متوسط', 'الثانية متوسط', 'الثالثة متوسط', 'الرابعة متوسط']
-      : ['الأولى ثانوي', 'الثانية ثانوي', 'الثالثة ثانوي']
-  );
-  const getTitleForCycle = (cycleName: 'متوسط' | 'ثانوي'): string => (
-    cycleName === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'
-  );
+  // Removed unused helpers getLevelsForCycle, getTitleForCycle
 
   // Fonction pour réinitialiser les compteurs (global ou par cycle)
   const resetInterventionData = (cycleName?: 'متوسط' | 'ثانوي') => {
@@ -1350,16 +1277,7 @@ export default function Reports() {
     wilaya: ''
   });
 
-  const [annualReportData, setAnnualReportData] = useState<AnnualReportData>({
-    wilaya: '',
-    center: '',
-    school: '',
-    counselor: '',
-    academicYear: academicYears[0],
-    activities: '',
-    conclusions: '',
-    recommendations: ''
-  });
+  // Removed: annual report data state
 
   // État pour les institutions de formation professionnelle
   const [vocationalInstitutions, setVocationalInstitutions] = useState<VocationalInstitution[]>([]);
@@ -1584,11 +1502,7 @@ export default function Reports() {
       school: cycleConfig.schoolName,
       counselor: loadedSettings.counselorName
     }));
-    setAnnualReportData(prev => ({
-      ...prev,
-      school: cycleConfig.schoolName,
-      counselor: loadedSettings.counselorName
-    }));
+    // removed: annual report state update
   };
 
   useEffect(() => {
@@ -1866,7 +1780,7 @@ export default function Reports() {
       const wilaya = wilayas[Math.floor(Math.random() * wilayas.length)];
       const type = types[Math.floor(Math.random() * types.length)];
       const location = locations[Math.floor(Math.random() * locations.length)];
-      const level = levels[Math.floor(Math.random() * levels.length)];
+    const levelPick = levels[Math.floor(Math.random() * levels.length)];
       
       randomInstitutions.push({
         id: Date.now().toString() + i,
@@ -1874,7 +1788,7 @@ export default function Reports() {
         localTraining: Math.random() > 0.3,
         regionalTraining: Math.random() > 0.6,
         nationalTraining: Math.random() > 0.8,
-        requiredLevel: level
+        requiredLevel: levelPick
       });
     }
     
@@ -1941,10 +1855,10 @@ export default function Reports() {
         ? 'report-preview'
         : type === 'parent'
         ? 'parent-report-preview'
-        : type === 'annual'
-        ? 'annual-report-preview'
-        : type === 'activities'
+      : type === 'activities'
         ? 'activities-report-preview'
+      : type === 'annual'
+        ? 'annual-report-preview'
         : 'objectives-report-preview';
     const content = document.getElementById(contentId);
     if (!content) return;
@@ -2123,7 +2037,14 @@ export default function Reports() {
           
         },
       } as Parameters<typeof html2canvas>[1];
-      const pageElements = Array.from(content.querySelectorAll('.report-page'));
+      // Collect pages in DOM order and remove blank ones
+      const allPageElements = Array.from(content.querySelectorAll('.report-page')) as HTMLElement[];
+      const pageElements = allPageElements.filter((el) => {
+        const textLen = (el.textContent || '').replace(/\s+/g, '').length;
+        const hasMedia = el.querySelector('img, svg, canvas') !== null;
+        const hasTables = el.querySelector('table') !== null;
+        return textLen > 0 || hasMedia || hasTables;
+      });
       if (pageElements.length > 0) {
         for (let idx = 0; idx < pageElements.length; idx++) {
           const pageEl = pageElements[idx] as HTMLElement;
@@ -2179,11 +2100,6 @@ export default function Reports() {
         title = `تقرير ${data.level} - ${data.semester}`;
         typeName = 'تقرير عملية إعلام الأولياء';
         fileName = 'تقرير_إعلام_الأولياء.pdf';
-      } else if (type === 'annual') {
-        data = { ...annualReportData, cycle: currentCycle };
-        title = `التقرير السنوي - ${data.academicYear}`;
-        typeName = 'التقرير السنوي';
-        fileName = 'التقرير_السنوي.pdf';
       } else if (type === 'activities') {
         data = { cycle: currentCycle };
         title = '';
@@ -2202,6 +2118,11 @@ export default function Reports() {
         }
         typeName = 'تقرير تحليل النتائج';
         fileName = 'تقرير_تحليل_النتائج.pdf';
+      } else if (type === 'annual') {
+        data = { ...annualReportData, cycle: currentCycle };
+        title = `التقرير السنوي - ${annualReportData?.academicYear || ''}`.trim();
+        typeName = 'التقرير السنوي';
+        fileName = 'التقرير_السنوي.pdf';
       }
 
       const newReport: Report = {
@@ -2260,12 +2181,13 @@ export default function Reports() {
       setShowPreview(true);
     } else if (type === 'parent_info') {
       setShowParentPreview(true);
-    } else if (type === 'annual') {
-      setShowAnnualPreview(true);
     } else if (type === 'objectives') {
       setShowObjectivesPreview(true);
     } else if (type === 'activities') {
       setShowActivitiesPreview(true);
+    } else if (type === 'annual') {
+      // Open HTML preview for annual report (captured via html2canvas)
+      setShowAnnualPreview(true);
     }
   };
 
@@ -2623,24 +2545,7 @@ export default function Reports() {
   );
 
   // جدول الرغبة والتوجيه النهائي حسب الجنس - السنة الرابعة متوسط
-  const [genderOrientationYear4Rows, setGenderOrientationYear4Rows] = useState<GenderOrientationYear4Row[]>([
-    {
-      id: '1',
-      trackLabel: 'ج.م. آداب',
-      fDesired: '', fFinal: '', mDesired: '', mFinal: '', tDesired: '', tFinal: '',
-      fDesiredPct: '', fFinalPct: '', mDesiredPct: '', mFinalPct: '', tDesiredPct: '', tFinalPct: ''
-    }
-  ]);
-  // const genderOrientationYear4Functions = createGenericFunctions(
-  //   genderOrientationYear4Rows,
-  //   setGenderOrientationYear4Rows,
-  //   {
-  //     id: '1',
-  //     trackLabel: '',
-  //     fDesired: '', fFinal: '', mDesired: '', mFinal: '', tDesired: '', tFinal: '',
-  //     fDesiredPct: '', fFinalPct: '', mDesiredPct: '', mFinalPct: '', tDesiredPct: '', tFinalPct: ''
-  //   }
-  // );
+  // Removed unused: genderOrientationYear4Rows and related functions
 
   // الكفل النفسي مركز إجراء الامتحانات الرسمية
   const [examPsychSupportRows, setExamPsychSupportRows] = useState<ExamPsychSupportRow[]>([{
@@ -3492,88 +3397,58 @@ export default function Reports() {
             </div>
 
             <div id="annual-report-preview" className="space-y-8" dir="rtl">
-              {/* First Page */}
-              <div className="report-page bg-white p-8 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', border: '4px solid #3b82f6', borderRadius: '8px', position: 'relative', padding: '5mm' }}>
-                {/* Corner decorations */}
-                <div className="absolute top-0 left-0 w-16 h-16 bg-gradient-to-br from-green-400 to-yellow-400 rounded-br-lg"></div>
-                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-green-400 to-yellow-400 rounded-bl-lg"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-gradient-to-tr from-green-400 to-yellow-400 rounded-tr-lg"></div>
-                <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-tl from-green-400 to-yellow-400 rounded-tl-lg"></div>
-
-                {/* Header Section */}
-                <div className="text-center mb-8">
-                  <h1 className="text-2xl font-bold mb-4 text-center">الجمهورية الجزائرية الديمقراطية الشعبية</h1>
-                  <h2 className="text-xl font-bold mb-6 text-center">وزارة التربية الوطنية</h2>
+              {/* First Page: redesigned cover */}
+              <div className="report-page bg-white" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', border: '10px solid #1d4ed8', position: 'relative', padding: '12mm', boxSizing: 'border-box' }}>
+                {/* Top headings */}
+                <div className="text-center" style={{ marginTop: '6mm' }}>
+                  <div className="text-2xl font-bold mb-3">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+                  <div className="text-xl font-bold">وزارة التربية الوطنية</div>
                 </div>
-                {/* Details Section */}
-                <div className="space-y-4 mb-8 text-justify">
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold">مديرية التربية لولاية:</span>
-                    <input
-                      type="text"
-                      value={annualReportData.wilaya}
-                      onChange={(e) => setAnnualReportData(prev => ({ ...prev, wilaya: e.target.value }))}
-                      className="text-right outline-none bg-transparent text-lg min-w-[100px]"
-                      dir="rtl"
-                      placeholder="أدخل اسم الولاية"
-                    />
+
+                {/* Right-aligned info with dotted lines */}
+                <div className="mt-10" style={{ direction: 'rtl' }}>
+                  <div className="flex justify-end mb-3 items-baseline gap-2">
+                    <span className="text-lg">مديرية التربية لولاية :</span>
+                    <input type="text" value={annualReportData.wilaya}
+                           onChange={(e) => setAnnualReportData({ ...annualReportData, wilaya: e.target.value })}
+                           className="bg-transparent outline-none text-right text-lg" style={{ borderBottom: '2px dotted #555', minWidth: '60mm' }} dir="rtl" placeholder="................" />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold">مركز التوجيه المدرسي والمهني :</span>
-                    <input
-                      type="text"
-                      value={annualReportData.center}
-                      onChange={(e) => setAnnualReportData(prev => ({ ...prev, center: e.target.value }))}
-                      className="text-right outline-none bg-transparent text-lg min-w-[100px]"
-                      dir="rtl"
-                      placeholder="أدخل اسم المركز"
-                    />
+                  <div className="flex justify-end mb-3 items-baseline gap-2">
+                    <span className="text-lg">مركز التوجيه المدرسي والمهني :</span>
+                    <input type="text" value={annualReportData.center}
+                           onChange={(e) => setAnnualReportData({ ...annualReportData, center: e.target.value })}
+                           className="bg-transparent outline-none text-right text-lg" style={{ borderBottom: '2px dotted #555', minWidth: '60mm' }} dir="rtl" placeholder="................" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold report-school-label">{currentCycle === 'ثانوي' ? 'ثانوية :' : 'متوسطة :'}</span>
-                    <input
-                      type="text"
-                      value={annualReportData.school}
-                      onChange={(e) => setAnnualReportData(prev => ({ ...prev, school: e.target.value }))}
-                      className="text-right outline-none bg-transparent text-lg min-w-[100px] report-school-field"
-                      dir="rtl"
-                      placeholder={`أدخل اسم ${getCycleConfig(currentCycle).schoolName}`}
-                    />
+                  <div className="flex justify-end mb-3 items-baseline gap-2">
+                    <span className="text-lg">{currentCycle === 'ثانوي' ? 'ثانوية :' : 'متوسطة :'}</span>
+                    <input type="text" value={annualReportData.school}
+                           onChange={(e) => setAnnualReportData({ ...annualReportData, school: e.target.value })}
+                           className="bg-transparent outline-none text-right text-lg" style={{ borderBottom: '2px dotted #555', minWidth: '60mm' }} dir="rtl" placeholder="................" />
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold">مستشار التوجيه والارشاد :</span>
-                    <input
-                      type="text"
-                      value={annualReportData.counselor}
-                      onChange={(e) => setAnnualReportData(prev => ({ ...prev, counselor: e.target.value }))}
-                      className="text-right outline-none bg-transparent text-lg min-w-[100px]"
-                      dir="rtl"
-                      placeholder="أدخل اسم المستشار"
-                    />
+                  <div className="flex justify-end mb-3 items-baseline gap-2">
+                    <span className="text-lg">مستشار التوجيه والإرشاد :</span>
+                    <input type="text" value={annualReportData.counselor}
+                           onChange={(e) => setAnnualReportData({ ...annualReportData, counselor: e.target.value })}
+                           className="bg-transparent outline-none text-right text-lg" style={{ borderBottom: '2px dotted #555', minWidth: '60mm' }} dir="rtl" placeholder="................" />
                   </div>
                 </div>
 
-                {/* Main Title Section */}
-                <div className="text-center mb-8" style={{ marginTop: '200px', marginBottom: '100px' }}>
-                  <h3 className="text-4xl font-bold mb-2 text-center">التقرير السنوي لنشاطات مستشار</h3>
-                  <h4 className="text-4xl font-bold text-center">التوجيه والإرشاد المدرسي والمهني</h4>
+                {/* Big centered title */}
+                <div className="text-center" style={{ marginTop: '40mm', marginBottom: '20mm' }}>
+                  <div className="font-bold" style={{ fontSize: '24pt', marginBottom: '6mm' }}>التقرير السنوي لنشاطات مستشار</div>
+                  <div className="font-bold" style={{ fontSize: '24pt' }}>التوجيه والإرشاد المدرسي والمهني</div>
                 </div>
 
-                {/* Footer: Academic Year Selector (RTL) */}
-                <div className="text-center mt-32" dir="rtl">
-                  <div className="inline-flex items-center gap-3 text-lg font-bold pb-2 mb-8">
-                    <span>السنة الدراسية:</span>
-                    <select
-                      value={annualReportData.academicYear}
-                      onChange={(e) => setAnnualReportData(prev => ({ ...prev, academicYear: e.target.value }))}
-                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-2 bg-transparent text-center"
-                      dir="rtl"
-                    >
-                      {academicYears.map((year) => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
+                {/* Academic year bottom line */}
+                <div className="text-center" style={{ position: 'absolute', bottom: '12mm', left: 0, right: 0 }}>
+                  <span className="text-lg font-semibold ml-2">الموسم الدراسي :</span>
+                  <select value={annualReportData.academicYear}
+                          onChange={(e) => setAnnualReportData({ ...annualReportData, academicYear: e.target.value })}
+                          className="bg-transparent outline-none text-lg" style={{ borderBottom: '2px dotted #555' }} dir="rtl">
+                    {academicYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
                {/* Second Page - Statistical Report */}
@@ -4184,7 +4059,7 @@ export default function Reports() {
                           مسح الجدول
                         </button>
                       </div>
-                      <div className="overflow-x-auto">
+                      <div className="overflow-visible">
                         <table className="w-full border-collapse border border-gray-400 text-base" style={{ tableLayout: 'auto', minWidth: '100%' }}>
                           <thead>
                             <tr className="bg-gray-100">
@@ -5767,7 +5642,7 @@ export default function Reports() {
                  إلغاء
                </button>
                <button
-                 onClick={() => handleGeneratePDF('annual')}
+                onClick={() => {}}
                  className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
                >
                  <Save className="w-5 h-5" />
@@ -6328,13 +6203,13 @@ export default function Reports() {
                      <table className="w-full border-collapse border border-gray-400 text-sm">
                        <thead>
                          <tr className="bg-gray-100">
-                           {getCycleLevels().map((level, index) => (
-                             <th key={index} className="border border-gray-400 p-2 text-center text-sm font-bold" colSpan={3}>{level}</th>
+                          {getCycleLevels().map((lvl, index) => (
+                            <th key={index} className="border border-gray-400 p-2 text-center text-sm font-bold" colSpan={3}>{lvl}</th>
                            ))}
                            <th className="border border-gray-400 p-2 text-center text-sm font-bold" colSpan={3}>مجموع {getCycleTitle()}</th>
                          </tr>
-                         <tr className="bg-gray-50 h-10">
-                           {getCycleLevels().map((level, index) => (
+                        <tr className="bg-gray-50 h-10">
+                          {getCycleLevels().map((_level, index) => (
                              <React.Fragment key={index}>
                                <th className="border border-gray-400 px-1 py-1 text-center text-sm font-semibold leading-tight align-middle">ذكور</th>
                                <th className="border border-gray-400 px-1 py-1 text-center text-sm font-semibold leading-tight align-middle">إناث</th>
@@ -7402,23 +7277,13 @@ export default function Reports() {
               <h3 className="text-xl font-bold">{type.title}</h3>
             </div>
             <p className="text-gray-600 mb-6">{type.description}</p>
-            {type.id === 'annual' ? (
-              <button
-                disabled
-                className="w-full bg-orange-400 text-white px-4 py-2 rounded-lg cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Download className="w-5 h-5" />
-                <span>90% مكتمل - قريباً</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => handleReportTypeClick(type.id)}
-                className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-5 h-5" />
-                <span>إنشاء التقرير</span>
-              </button>
-            )}
+            <button
+              onClick={() => handleReportTypeClick(type.id)}
+              className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+            >
+              <Download className="w-5 h-5" />
+              <span>إنشاء التقرير</span>
+            </button>
           </div>
         ))}
       </div>
