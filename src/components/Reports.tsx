@@ -353,14 +353,12 @@ const getCoverageObjectivesOptions = (cycle: string) => {
         'عرض نتائج التقويم التشخيصي وتحديد نقاط القوة والضعف',
       ]
     : [
-        'توعية التلاميذ بأهمية المواظبة والانضباط الدراسي',
-        'تعزيز الدافعية للتحصيل وتحسين الاتجاه نحو الدراسة',
-        'تحسين مهارات المراجعة وتنظيم الوقت',
-        'تصحيح المفاهيم المتعلقة بالتوجيه المدرسي والمهني',
-        'التعريف بقواعد التقويم والانتقال والإنقاذ',
-        'تنمية مهارات التواصل واحترام قواعد القسم',
-        'معالجة الصعوبات الدراسية الشائعة وطرق تجاوزها',
-        'عرض نتائج التقويم التشخيصي وتحديد نقاط القوة والضعف',
+        'أهمية السنة الرابعة متوسط في تحديد المسار الدراسي و المهني للتلميذ',
+        'التعريف بأهمية امتحان شهادة التعليم المتوسط و التحضير لها',
+        'التعريف بجدول معاملات المواد للسنة الرابعة متوسط',
+        'التعريف بحساب بعض المعدلات',
+        'اعطائهم منهجية و طريقة عمل تساعدهم للتحضير للشهادة',
+        'توضيح مدى تداخل مشروع التلميذ و ملامحه الدراسية في الرغبة'
       ];
 
   if (cycle === 'ثانوي') {
@@ -382,12 +380,12 @@ const getCoverageObjectivesOptions = (cycle: string) => {
 // Options pour عمود "الأهداف" في جدول "التغطية الإعلامية للأولياء"
 const getParentCoverageObjectivesOptions = (cycle: string) => {
   const commonObjectives = [
-    'أهمية السنة الرابعة متوسط في تحديد المسار الدراسي والمهني للتلميذ',
-    'التعريف بأهمية امتحان شهادة التعليم المتوسط والتحضير لها',
+    'أهمية السنة الرابعة متوسط في تحديد المسار الدراسي و المهني للتلميذ',
+    'التعريف بأهمية امتحان شهادة التعليم المتوسط و التحضير لها',
     'التعريف بجدول معاملات المواد للسنة الرابعة متوسط',
     'التعريف بحساب بعض المعدلات',
-    'إعطائهم منهجية وطريقة عمل تساعدهم للتحضير للشهادة',
-    'التوضيح مدى تداخل مشروع التلميذ وملمحه الدراسي في الرغبة'
+    'اعطائهم منهجية و طريقة عمل تساعدهم للتحضير للشهادة',
+    'توضيح مدى تداخل مشروع التلميذ و ملامحه الدراسية في الرغبة'
   ];
 
   if (cycle === 'ثانوي') {
@@ -665,7 +663,7 @@ const reportTypes = (currentCycle: string) => [
     color: 'bg-blue-100 text-blue-600'
   },
   {
-    id: 'parent_info',
+    id: 'info1',
     title: 'تقرير عملية إعلام الأولياء',
     description: 'تقرير عن جلسات الإعلام والتوجيه للأولياء',
     icon: UserPlus,
@@ -1529,7 +1527,7 @@ export default function Reports() {
     for (let i = 0; i < parentReportData.groupCount; i++) {
       const existingRow = parentReportData.coverageRows[i];
       newRows.push(existingRow || {
-        group: defaultGroups[i] || '',
+        group: parentUnitMode === 'classes' ? 'جميع المستويات' : (defaultGroups[i] || ''),
         parentCount: 0,
         date: '',
         coverage: 0,
@@ -1541,7 +1539,18 @@ export default function Reports() {
       coverageRows: newRows,
       totalParents: newRows.reduce((sum, row) => sum + (row.parentCount || 0), 0)
     }));
-  }, [parentReportData.groupCount]);
+  }, [parentReportData.groupCount, parentUnitMode]);
+
+  // Effet pour mettre à jour les valeurs des groupes quand on change de mode
+  useEffect(() => {
+    setParentReportData(prev => ({
+      ...prev,
+      coverageRows: prev.coverageRows.map((row, index) => ({
+        ...row,
+        group: parentUnitMode === 'classes' ? 'جميع المستويات' : (defaultGroups[index] || '')
+      }))
+    }));
+  }, [parentUnitMode]);
 
   // Fonction pour formater la date au format AAAA-MM-DD
   const formatDateToISO = (dateString: string | undefined) => {
@@ -1849,12 +1858,12 @@ export default function Reports() {
     setVocationalInstitutions(updatedInstitutions);
     saveVocationalInstitutions(updatedInstitutions);
   };
-  const handleGeneratePDF = async (type: 'student' | 'parent' | 'annual' | 'activities' | 'objectives') => {
+  const handleGeneratePDF = async (type: 'student' | 'student1' | 'annual' | 'activities' | 'objectives') => {
     const contentId =
       type === 'student'
         ? 'report-preview'
-        : type === 'parent'
-        ? 'parent-report-preview'
+      : type === 'student1'
+        ? 'report-preview'
       : type === 'activities'
         ? 'activities-report-preview'
       : type === 'annual'
@@ -1950,9 +1959,40 @@ export default function Reports() {
             el.parentNode?.replaceChild(div, el);
           });
           clonedRoot.querySelectorAll('table').forEach((tbl) => {
-            (tbl as HTMLElement).style.tableLayout = 'fixed';
-            (tbl as HTMLElement).style.borderCollapse = 'collapse';
+            const tableEl = tbl as HTMLElement;
+            tableEl.style.tableLayout = 'fixed';
+            tableEl.style.borderCollapse = 'collapse';
+            tableEl.style.backgroundColor = '#ffffff';
           });
+          const parentPreview = clonedDoc.getElementById('parent-report-preview');
+          if (parentPreview) {
+            const coverageTable = parentPreview.querySelector('#parent-coverage-table');
+            const cells = coverageTable ? coverageTable.querySelectorAll('th, td') : parentPreview.querySelectorAll('th, td');
+            cells.forEach((cell) => {
+              const el = cell as HTMLElement;
+              el.style.border = '2px solid #374151';
+              el.style.borderRight = '2px solid #374151';
+              el.style.borderLeft = '2px solid #374151';
+              el.style.backgroundColor = '#ffffff';
+            });
+            const thead = coverageTable ? coverageTable.querySelector('thead') : parentPreview.querySelector('thead');
+            if (thead) (thead as HTMLElement).style.backgroundColor = '#f9fafb';
+            // enforce column widths to avoid shifting
+            if (coverageTable) {
+              const colPercents = ['14%', '12%', '26%', '12%', '36%'];
+              const headerCells = coverageTable.querySelectorAll('thead tr th');
+              headerCells.forEach((th, idx) => {
+                (th as HTMLElement).style.width = colPercents[idx] || 'auto';
+              });
+              const bodyRows = coverageTable.querySelectorAll('tbody tr');
+              bodyRows.forEach((tr) => {
+                const tds = tr.querySelectorAll('td');
+                tds.forEach((td, idx) => {
+                  (td as HTMLElement).style.width = colPercents[idx] || 'auto';
+                });
+              });
+            }
+          }
           // Normalize report page size in the cloned DOM to avoid extra padding/border shrinking in PDF
           clonedRoot.querySelectorAll('.report-page').forEach((el) => {
             const page = el as HTMLElement;
@@ -2095,9 +2135,9 @@ export default function Reports() {
         title = `تقرير ${data.level} - ${data.semester}`;
         typeName = 'تقرير عملية الإعلام';
         fileName = 'تقرير_التوجيه.pdf';
-      } else if (type === 'parent') {
-        data = { ...parentReportData, cycle: currentCycle };
-        title = `تقرير ${data.level} - ${data.semester}`;
+      } else if (type === 'student1') {
+        data = { ...reportData, cycle: currentCycle };
+        title = `تقرير عملية إعلام الأولياء ${data.level} - ${data.semester}`;
         typeName = 'تقرير عملية إعلام الأولياء';
         fileName = 'تقرير_إعلام_الأولياء.pdf';
       } else if (type === 'activities') {
@@ -2154,8 +2194,7 @@ export default function Reports() {
     return parentReportData.coverageRows.reduce((sum, row) => sum + (row.parentCount || 0), 0);
   };
 
-  const calculateTotalCoverage = (type: 'student' | 'parent') => {
-    if (type === 'student') {
+  const calculateTotalCoverage = (type: 'student') => {
       const totalStudents = getTotalStudentCount();
       if (totalStudents === 0) return 0;
       
@@ -2164,23 +2203,13 @@ export default function Reports() {
       }, 0);
       
       return Math.round((coveredStudents / totalStudents) * 100);
-    } else {
-      const totalParents = getTotalParentCount();
-      if (totalParents === 0) return 0;
-      
-      const coveredParents = parentReportData.coverageRows.reduce((sum, row) => {
-        return sum + (row.parentCount * (row.coverage / 100));
-      }, 0);
-      
-      return Math.round((coveredParents / totalParents) * 100);
-    }
   };
 
   const handleReportTypeClick = (type: string) => {
     if (type === 'info') {
       setShowPreview(true);
-    } else if (type === 'parent_info') {
-      setShowParentPreview(true);
+    } else if (type === 'info1') {
+      setShowPreview(true);
     } else if (type === 'objectives') {
       setShowObjectivesPreview(true);
     } else if (type === 'activities') {
@@ -2641,19 +2670,19 @@ export default function Reports() {
               <div className="space-y-2 text-lg">
                 <div className="flex justify-between">
                   <div className="flex items-center">
-                    <span className="underline font-semibold report-school-label">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
+                    <span className="font-semibold report-school-label">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
                     <span>:</span>
                     <input
                       type="text"
                       value={reportData.school || settings?.schoolName || ''}
                       onChange={(e) => setReportData(prev => ({ ...prev, school: e.target.value }))}
-                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-0 min-w-[220px] text-center text-lg bg-transparent report-school-field"
+                      className="border-b border-gray-300 focus:border-blue-500 outline-none px-0 min-w-[220px] text-center text-lg bg-transparent report-school-field mt-2"
                       dir="rtl"
                       placeholder="اسم المدرسة"
                     />
                   </div>
                   <div className="flex items-center">
-                    <span className="underline font-semibold">السنة الدراسية</span>
+                    <span className="font-semibold">السنة الدراسية</span>
                     <span>:</span>
                     <select
                       value={reportData.academicYear}
@@ -2669,7 +2698,7 @@ export default function Reports() {
                 </div>
 
                 <div className="flex items-center">
-                  <span className="underline ml-2 font-semibold">مستشار التوجيه</span>
+                  <span className="ml-2 font-semibold">مستشار التوجيه</span>
                   <span className="mx-2">:</span>
                   <input
                     type="text"
@@ -2683,7 +2712,7 @@ export default function Reports() {
               </div>
 
               <div className="text-center my-4">
-                <div className="text-2xl font-bold underline mb-1">تقرير عملية الإعلام</div>
+                <div className="text-2xl font-bold mb-1">تقرير عملية إعلام الأولياء</div>
                 <div className="text-xl">
                   <select
                     value={reportData.semester}
@@ -2698,7 +2727,7 @@ export default function Reports() {
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-center">
-                  <span className="underline font-bold ml-2 text-lg">المستوى</span>
+                  <span className="font-bold ml-2 text-lg">المستوى</span>
                   <span className="mx-2">:</span>
                   <div className="relative inline-block text-center">
                     <select
@@ -2716,7 +2745,7 @@ export default function Reports() {
 
                 <div>
                   <div className="flex items-center justify-between">
-                    <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
+                <div className="font-bold mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
                     <div className="no-print text-sm flex items-center gap-3">
                       <span className="font-semibold">الوحدة:</span>
                       <label className="flex items-center gap-1 cursor-pointer">
@@ -2740,7 +2769,7 @@ export default function Reports() {
                     </div>
                   </div>
                   <div className="no-print flex justify-end gap-2 mb-2"></div>
-                  <table className="w-full border-collapse border-2 border-gray-700 text-lg">
+                  <table id="parent-coverage-table" className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <tbody>
                       <tr>
                         <td className="border-2 border-gray-700 p-2 font-bold text-center">{reportUnitMode === 'groups' ? 'عدد الأفواج' : 'عدد الأقسام'}</td>
@@ -2770,7 +2799,7 @@ export default function Reports() {
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <span className="underline font-bold ml-2 text-lg">الموضوع</span>
+                  <span className="font-bold ml-2 text-lg">الموضوع</span>
                   <span className="mx-2">:</span>
                   <input
                     type="text"
@@ -2783,7 +2812,7 @@ export default function Reports() {
                 </div>
                 <div>
                   <div className="flex items-center justify-between">
-                    <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية:</div>
+                <div className="font-bold mb-2 text-lg">التغطية الإعلامية:</div>
                     <div className="no-print text-sm flex items-center gap-3">
                       <span className="font-semibold">الوحدة:</span>
                       <label className="flex items-center gap-1 cursor-pointer">
@@ -2821,8 +2850,8 @@ export default function Reports() {
                         <th className="border-2 border-gray-700 p-2 text-center">{reportUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
                         <th className="border-2 border-gray-700 p-2 text-center">{currentCycle === 'ثانوي' ? 'تعداد الطلاب' : 'تعداد التلاميذ'}</th>
                         <th className="border-2 border-gray-700 p-2 text-center">تاريخ التدخل</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">نسبة التغطية</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">الأهداف</th>
+                        <th className="border-2 border-r-2 border-gray-700 p-2 text-center">نسبة التغطية</th>
+                        <th className="border-2 border-l-2 border-gray-700 p-2 text-center">الأهداف</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2972,7 +3001,7 @@ export default function Reports() {
                 </div>
 
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">الملاحظات المستخلصة:</div>
+              <div className="font-bold mb-2 text-lg">الملاحظات المستخلصة:</div>
                   <textarea
                     value={reportData.conclusions}
                     onChange={(e) => setReportData(prev => ({ ...prev, conclusions: e.target.value }))}
@@ -2984,10 +3013,10 @@ export default function Reports() {
                 </div>
                 <div className="flex justify-between mt-8">
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">مستشار التوجيه و الإرشاد م.م</div>
+              <div className="font-bold mb-8 text-lg">مستشار التوجيه و الإرشاد م.م</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
+              <div className="font-bold mb-8 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
                   </div>
                 </div>
               </div>
@@ -3024,12 +3053,12 @@ export default function Reports() {
               </button>
             </div>
 
-            <div id="parent-report-preview" className="bg-white p-6 rounded-lg space-y-6 text-lg" dir="rtl">
-              <div className="text-center font-bold text-2xl mb-8">
+            <div id="parent-report-preview" className="bg-white p-6 rounded-lg space-y-6 text-lg" dir="rtl" style={{ fontFamily: 'Amiri, Arial, sans-serif', lineHeight: '1.6' }}>
+              <div className="text-center font-bold text-2xl mb-6">
                 الجمهورية الجزائرية الديمقراطية الشعبية
               </div>
 
-              <div className="text-center font-bold text-lg mb-4">
+              <div className="text-center font-bold text-xl mb-6">
                 وزارة التربية الوطنية
               </div>
 
@@ -3051,10 +3080,10 @@ export default function Reports() {
                 <div className="font-bold">مركز التوجيه و الإرشاد المدرسي و المهني</div>
               </div>
 
-              <div className="space-y-2 text-lg">
-                <div className="flex justify-between">
+              <div className="space-y-3 text-lg">
+                <div className="flex justify-between items-center">
                   <div className="flex items-center">
-                    <span className="underline ml-2 font-semibold">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
+                    <span className="ml-2 font-semibold">{currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
                     <span className="mx-2">:</span>
                     <input
                       type="text"
@@ -3066,7 +3095,7 @@ export default function Reports() {
                     />
                   </div>
                   <div className="flex items-center">
-                    <span className="underline ml-2 font-semibold">السنة الدراسية</span>
+                    <span className="ml-2 font-semibold">السنة الدراسية</span>
                     <span className="mx-2">:</span>
                     <select
                       value={parentReportData.academicYear}
@@ -3081,8 +3110,8 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="flex items-center">
-                  <span className="underline ml-2 font-semibold">مستشار التوجيه</span>
+                <div className="flex items-center justify-center">
+                  <span className="ml-2 font-semibold">مستشار التوجيه</span>
                   <span className="mx-2">:</span>
                   <input
                     type="text"
@@ -3095,23 +3124,26 @@ export default function Reports() {
                 </div>
               </div>
 
-              <div className="text-center my-4">
-                <div className="text-2xl font-bold underline mb-1">تقرير عملية إعلام الأولياء</div>
-                <div className="text-xl">
+              <div className="text-center my-6">
+                <div className="text-2xl font-bold mb-2">تقرير عملية إعلام الأولياء</div>
+                <div className="text-xl font-semibold mb-2">
                   <select
                     value={parentReportData.semester}
                     onChange={(e) => setParentReportData(prev => ({ ...prev, semester: e.target.value }))}
-                    className="bg-transparent border-none outline-none text-center text-xl"
+                    className="bg-transparent border-none outline-none text-center text-xl font-semibold"
                   >
                     {semesters.map(semester => (
                       <option key={semester} value={semester}>({semester})</option>
                     ))}
                   </select>
                 </div>
+                <div className="text-sm text-gray-600">
+                  تاريخ الإعداد: {new Date().toLocaleDateString('ar-SA')}
+                </div>
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-center">
-                  <span className="underline font-bold ml-2 text-lg">المستوى</span>
+                  <span className="font-bold ml-2 text-lg">المستوى</span>
                   <span className="mx-2">:</span>
                   <div className="relative inline-block min-w-[150px] text-center">
                     <select
@@ -3128,12 +3160,12 @@ export default function Reports() {
                 </div>
 
                 <div>
-        <div className="font-bold underline mb-2 text-lg">التعداد الإجمالي في المستوى:</div>
+                  <div className="font-bold mb-3 text-lg">التعداد الإجمالي في المستوى:</div>
                   <table className="w-full border-collapse border-2 border-gray-700 text-lg">
                     <tbody>
                       <tr>
-                        <td className="border-2 border-gray-700 p-2 font-bold text-center">{parentUnitMode === 'groups' ? 'عدد الأفواج' : 'عدد الأقسام'}</td>
-                        <td className="border-2 border-gray-700 p-2 w-28">
+                        <td className="border-2 border-gray-700 p-3 font-bold text-center bg-gray-50">{parentUnitMode === 'groups' ? 'عدد الأفواج' : 'عدد الأقسام'}</td>
+                        <td className="border-2 border-gray-700 p-3 w-32">
                           <input
                             type="number"
                             min="1"
@@ -3143,14 +3175,14 @@ export default function Reports() {
                               ...prev, 
                               groupCount: Math.max(1, Math.min(parseInt(e.target.value) || 1, 16))
                             }))}
-                            className="w-full text-center outline-none text-lg"
+                            className="w-full text-center outline-none text-lg font-semibold"
                             dir="rtl"
                           />
                         </td>
                       </tr>
                       <tr>
-                        <td className="border-2 border-gray-700 p-2 font-bold text-center">{currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}</td>
-                        <td className="border-2 border-gray-700 p-2 text-center" dir="rtl">
+                        <td className="border-2 border-gray-700 p-3 font-bold text-center bg-gray-50">{currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}</td>
+                        <td className="border-2 border-gray-700 p-3 text-center font-semibold" dir="rtl">
                           {parentReportData.totalParents}
                         </td>
                       </tr>
@@ -3159,7 +3191,7 @@ export default function Reports() {
                 </div>
 
                 <div className="flex items-center justify-center">
-                  <span className="underline font-bold ml-2 text-lg">الموضوع</span>
+                  <span className="font-bold ml-2 text-lg">الموضوع</span>
                   <span className="mx-2">:</span>
                   <input
                     type="text"
@@ -3173,7 +3205,7 @@ export default function Reports() {
 
                 <div>
                   <div className="flex items-center justify-between">
-        <div className="font-bold underline mb-2 text-lg">التغطية الإعلامية:</div>
+        <div className="font-bold mb-2 text-lg">التغطية الإعلامية:</div>
                     <div className="no-print text-sm flex items-center gap-3">
                       <span className="font-semibold">الوحدة:</span>
                       <label className="flex items-center gap-1 cursor-pointer">
@@ -3205,22 +3237,22 @@ export default function Reports() {
                       إضافة سطر
                     </button>
                   </div>
-                  <table className="w-full border-collapse border-2 border-gray-700 text-lg">
+                  <table className="w-full text-lg" style={{ borderCollapse: 'collapse', border: '2px solid #374151' }}>
                     <thead>
-                      <tr className="bg-gray-50">
-                        <th className="border-2 border-gray-700 p-2 text-center">{parentUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">
+                      <tr style={{ backgroundColor: '#f9fafb' }}>
+                        <th style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>{parentUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
+                        <th style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>
                           {currentCycle === 'ثانوي' ? 'عدد الطلاب' : 'عدد التلاميذ'}
                         </th>
-                        <th className="border-2 border-gray-700 p-2 text-center">تاريخ التدخل</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">نسبة التغطية</th>
-                        <th className="border-2 border-gray-700 p-2 text-center">الأهداف</th>
+                        <th style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>تاريخ التدخل</th>
+                        <th style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>نسبة التغطية</th>
+                        <th style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>الأهداف</th>
                       </tr>
                     </thead>
                     <tbody>
                       {parentReportData.coverageRows.map((row, index) => (
                         <tr key={index}>
-                          <td className="border-2 border-gray-700 p-2 no-print">
+                          <td style={{ border: '2px solid #374151', padding: '8px' }} className="no-print">
                             {parentUnitMode === 'groups' ? (
                               <select
                                 value={row.group}
@@ -3229,27 +3261,28 @@ export default function Reports() {
                                 dir="rtl"
                               >
                                 <option value="">اختر الفوج</option>
+                                <option value="جميع الأفواج">جميع الأفواج</option>
                                 {defaultGroups.map(unit => (
                                   <option key={unit} value={unit}>{unit}</option>
                                 ))}
                               </select>
                             ) : (
-                              <input
-                                type="number"
-                                min="1"
-                                value={Number.isFinite(parseInt(String(row.group))) ? parseInt(String(row.group)) : ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const parsed = val === '' ? '' : Math.max(1, parseInt(val) || 1);
-                                  handleParentCoverageRowChange(index, 'group', parsed as any);
-                                }}
+                              <select
+                                value={row.group}
+                                onChange={(e) => handleParentCoverageRowChange(index, 'group', e.target.value)}
                                 className="w-full text-center outline-none text-lg"
                                 dir="rtl"
-                                placeholder="رقم القسم"
-                              />
+                              >
+                                <option value="جميع المستويات">جميع المستويات</option>
+                                <option value="">اختر القسم</option>
+                                {/* Options for all groups - Updated */}
+                                {defaultGroups.map(unit => (
+                                  <option key={unit} value={unit}>{unit}</option>
+                                ))}
+                              </select>
                             )}
                           </td>
-                          <td className="border-2 border-gray-700 p-2 no-print">
+                          <td style={{ border: '2px solid #374151', padding: '8px' }} className="no-print">
                             <input
                               type="number"
                               min="0"
@@ -3259,7 +3292,7 @@ export default function Reports() {
                               dir="rtl"
                             />
                           </td>
-                          <td className="border-2 border-gray-700 p-2">
+                          <td style={{ border: '2px solid #374151', padding: '8px' }}>
                             <div className="flex items-center gap-1 w-full" dir="rtl">
                               <input
                                 type="text"
@@ -3296,7 +3329,7 @@ export default function Reports() {
                               </button>
                             </div>
                           </td>
-                          <td className="border-2 border-gray-700 p-2">
+                          <td style={{ border: '2px solid #374151', borderRight: '4px solid #374151', padding: '8px' }}>
                             <input
                               type="text"
                               value={`%${Math.max(0, Math.min(100, Number.isFinite(row.coverage) ? row.coverage : 0))}`}
@@ -3312,7 +3345,7 @@ export default function Reports() {
                               style={{ textAlign: 'center' }}
                             />
                           </td>
-                          <td className="border-r-2 border-l-2 border-gray-700 p-2 text-center">
+                          <td style={{ border: '2px solid #374151', borderLeft: '4px solid #374151', padding: '8px', textAlign: 'center' }}>
                             <MultiSelectTextarea
                               className="w-full outline-none text-base leading-tight p-1"
                               placeholder="اكتب أو اختر الأهداف"
@@ -3321,7 +3354,7 @@ export default function Reports() {
                               onValueChange={(val) => handleParentCoverageRowChange(index, 'topics', val)}
                             />
                           </td>
-                          <td className="border-2 border-gray-700 p-2 no-print">
+                          <td style={{ border: '2px solid #374151', padding: '8px' }} className="no-print">
                             <button
                               type="button"
                               onClick={() => removeParentCoverageRow(index)}
@@ -3332,35 +3365,40 @@ export default function Reports() {
                           </td>
                         </tr>
                       ))}
-                      <tr className="bg-gray-50 font-bold">
-                        <td className="border-2 border-gray-700 p-2 text-center no-print">مج</td>
-                        <td className="border-2 border-gray-700 p-2 text-center no-print">{parentReportData.coverageRows.reduce((sum, row) => sum + (row.studentCount || 0), 0)}</td>
-                        <td className="border-2 border-gray-700 p-2 text-center">-</td>
-                        <td className="border-2 border-gray-700 p-2 text-center">{calculateTotalCoverage('parent')}%</td>
-                        <td className="border-r-2 border-l-2 border-gray-700 p-2 text-center">-</td>
+                      <tr style={{ backgroundColor: '#f9fafb', fontWeight: 'bold' }}>
+                        <td style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }} className="no-print">مج</td>
+                        <td style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }} className="no-print">{parentReportData.coverageRows.reduce((sum, row) => sum + (row.studentCount || 0), 0)}</td>
+                        <td style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>-</td>
+                        <td style={{ border: '2px solid #374151', borderRight: '4px solid #374151', padding: '8px', textAlign: 'center' }}>{calculateTotalCoverage('student')}%</td>
+                        <td style={{ border: '2px solid #374151', borderLeft: '4px solid #374151', padding: '8px', textAlign: 'center' }}>-</td>
+                        <td style={{ border: '2px solid #374151', padding: '8px', textAlign: 'center' }}>&nbsp;</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 <div>
-                  <div className="font-bold underline mb-2 text-lg">الملاحظات المستخلصة:</div>
+                  <div className="font-bold mb-3 text-lg">الملاحظات المستخلصة:</div>
                   <textarea
                     value={parentReportData.conclusions}
                     onChange={(e) => setParentReportData(prev => ({ ...prev, conclusions: e.target.value }))}
-                    className="w-full px-3 py-2 border-2 border-gray-700 rounded-lg text-lg text-right"
+                    className="w-full px-4 py-3 border-2 border-gray-700 rounded-lg text-lg text-right min-h-[100px]"
                     rows={4}
                     dir="rtl"
                     placeholder="أدخل الملاحظات المستخلصة من لقاءات الأولياء"
                   />
                 </div>
 
-                <div className="flex justify-between mt-8">
+                <div className="flex justify-between mt-12">
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">مستشار التوجيه و الإرشاد م.م</div>
+                    <div className="font-bold mb-2 text-lg">مستشار التوجيه و الإرشاد م.م</div>
+                    <div className="border-b border-gray-400 w-32 mx-auto mb-2"></div>
+                    <div className="text-sm text-gray-600">التوقيع</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-bold underline mb-8 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
+                    <div className="font-bold mb-2 text-lg">{currentCycle === 'ثانوي' ? 'مدير الثانوية' : 'مدير المتوسطة'}</div>
+                    <div className="border-b border-gray-400 w-32 mx-auto mb-2"></div>
+                    <div className="text-sm text-gray-600">التوقيع</div>
                   </div>
                 </div>
               </div>
@@ -3373,7 +3411,7 @@ export default function Reports() {
                 إلغاء
               </button>
               <button
-                onClick={() => handleGeneratePDF('parent')}
+                onClick={() => handleGeneratePDF('student')}
                 className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
               >
                 <Save className="w-5 h-5" />
@@ -5723,7 +5761,7 @@ export default function Reports() {
                                      <style>
                                        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Tahoma,Arial,sans-serif;padding:20px;color:#111827;background:#f8fafc}
                                        .container{max-width:1200px;margin:0 auto;background:white;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:24px}
-                                       h1{margin:0 0 20px;font-size:28px;color:#1e40af;text-align:center;border-bottom:3px solid #3b82f6;padding-bottom:10px}
+                                       h1{margin:0 0 20px;font-size:28px;color:#1e40af;text-align:center;padding-bottom:10px}
                                        .chart-container{background:white;padding:20px;border-radius:8px;margin:20px 0;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
                                        .chart-title{text-align:center;margin-bottom:15px;font-size:18px;font-weight:bold;color:#1e40af}
                                        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0}
@@ -5879,7 +5917,7 @@ export default function Reports() {
                              <style>
                                          body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Tahoma,Arial,sans-serif;padding:16px;color:#111827;background:#f8fafc}
                                          .container{max-width:1200px;margin:0 auto;background:white;border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:24px}
-                                         h1{margin:0 0 20px;font-size:28px;color:#1e40af;text-align:center;border-bottom:3px solid #3b82f6;padding-bottom:10px}
+                                         h1{margin:0 0 20px;font-size:28px;color:#1e40af;text-align:center;padding-bottom:10px}
                                          .header-info{background:#f1f5f9;padding:16px;border-radius:8px;margin-bottom:24px}
                                          .info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
                                          .info-item{background:white;padding:12px;border-radius:6px;border:1px solid #e2e8f0;text-align:center}
@@ -5894,7 +5932,7 @@ export default function Reports() {
                                          .stat-number{font-size:24px;font-weight:bold;margin-bottom:4px}
                                          .stat-label{font-size:12px;opacity:0.9}
                                          .section{margin:24px 0;padding:20px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa}
-                                         .section h2{color:#1e40af;margin-bottom:16px;font-size:20px;border-bottom:2px solid #3b82f6;padding-bottom:8px}
+                                         .section h2{color:#1e40af;margin-bottom:16px;font-size:20px;padding-bottom:8px}
                                          table{width:100%;border-collapse:collapse;margin-top:12px;background:white;border-radius:6px;overflow:hidden}
                                          th,td{border:1px solid #e2e8f0;padding:12px;text-align:right}
                                          thead{background:#f1f5f9}
@@ -6182,10 +6220,10 @@ export default function Reports() {
                    <div className="space-y-2 -mt-1">
                      <div className="flex justify-between items-center">
                        <h3 className="text-lg font-bold text-red-600 inline-block pb-1">
-                         <span className="border-b border-red-600">تقديم مقاطعات تدخل المستشار:</span>
+                        <span>تقديم مقاطعات تدخل المستشار:</span>
                          <div className="mt-2">
                            <h4 className="text-base font-bold text-blue-600 inline-block pb-1">
-                             <span className="border-b border-blue-600">{getCycleTitle()}:</span>
+                            <span>{getCycleTitle()}:</span>
                            </h4>
                          </div>
                        </h3>
@@ -6308,9 +6346,9 @@ export default function Reports() {
                  <div className="space-y-6" dir="rtl">
                    <div className="space-y-2">
                      <h3 className="text-lg font-bold text-red-600 inline-block pb-1">
-                       <span className="border-b border-red-600">أ- الإعلام المدرسي :</span>
+                      <span>أ- الإعلام المدرسي :</span>
                        <div className="mt-2">
-                         <h4 className="text-base font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">{currentCycle === 'ثانوي' ? '1 - إعلام الطلاب :' : '1 - إعلام التلاميذ :'}</h4>
+                        <h4 className="text-base font-bold text-blue-600 inline-block pb-1">{currentCycle === 'ثانوي' ? '1 - إعلام الطلاب :' : '1 - إعلام التلاميذ :'}</h4>
                        </div>
                      </h3>
                    </div>
@@ -6547,7 +6585,7 @@ export default function Reports() {
                {/* Page 4: Teacher Information */}
                <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                  <div className="space-y-6" dir="rtl">
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">2- إعلام الأساتذة:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">2- إعلام الأساتذة:</h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
@@ -6686,7 +6724,7 @@ export default function Reports() {
                        </tbody>
                      </table>
                    </div>
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">3 - إعلام الأولياء:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">3 - إعلام الأولياء:</h3>
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
                        <thead>
@@ -6742,7 +6780,7 @@ export default function Reports() {
                {/* Page 5: Information Receptions */}
                <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                  <div className="space-y-6" dir="rtl">
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">4 - الإستقبالات الإعلامية:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">4 - الإستقبالات الإعلامية:</h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
@@ -6840,7 +6878,7 @@ export default function Reports() {
                      </table>
                    </div>
 
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">5 - البطاقات الإعلامية الموجهة الى المستويات:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">5 - البطاقات الإعلامية الموجهة الى المستويات:</h3>
                    
                    <textarea
                      className="w-full border border-gray-300 rounded-lg p-4 text-right text-lg"
@@ -6855,11 +6893,11 @@ export default function Reports() {
                  <div className="space-y-6" dir="rtl">
                    <div className="space-y-2">
                      <h3 className="text-lg font-bold text-red-600 pb-1">
-                       <span className="border-b border-red-600">ب- التوجيه:</span>
+                      <span>ب- التوجيه:</span>
                      </h3>
                      
                      <h4 className="text-lg font-bold text-blue-600 pb-6 mr-8">
-                        <span className="border-b border-blue-600">{currentCycle === 'ثانوي' ? '1- متابعة الطلاب:' : '1- متابعة التلاميذ:'}</span>
+                       <span>{currentCycle === 'ثانوي' ? '1- متابعة الطلاب:' : '1- متابعة التلاميذ:'}</span>
                      </h4>
                    </div>
                    
@@ -6871,7 +6909,7 @@ export default function Reports() {
                      />
                    </div>
 
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">2 - تحليل النتائج:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">2 - تحليل النتائج:</h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
@@ -6967,7 +7005,7 @@ export default function Reports() {
                      </table>
                    </div>
 
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">3 - المشاركة في مجالس الأقسام للفصل الأول:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">3 - المشاركة في مجالس الأقسام للفصل الأول:</h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
@@ -7077,7 +7115,7 @@ export default function Reports() {
                {/* Page 7: Interests and Inclinations Survey */}
                <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                  <div className="space-y-6" dir="rtl">
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">4- إستبيان الميول والإهتمامات:</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">4- إستبيان الميول والإهتمامات:</h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
@@ -7128,7 +7166,7 @@ export default function Reports() {
                      </table>
                    </div>
 
-                     <h3 className="text-lg font-bold text-blue-600 inline-block border-b border-blue-600 pb-1">5 اللقاءات - الندوات - الأيام الدراسية :</h3>
+                    <h3 className="text-lg font-bold text-blue-600 inline-block pb-1">5 اللقاءات - الندوات - الأيام الدراسية :</h3>
                    
                    <textarea
                      className="w-full border border-gray-300 rounded-lg p-4 text-right text-lg"
@@ -7142,7 +7180,7 @@ export default function Reports() {
                {/* Page 8: Studies and Research */}
                <div className="report-page bg-white p-6 rounded-lg" style={{ minHeight: '297mm', width: '210mm', margin: '0 auto', position: 'relative', padding: '5mm' }}>
                  <div className="space-y-6" dir="rtl">
-                     <h3 className="text-lg font-bold text-red-600 inline-block pb-1"><span className="border-b border-red-600">ت- الدراسات والبحوث والتحقيقات:</span></h3>
+                    <h3 className="text-lg font-bold text-red-600 inline-block pb-1"><span>ت- الدراسات والبحوث والتحقيقات:</span></h3>
                    
                    <div className="overflow-x-auto">
                      <table className="w-full border-collapse border border-gray-400 text-base">
