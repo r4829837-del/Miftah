@@ -1508,7 +1508,7 @@ export default function Reports() {
     for (let i = 0; i < reportData.groupCount; i++) {
       const existingRow = reportData.coverageRows[i];
       newRows.push(existingRow || {
-        group: defaultGroups[i] || '',
+        group: 'جميع المستويات',
         studentCount: 0,
         date: '',
         coverage: 0,
@@ -1520,7 +1520,18 @@ export default function Reports() {
       coverageRows: newRows,
       totalStudents: newRows.reduce((sum, row) => sum + (row.studentCount || 0), 0)
     }));
-  }, [reportData.groupCount]);
+  }, [reportData.groupCount, reportUnitMode]);
+
+  // Effet pour mettre à jour les valeurs des groupes quand on change de mode (rapport principal)
+  useEffect(() => {
+    setReportData(prev => ({
+      ...prev,
+      coverageRows: prev.coverageRows.map((row, index) => ({
+        ...row,
+        group: 'جميع المستويات'
+      }))
+    }));
+  }, [reportUnitMode]);
 
   useEffect(() => {
     const newRows: ParentCoverageRow[] = [];
@@ -1643,7 +1654,7 @@ export default function Reports() {
   const addCoverageRow = () => {
     const nextIndex = reportData.coverageRows.length;
     const newRow: CoverageRow = {
-      group: defaultGroups[nextIndex] || '',
+      group: 'جميع المستويات',
       studentCount: 0,
       date: '',
       coverage: 0,
@@ -2865,6 +2876,7 @@ export default function Reports() {
                               style={{ textAlign: 'center' }}
                             >
                               <option value="">{reportUnitMode === 'groups' ? 'اختر الفوج' : 'اختر القسم'}</option>
+                              <option value="جميع المستويات">جميع المستويات</option>
                               {(currentCycle === 'ثانوي' ? defaultGroups.filter(u => !u.startsWith('4/')) : defaultGroups).map(unit => {
                                 const label = reportUnitMode === 'classes' ? unit.replace('/', 'م') : unit;
                                 return (
