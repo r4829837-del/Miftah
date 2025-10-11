@@ -2143,12 +2143,12 @@ export default function Reports() {
       
       if (type === 'student') {
         data = { ...reportData, cycle: currentCycle };
-        title = `تقرير ${data.level} - ${data.semester}`;
+        title = 'تقرير عملية الإعلام';
         typeName = 'تقرير عملية الإعلام';
         fileName = 'تقرير_التوجيه.pdf';
       } else if (type === 'student1') {
         data = { ...reportData, cycle: currentCycle };
-        title = `تقرير عملية إعلام الأولياء ${data.level} - ${data.semester}`;
+        title = 'تقرير عملية إعلام الأولياء';
         typeName = 'تقرير عملية إعلام الأولياء';
         fileName = 'تقرير_إعلام_الأولياء.pdf';
       } else if (type === 'activities') {
@@ -2220,7 +2220,7 @@ export default function Reports() {
     if (type === 'info') {
       setShowPreview(true);
     } else if (type === 'info1') {
-      setShowPreview(true);
+      setShowParentPreview(true);
     } else if (type === 'objectives') {
       setShowObjectivesPreview(true);
     } else if (type === 'activities') {
@@ -2723,7 +2723,7 @@ export default function Reports() {
               </div>
 
               <div className="text-center my-4">
-                <div className="text-2xl font-bold mb-1">تقرير عملية إعلام الأولياء</div>
+                <div className="text-2xl font-bold mb-1">تقرير عملية الإعلام</div>
                 <div className="text-xl">
                   <select
                     value={reportData.semester}
@@ -3122,7 +3122,7 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-center">
+                <div className="flex items-center">
                   <span className="ml-2 font-semibold">مستشار التوجيه</span>
                   <span className="mx-2">:</span>
                   <input
@@ -3148,9 +3148,6 @@ export default function Reports() {
                       <option key={semester} value={semester}>({semester})</option>
                     ))}
                   </select>
-                </div>
-                <div className="text-sm text-gray-600">
-                  تاريخ الإعداد: {new Date().toLocaleDateString('ar-SA')}
                 </div>
               </div>
               <div className="space-y-4">
@@ -6241,7 +6238,7 @@ export default function Reports() {
                        </h3>
                       <button
                         onClick={() => resetInterventionData(currentCycle as 'متوسط' | 'ثانوي')}
-                        className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                        className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors no-print"
                         title="إعادة تعيين جميع القيم إلى الصفر"
                       >
                         إعادة تعيين
