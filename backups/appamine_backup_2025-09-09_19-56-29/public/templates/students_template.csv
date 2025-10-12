@@ -1,0 +1,4 @@
+studentId,firstName,lastName,level,group,birthDate,gender,address,parentName,parentPhone,parentEmail
+2024001,أحمد,بن علي,السنة الأولى متوسط,الفوج 1,2010-05-15,male,شارع الحبيب بورقيبة تونس,علي بن محمد,21612345678,ali.benmohamed@email.com
+2024002,فاطمة,العيادي,السنة الثانية متوسط,الفوج 2,2009-08-22,female,نهج فلسطين صفاقس,سمير العيادي,21698765432,samir.ayadi@email.com
+2024003,محمد,التريكي,السنة الثالثة متوسط,الفوج 1,2008-11-30,male,شارع الجمهورية سوسة,كمال التريكي,21655443322,kamel.triki@email.com 

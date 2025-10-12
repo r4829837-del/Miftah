@@ -1,0 +1,7 @@
+[33m6153953[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m chore(login): update tagline Arabic text
+[33m6dd9e2a[m chore: trigger Netlify deploy
+[33m62176e6[m feat(analysis): duplicate trimester pages; dynamic semester; annual analysis page; persistence; Netlify prep; annual reset button; UI labels
+[33m0beb799[m Amélioration de la détection automatique du cycle éducatif et synchronisation entre onglets
+[33m422890a[m feat: Configuration pour deploiement Netlify - Suppression Supabase - Authentification locale - Optimisations build
+[33mcac53c9[m amine commit
+[33m90c0307[m amine commit
