@@ -1573,15 +1573,8 @@ export default function Reports() {
 
   // Fonction pour gérer la saisie de date avec masque
   const handleDateChange = (index: number, value: string) => {
-    // Si c'est une date valide, on la formate
-    if (value && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      handleCoverageRowChange(index, 'date', value);
-    } else if (value) {
-      // Sinon on stocke la valeur telle quelle
-      handleCoverageRowChange(index, 'date', value);
-    } else {
-      handleCoverageRowChange(index, 'date', '');
-    }
+    // Stocker la valeur telle quelle, le formatage se fait dans onInput
+    handleCoverageRowChange(index, 'date', value);
   };
 
   // Fonction pour remplir automatiquement avec la date du jour
@@ -1593,15 +1586,8 @@ export default function Reports() {
 
   // Fonction pour gérer la saisie de date avec masque pour les parents
   const handleParentDateChange = (index: number, value: string) => {
-    // Si c'est une date valide, on la formate
-    if (value && value.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      handleParentCoverageRowChange(index, 'date', value);
-    } else if (value) {
-      // Sinon on stocke la valeur telle quelle
-      handleParentCoverageRowChange(index, 'date', value);
-    } else {
-      handleParentCoverageRowChange(index, 'date', '');
-    }
+    // Stocker la valeur telle quelle, le formatage se fait dans onInput
+    handleParentCoverageRowChange(index, 'date', value);
   };
 
   // Fonction pour remplir automatiquement avec la date du jour pour les parents
@@ -2900,7 +2886,7 @@ export default function Reports() {
                             <div className="flex items-center gap-1 w-full" dir="rtl">
                               <input
                                 type="text"
-                                value={formatDateToISO(row.date)}
+                                value={row.date || ''}
                                 onChange={(e) => handleDateChange(index, e.target.value)}
                                 className="flex-1 text-center outline-none text-lg"
                                 style={{ textAlign: 'center' }}
@@ -3305,7 +3291,7 @@ export default function Reports() {
                             <div className="flex items-center gap-1 w-full" dir="rtl">
                               <input
                                 type="text"
-                                value={formatDateToISO(row.date)}
+                                value={row.date || ''}
                                 onChange={(e) => handleParentDateChange(index, e.target.value)}
                                 className="flex-1 text-center outline-none text-lg"
                                 style={{ textAlign: 'center' }}
