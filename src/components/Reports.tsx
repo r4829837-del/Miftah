@@ -18,6 +18,10 @@ import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import WorkingPDFGenerator from './WorkingPDFGenerator';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+const DatePickerAny = DatePicker as any;
 import MultiSelectTextarea from './MultiSelectTextarea';
 
 // Helper: safely parse JSON (handles BOM and whitespace)
@@ -1476,11 +1480,7 @@ export default function Reports() {
 
 
 
-  // Fonction pour gérer la saisie de date avec masque
-  const handleDateChange = (index: number, value: string) => {
-    // Stocker la valeur telle quelle, le formatage se fait dans onInput
-    handleCoverageRowChange(index, 'date', value);
-  };
+  // (remplacé par DatePicker dans le tableau de التغطية الإعلامية)
 
 
 
@@ -2725,30 +2725,21 @@ export default function Reports() {
                             />
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
-                            <input
-                              type="text"
-                              value={row.date || ''}
-                              onChange={(e) => handleDateChange(index, e.target.value)}
+                            <DatePickerAny
+                              selected={row.date ? new Date(row.date) : null}
+                              onChange={(date: Date | null) => handleCoverageRowChange(index, 'date', date ? (date as Date).toISOString().split('T')[0] : '')}
                               className="w-full text-center outline-none text-lg"
-                              style={{ textAlign: 'center' }}
-                              placeholder="AAAA-MM-DD"
-                              maxLength={10}
-                              onKeyDown={(e) => {
-                                // Permettre seulement les chiffres et les tirets
-                                if (!/[0-9-]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                                  e.preventDefault();
-                                }
-                              }}
-                              onInput={(e) => {
-                                let value = e.currentTarget.value.replace(/\D/g, '');
-                                if (value.length >= 4) {
-                                  value = value.substring(0, 4) + '-' + value.substring(4);
-                                }
-                                if (value.length >= 7) {
-                                  value = value.substring(0, 7) + '-' + value.substring(7, 9);
-                                }
-                                e.currentTarget.value = value;
-                              }}
+                              wrapperClassName="w-full"
+                              popperPlacement="bottom"
+                              placeholderText="yyyy/MM/dd"
+                              dateFormat="yyyy/MM/dd"
+                              locale="ar"
+                              showYearDropdown
+                              scrollableYearDropdown
+                              yearDropdownItemNumber={15}
+                              showMonthDropdown
+                              dropdownMode="select"
+                              todayButton="اليوم"
                             />
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
