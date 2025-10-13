@@ -287,7 +287,9 @@ function TestList() {
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
     wilaya: '',
-    date: ''
+    date: '',
+    counselorName: '',
+    academicYear: ''
   });
   // NEW: ranking per question (3/2/1 for A/B/C)
   
@@ -2603,6 +2605,10 @@ function TestList() {
       const total = repTotals.visual + repTotals.auditory + repTotals.kinesthetic;
       const pct = (n: number) => (total > 0 ? ((n/total)*100).toFixed(1) : '0.0');
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${repPersonalInfo.name} ${repPersonalInfo.surname}`;
+      const counselorName = (repPersonalInfo as any).counselorName || settings?.counselorName || 'غير محدد';
+      const schoolType = repPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = repPersonalInfo.date || new Date().toISOString().split('T')[0];
+      const academicYear = (repPersonalInfo as any).academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
       
       // Create HTML content for PDF with charts
       const htmlContent = `
@@ -2618,43 +2624,44 @@ function TestList() {
           min-height: 1123px;
         ">
           <!-- Header -->
-          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px;">
-            <!-- National Header -->
-            <div style="text-align: center; margin-bottom: 32px;">
-              <div style="font-size: 18px; font-weight: bold; color: #000; text-decoration: underline; margin-bottom: 12px;">
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <!-- Centered National Header (top) -->
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">
                 الجمهورية الجزائرية الديمقراطية الشعبية
               </div>
-              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 12px;">
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">
                 وزارة التربية الوطنية
               </div>
             </div>
-            
-            <!-- Main Header Content -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; direction: rtl;">
-              <!-- Left Side: directorate -->
-              <div style="text-align: right; direction: rtl; flex: 1;">
+
+            <!-- Row: Left = Center name, Right = Directorate block -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <!-- Left side (extreme left): Center name -->
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">
+                  مركز التوجيه و الإرشاد المدرسي و المهني
+                </div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">
+                  السنة الدراسية: ${academicYear}
+                </div>
+              </div>
+              <!-- Right side (extreme right): Directorate block -->
+              <div style="text-align: right; direction: rtl;">
                 <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">
                   مديرية التربية لولاية مستغانم
                 </div>
-                <div style="font-size: 14px; color: #000; margin-top: 4px; direction: rtl; text-align: right; white-space: nowrap;">
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">
                   <span style="font-weight: bold;">نوع المؤسسة :</span>
-                  <span style="text-decoration: underline;">${currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
+                  <span>${schoolType}</span>
                 </div>
-                <div style="font-size: 14px; color: #000; margin-top: 6px; direction: rtl; text-align: right; white-space: nowrap;">
-                  <span style="font-weight: bold;">مستشار التوجيه :</span> 
-                  <span style="text-decoration: underline;">${repPersonalInfo.name || 'غير محدد'} ${repPersonalInfo.surname || ''}</span>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;">
+                  <span style="font-weight: bold;">مستشار التوجيه :</span>
+                  <span>${counselorName}</span>
                 </div>
-              </div>
-              
-              <!-- Right Side: center name and details -->
-              <div style="text-align: right; direction: rtl; flex: 1;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 10px; white-space: nowrap;">
-                  مركز التوجيه و الإرشاد المدرسي و المهني
-                </div>
-                
               </div>
             </div>
-            
+
             <!-- Report Title -->
             <div style="text-align: center; margin-top: 20px;">
               <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center;">
@@ -2672,9 +2679,7 @@ function TestList() {
                 <p><strong>الفوج:</strong> ${student?.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
-                <p><strong>نوع المؤسسة:</strong> ${currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</p>
-                <p><strong>السنة الدراسية:</strong> ${new Date().getFullYear()}-${new Date().getFullYear() + 1}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${repPersonalInfo.date || new Date().toLocaleDateString('ar-SA')}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
               </div>
             </div>
           </div>
@@ -2775,6 +2780,58 @@ function TestList() {
                 ${getRepAdvice()}
               </p>
             </div>
+          </div>
+
+          <!-- Interpretation Section -->
+          <div style="margin-bottom: 15px; padding: 15px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h3 style="color: #2c5aa0; margin-bottom: 12px; font-size: 16px;">📊 تفسير النتائج</h3>
+            <p style="font-size: 13px; color: #374151; margin-bottom: 10px;">
+              تشير النتائج إلى تفضيل تمثيلي لدى التلميذ. كلما كانت النسبة أعلى، دلّ ذلك على اعتماد أكبر على ذلك النظام في التعلم.
+            </p>
+            <ul style="font-size: 13px; color: #111827; margin: 0; padding-right: 18px; list-style: square;">
+              <li>بصري: يميل للتعلم عبر الصور، الرسوم، الخرائط الذهنية، والألوان.</li>
+              <li>سمعي: يتعلم أفضل عبر الشرح الشفهي، النقاش، والتكرار الصوتي.</li>
+              <li>حسي: يفضل التجربة، العمل اليدوي، والتمارين التطبيقية.</li>
+            </ul>
+          </div>
+
+          <!-- Study Strategies Section -->
+          <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #ecfeff, #cffafe); border-radius: 8px; border-right: 4px solid #06b6d4;">
+            <h3 style="color: #0e7490; margin-bottom: 12px; font-size: 16px;">🧭 استراتيجيات تعلم مقترحة حسب النمط</h3>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+              <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:12px;">
+                <h4 style="margin:0 0 8px 0; color:#1e40af; font-size:14px;">بصري</h4>
+                <ul style="margin:0; padding-right:18px; font-size:12px; color:#374151; list-style: square;">
+                  <li>استخدم خرائط ذهنية ومخططات وجداول ملونة.</li>
+                  <li>قسّم الدروس إلى بطاقات مراجعة مصوّرة.</li>
+                  <li>اعتمد على الرسوم التوضيحية والإنفوجرافيك.</li>
+                </ul>
+              </div>
+              <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:12px;">
+                <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">سمعي</h4>
+                <ul style="margin:0; padding-right:18px; font-size:12px; color:#374151; list-style: square;">
+                  <li>اقرأ بصوت مسموع وسجّل ملخصاتك الصوتية.</li>
+                  <li>ناقش الدروس مع زملائك أو الأسرة.</li>
+                  <li>استخدم الإيقاع والتكرار لتثبيت المعلومات.</li>
+                </ul>
+              </div>
+              <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:8px; padding:12px;">
+                <h4 style="margin:0 0 8px 0; color:#059669; font-size:14px;">حسي</h4>
+                <ul style="margin:0; padding-right:18px; font-size:12px; color:#374151; list-style: square;">
+                  <li>حوّل المفاهيم إلى تطبيقات وتجارب صغيرة.</li>
+                  <li>استعمل أدوات ومواد تعليمية ملموسة.</li>
+                  <li>خذ فواصل قصيرة تتضمن حركة ونشاطاً.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Methodology/Notes Section -->
+          <div style="margin-bottom: 15px; padding: 12px; background:#f9fafb; border:1px dashed #cbd5e1; border-radius:8px;">
+            <h4 style="margin:0 0 8px 0; color:#475569; font-size:14px;">ℹ️ ملاحظات منهجية</h4>
+            <p style="margin:0; font-size:12px; color:#374151; line-height:1.6;">
+              هذا الاختبار مؤشر إرشادي يساعد على فهم أسلوب التعلم المفضّل، ولا يُعدّ حكماً نهائياً على قدرات التلميذ. يُنصح بمراعاة الفروق الفردية والجمع بين أكثر من استراتيجية.
+            </p>
           </div>
           
           <!-- Footer -->
@@ -3016,7 +3073,7 @@ function TestList() {
     <h1>تقرير النمط التمثيلي (VAK)</h1>
     <div class="muted">التلميذ: ${student ? student.firstName + ' ' + student.lastName : (repPersonalInfo.name + ' ' + repPersonalInfo.surname || 'غير محدد')}</div>
     <div class="muted">المستوى: ${student?.level || repPersonalInfo.section || ''} • الفوج: ${student?.group || ''}</div>
-    <div class="muted">نوع المؤسسة: ${repPersonalInfo.schoolType} • تاريخ الإجراء: ${repPersonalInfo.date || new Date().toLocaleDateString('ar-SA')}</div>
+                <div class="muted">نوع المؤسسة: ${repPersonalInfo.schoolType} • تاريخ الإجراء: ${repPersonalInfo.date || new Date().toISOString().split('T')[0]}</div>
     <hr/>
     <div class="grid">
       <div class="card v"><div>النظام البصري (أ)</div><div class="big">${repTotals.visual}</div><div>${pct(repTotals.visual)}%</div></div>
@@ -4003,15 +4060,13 @@ function TestList() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-blue-700 mb-1">نوع المؤسسة :</label>
-                          <select
-                            value={personalInfo.schoolType || getCycleConfig(currentCycle).schoolName}
-                            onChange={e => handlePersonalInfoChange('schoolType', e.target.value)}
-                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
-                          >
-                <option value={getCycleConfig(currentCycle).schoolName}>
-                  {getCycleConfig(currentCycle).schoolName}
-                            </option>
-                          </select>
+                          <input
+                            type="text"
+                            value={personalInfo.schoolType || ''}
+                            onChange={(e) => handlePersonalInfoChange('schoolType', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder={getCycleConfig(currentCycle).schoolName}
+                          />
                         </div>
                         
                         <div className="col-span-2">
@@ -4523,15 +4578,13 @@ function TestList() {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-purple-700 mb-1">نوع المؤسسة :</label>
-                          <select
-                            value={personalInfo.schoolType || getCycleConfig(currentCycle).schoolName}
-                            onChange={e => handlePersonalInfoChange('schoolType', e.target.value)}
-                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm bg-white"
-                          >
-                <option value={getCycleConfig(currentCycle).schoolName}>
-                  {getCycleConfig(currentCycle).schoolName}
-                            </option>
-                          </select>
+                          <input
+                            type="text"
+                            value={personalInfo.schoolType || ''}
+                            onChange={(e) => handlePersonalInfoChange('schoolType', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder={getCycleConfig(currentCycle).schoolName}
+                          />
                         </div>
                         
                         <div className="col-span-2">
@@ -5591,15 +5644,33 @@ function TestList() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-teal-700 mb-1">نوع المؤسسة :</label>
-                        <select
-                          value={repPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة')}
-                          onChange={e => handleRepPersonalInfoChange('schoolType', e.target.value)}
-                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm bg-white"
-                        >
-                <option value={getCycleConfig(currentCycle).schoolName}>
-                  {getCycleConfig(currentCycle).schoolName}
-                          </option>
-                        </select>
+                        <input
+                          type="text"
+                          value={repPersonalInfo.schoolType || ''}
+                          onChange={(e) => handleRepPersonalInfoChange('schoolType', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">مستشار(ة) التوجيه :</label>
+                        <input
+                          type="text"
+                          value={(repPersonalInfo as any).counselorName || ''}
+                          onChange={(e) => handleRepPersonalInfoChange('counselorName', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder="أدخل اسم مستشار التوجيه"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">السنة الدراسية :</label>
+                        <input
+                          type="text"
+                          value={(repPersonalInfo as any).academicYear || ''}
+                          onChange={(e) => handleRepPersonalInfoChange('academicYear', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder="مثال: 2025-2026"
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-teal-700 mb-1">تاريخ الإجراء :</label>
@@ -5797,15 +5868,13 @@ function TestList() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-indigo-700 mb-1">نوع المؤسسة :</label>
-                        <select
-                          value={personalityPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة')}
-                          onChange={e => handlePersonalityPersonalInfoChange('schoolType', e.target.value)}
-                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm bg-white"
-                        >
-                <option value={getCycleConfig(currentCycle).schoolName}>
-                  {getCycleConfig(currentCycle).schoolName}
-                          </option>
-                        </select>
+                        <input
+                          type="text"
+                          value={personalityPersonalInfo.schoolType || ''}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('schoolType', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-indigo-700 mb-1">تاريخ الإجراء :</label>
