@@ -24,6 +24,17 @@ import 'react-datepicker/dist/react-datepicker.css';
 const DatePickerAny = DatePicker as any;
 import MultiSelectTextarea from './MultiSelectTextarea';
 
+// Input centré pour DatePicker (utilisé dans le tableau التغطية الإعلامية)
+const CenteredDateInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => (
+  <input
+    {...props}
+    ref={ref}
+    className={`w-full text-center outline-none text-lg ${props.className || ''}`}
+    style={{ textAlign: 'center', ...(props.style || {}) }}
+  />
+));
+CenteredDateInput.displayName = 'CenteredDateInput';
+
 // Helper: safely parse JSON (handles BOM and whitespace)
 const safeParseJSON = (text: string): any | null => {
   try {
@@ -2683,7 +2694,7 @@ export default function Reports() {
                       إضافة سطر
                     </button>
                   </div>
-                  <table className="w-full border-collapse border-2 border-gray-700 text-lg">
+                  <table className="w-full border-collapse border-2 border-gray-700 text-lg text-center">
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="border-2 border-gray-700 p-2 text-center">{reportUnitMode === 'groups' ? 'الأفواج' : 'الأقسام'}</th>
@@ -2728,7 +2739,8 @@ export default function Reports() {
                             <DatePickerAny
                               selected={row.date ? new Date(row.date) : null}
                               onChange={(date: Date | null) => handleCoverageRowChange(index, 'date', date ? (date as Date).toISOString().split('T')[0] : '')}
-                              className="w-full text-center outline-none text-lg"
+                              className="w-full outline-none text-lg"
+                              style={{ textAlign: 'center' }}
                               wrapperClassName="w-full"
                               popperPlacement="bottom"
                               placeholderText="yyyy/MM/dd"
@@ -2740,6 +2752,7 @@ export default function Reports() {
                               showMonthDropdown
                               dropdownMode="select"
                               todayButton="اليوم"
+                              customInput={<CenteredDateInput />}
                             />
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
