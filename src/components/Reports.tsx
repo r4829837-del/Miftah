@@ -2574,6 +2574,7 @@ export default function Reports() {
                       className="w-64 bg-transparent text-gray-900 px-2 py-1 text-xl text-center focus:outline-none focus:ring-0"
                       dir="rtl"
                     >
+                      <option key="all-levels" value="جميع المستويات">جميع المستويات</option>
                       {getCycleLevels().map(level => (
                         <option key={level} value={level}>{level}</option>
                       ))}
