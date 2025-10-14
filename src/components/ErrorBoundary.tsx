@@ -21,7 +21,6 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
   }
 
   componentDidCatch(error: Error) {
-    // eslint-disable-next-line no-console
     console.error('Error in ErrorBoundary:', error);
   }
 
@@ -35,7 +34,9 @@ export default class ErrorBoundary extends React.Component<ErrorBoundaryProps, E
           path: typeof window !== 'undefined' ? window.location.pathname : '',
         };
         localStorage.setItem('last_error_summary', JSON.stringify(summary));
-      } catch {}
+      } catch (error) {
+        console.warn('Failed to save error summary:', error);
+      }
 
       return this.props.fallback || (
         <div className="min-h-screen bg-gray-50 p-6">

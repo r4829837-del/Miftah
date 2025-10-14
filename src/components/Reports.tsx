@@ -21,6 +21,19 @@ import WorkingPDFGenerator from './WorkingPDFGenerator';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
+// Style CSS pour centrer les dates dans le tableau
+const datePickerCenterStyle = `
+  .react-datepicker__input-container input {
+    text-align: center !important;
+    direction: ltr !important;
+  }
+  .react-datepicker__input-container {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+`;
+
 const DatePickerAny = DatePicker as any;
 import MultiSelectTextarea from './MultiSelectTextarea';
 
@@ -30,7 +43,13 @@ const CenteredDateInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttr
     {...props}
     ref={ref}
     className={`w-full text-center outline-none text-lg ${props.className || ''}`}
-    style={{ textAlign: 'center', ...(props.style || {}) }}
+    style={{ 
+      textAlign: 'center !important', 
+      display: 'block',
+      margin: '0 auto',
+      direction: 'ltr',
+      ...(props.style || {}) 
+    }}
   />
 ));
 CenteredDateInput.displayName = 'CenteredDateInput';
@@ -1980,7 +1999,7 @@ export default function Reports() {
         data = { ...reportData, cycle: currentCycle };
         title = 'تقرير عملية الإعلام';
         typeName = 'تقرير عملية الإعلام';
-        fileName = 'تقرير_التوجيه.pdf';
+        fileName = 'تقرير_عملية_الإعلام.pdf';
       } else if (type === 'parents') {
         data = { ...reportData, cycle: currentCycle };
         title = 'تقرير عملية اعلام الأولياء';
@@ -2474,6 +2493,7 @@ export default function Reports() {
   }
   return (
     <div className="space-y-6">
+      <style>{datePickerCenterStyle}</style>
       {/* Student Report Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2735,25 +2755,27 @@ export default function Reports() {
                               list="student-count-options"
                             />
                           </td>
-                          <td className="border-2 border-gray-700 p-2 text-center">
-                            <DatePickerAny
-                              selected={row.date ? new Date(row.date) : null}
-                              onChange={(date: Date | null) => handleCoverageRowChange(index, 'date', date ? (date as Date).toISOString().split('T')[0] : '')}
-                              className="w-full outline-none text-lg"
-                              style={{ textAlign: 'center' }}
-                              wrapperClassName="w-full"
-                              popperPlacement="bottom"
-                              placeholderText="yyyy/MM/dd"
-                              dateFormat="yyyy/MM/dd"
-                              locale="ar"
-                              showYearDropdown
-                              scrollableYearDropdown
-                              yearDropdownItemNumber={15}
-                              showMonthDropdown
-                              dropdownMode="select"
-                              todayButton="اليوم"
-                              customInput={<CenteredDateInput />}
-                            />
+                          <td className="border-2 border-gray-700 p-2 text-center" style={{ textAlign: 'center' }}>
+                            <div className="flex justify-center items-center w-full">
+                              <DatePickerAny
+                                selected={row.date ? new Date(row.date) : null}
+                                onChange={(date: Date | null) => handleCoverageRowChange(index, 'date', date ? (date as Date).toISOString().split('T')[0] : '')}
+                                className="w-full outline-none text-lg text-center"
+                                style={{ textAlign: 'center !important', direction: 'ltr' }}
+                                wrapperClassName="w-full flex justify-center"
+                                popperPlacement="bottom"
+                                placeholderText="yyyy/MM/dd"
+                                dateFormat="yyyy/MM/dd"
+                                locale="ar"
+                                showYearDropdown
+                                scrollableYearDropdown
+                                yearDropdownItemNumber={15}
+                                showMonthDropdown
+                                dropdownMode="select"
+                                todayButton="اليوم"
+                                customInput={<CenteredDateInput />}
+                              />
+                            </div>
                           </td>
                           <td className="border-2 border-gray-700 p-2 text-center">
                             <input

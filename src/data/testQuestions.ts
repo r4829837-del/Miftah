@@ -1560,6 +1560,11 @@ export function evaluateCognitiveTest(answers: { [key: string]: string }): {
   Object.entries(answers).forEach(([questionId, answer]) => {
     const questionNumber = parseInt(questionId.replace('cog-', ''));
     
+    // Vérifier que questionNumber est un nombre valide
+    if (isNaN(questionNumber) || !answer) {
+      return;
+    }
+    
     if (answer) {
       // Questions analytiques (1, 3, 4, 16, 17, 22, 24, 28, 33, 40)
       if ([1, 3, 4, 16, 17, 22, 24, 28, 33, 40].includes(questionNumber)) {
@@ -1645,6 +1650,11 @@ export function evaluateCreativeTest(answers: { [key: string]: string }): {
   // Analyser les réponses selon les patterns
   Object.entries(answers).forEach(([questionId, answer]) => {
     const questionNumber = parseInt(questionId.replace('cre-', ''));
+    
+    // Vérifier que questionNumber est un nombre valide
+    if (isNaN(questionNumber) || !answer) {
+      return;
+    }
     
     if (answer) {
       // Questions de créativité générale (1, 2, 9, 15, 25, 36, 37, 39, 41, 45)
@@ -1742,6 +1752,11 @@ export function evaluateSocialTest(answers: { [key: string]: string }): {
   // Analyser les réponses selon les patterns
   Object.entries(answers).forEach(([questionId, answer]) => {
     const questionNumber = parseInt(questionId.replace('soc-', ''));
+    
+    // Vérifier que questionNumber est un nombre valide
+    if (isNaN(questionNumber) || !answer) {
+      return;
+    }
     
     if (answer) {
       // Questions de communication (1, 6, 13, 24, 27, 36, 40)

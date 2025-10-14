@@ -573,7 +573,8 @@ export const submitTestResult = async (
   testId: string,
   studentId: string,
   answers: Answer[],
-  score: number
+  score: number,
+  cycle?: string
 ) => {
   const result: TestResult = {
     id: uuidv4(),
@@ -583,14 +584,14 @@ export const submitTestResult = async (
     score,
     completedAt: new Date().toISOString()
   };
-  const db = getTestResultsDB();
+  const db = getTestResultsDB(cycle);
   await db.setItem(result.id, result);
   return result;
 };
 
-export const getTestResults = async (studentId?: string): Promise<TestResult[]> => {
+export const getTestResults = async (studentId?: string, cycle?: string): Promise<TestResult[]> => {
   const results: TestResult[] = [];
-  const db = getTestResultsDB();
+  const db = getTestResultsDB(cycle);
   await db.iterate((value: TestResult) => {
     if (!studentId || value.studentId === studentId) {
       results.push(value);
@@ -599,8 +600,8 @@ export const getTestResults = async (studentId?: string): Promise<TestResult[]> 
   return results;
 };
 
-export const getTestResult = async (id: string): Promise<TestResult | null> => {
-  const db = getTestResultsDB();
+export const getTestResult = async (id: string, cycle?: string): Promise<TestResult | null> => {
+  const db = getTestResultsDB(cycle);
   return db.getItem(id);
 };
 

@@ -27,7 +27,7 @@ function TestResultsSection({ setActiveTab }: { setActiveTab: (tab: string) => v
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentCycle]);
 
   useEffect(() => {
     filterResults();
@@ -37,7 +37,7 @@ function TestResultsSection({ setActiveTab }: { setActiveTab: (tab: string) => v
     try {
       setLoading(true);
       const [results, studentsData] = await Promise.all([
-        getTestResults(),
+        getTestResults(undefined, currentCycle),
         getStudents()
       ]);
       setTestResults(results);
@@ -291,6 +291,10 @@ function TestList() {
     counselorName: '',
     academicYear: ''
   });
+  const [repResults, setRepResults] = useState<{
+    score: number;
+    analysis: string;
+  } | null>(null);
   // NEW: ranking per question (3/2/1 for A/B/C)
   
   // Creative thinking test modal states
@@ -303,7 +307,9 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
-    date: ''
+    date: '',
+    counselorName: '',
+    academicYear: ''
   });
   const [creativeResults, setCreativeResults] = useState<{
     score: number;
@@ -328,6 +334,8 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    counselorName: '',
+    academicYear: '',
     date: ''
   });
   const [repRanks, setRepRanks] = useState<Record<number, { a: number; b: number; c: number }>>({});
@@ -360,6 +368,8 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    counselorName: '',
+    academicYear: '',
     date: ''
   });
   const [personalitySaving, setPersonalitySaving] = useState(false);
@@ -386,27 +396,27 @@ function TestList() {
   const resetSocialTest = () => {
     setSocialAnswers({});
     setSocialSelectedStudent('');
-    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
   };
 
   const resetProfessionalTest = () => {
     setProfessionalAnswers({});
     setProfessionalSelectedStudent('');
-    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
     setProfessionalResults(null);
   };
 
   const resetCognitiveTest = () => {
     setCognitiveAnswers({});
     setCognitiveSelectedStudent('');
-    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, date: '' });
+    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
     setCognitiveResults(null);
   };
 
   const resetEmotionalTest = () => {
     setEmotionalAnswers({});
     setEmotionalSelectedStudent('');
-    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
     setEmotionalResults(null as any);
   };
   const [professionalSelectedStudent, setProfessionalSelectedStudent] = useState<string>('');
@@ -420,6 +430,8 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    counselorName: '',
+    academicYear: '',
     date: ''
   });
   const [cognitiveSaving, setCognitiveSaving] = useState(false);
@@ -442,6 +454,8 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    counselorName: '',
+    academicYear: '',
     date: ''
   });
   const [emotionalSaving, setEmotionalSaving] = useState(false);
@@ -459,6 +473,8 @@ function TestList() {
     surname: '',
     section: '',
         schoolType: getCycleConfig(currentCycle).schoolName,
+    counselorName: '',
+    academicYear: '',
     date: ''
   });
   const [professionalSaving, setProfessionalSaving] = useState(false);
@@ -515,8 +531,56 @@ function TestList() {
     setTimeLeft(360); // Reset to 6 minutes
   };
 
+  // Function to clear all specialized test states when cycle changes
+  const clearAllSpecializedTestStates = () => {
+    // Clear representational styles test
+    setRepAnswers({});
+    setRepTotals({ visual: 0, auditory: 0, kinesthetic: 0 });
+    setRepSelectedStudent('');
+    setRepResults(null);
+    setRepPersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, wilaya: '', date: '', counselorName: '', academicYear: '' });
+    
+    // Clear creative thinking test
+    setCreativeAnswers({});
+    setCreativeSelectedStudent('');
+    setCreativeResults(null);
+    setCreativePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    
+    // Clear social skills test
+    setSocialAnswers({});
+    setSocialSelectedStudent('');
+    setSocialResults(null);
+    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    
+    // Clear personality test
+    setPersonalityAnswers({});
+    setPersonalitySelectedStudent('');
+    setPersonalityResults(null);
+    setPersonalityPersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    
+    // Clear cognitive abilities test
+    setCognitiveAnswers({});
+    setCognitiveSelectedStudent('');
+    setCognitiveResults(null);
+    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    
+    // Clear professional orientation test
+    setProfessionalAnswers({});
+    setProfessionalSelectedStudent('');
+    setProfessionalResults(null);
+    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    
+    // Clear emotional intelligence test
+    setEmotionalAnswers({});
+    setEmotionalSelectedStudent('');
+    setEmotionalResults(null);
+    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+  };
+
   useEffect(() => {
     loadStudents();
+    // Clear all specialized test states when cycle changes
+    clearAllSpecializedTestStates();
   }, [currentCycle]); // Recharger quand le cycle change
 
   // Representational styles questions (VAK test)
@@ -1758,7 +1822,8 @@ function TestList() {
         'personality_test',
         personalitySelectedStudent,
         answers as any,
-        personalityResults ? Math.max(...Object.values(personalityResults).slice(0, 5) as number[]) : 0
+        personalityResults ? Math.max(...Object.values(personalityResults).slice(0, 5) as number[]) : 0,
+        currentCycle
       );
       alert('تم حفظ النتيجة بنجاح');
     } catch (e) {
@@ -1775,6 +1840,17 @@ function TestList() {
     try {
       const student = students.find(s => s.id === personalitySelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${personalityPersonalInfo.name} ${personalityPersonalInfo.surname}`;
+      // Sanitize values to avoid NaN/Infinity in styles
+      const clamp01 = (v: number) => Math.max(0, Math.min(100, v));
+      const num = (v: any) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : 0;
+      };
+      const ext = clamp01(num(personalityResults.extroversion));
+      const agr = clamp01(num(personalityResults.agreeableness));
+      const con = clamp01(num(personalityResults.conscientiousness));
+      const neu = clamp01(num(personalityResults.neuroticism));
+      const ope = clamp01(num(personalityResults.openness));
       
       // Create HTML content for PDF
       const htmlContent = `
@@ -1810,11 +1886,11 @@ function TestList() {
                 </div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; direction: rtl; text-align: right; white-space: nowrap;">
                   <span style="font-weight: bold;">نوع المؤسسة :</span>
-                  <span style="text-decoration: underline;">${currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</span>
+                  <span style="text-decoration: underline;">${personalityPersonalInfo.schoolType || getCycleConfig(currentCycle).schoolName}</span>
                 </div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; direction: rtl; text-align: right; white-space: nowrap;">
-                  <span style="font-weight: bold;">مستشار التوجيه :</span> 
-                  <span style="text-decoration: underline;">${personalityPersonalInfo.name || 'غير محدد'} ${personalityPersonalInfo.surname || ''}</span>
+                  <span style="font-weight: bold;">مستشار(ة) التوجيه :</span> 
+                  <span style="text-decoration: underline;">${(personalityPersonalInfo as any).counselorName || settings?.counselorName || 'غير محدد'}</span>
                 </div>
               </div>
               
@@ -1843,8 +1919,8 @@ function TestList() {
                 <p><strong>الفوج:</strong> ${student?.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
-                <p><strong>نوع المؤسسة:</strong> ${currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة'}</p>
-                <p><strong>السنة الدراسية:</strong> ${new Date().getFullYear()}-${new Date().getFullYear() + 1}</p>
+                <p><strong>نوع المؤسسة:</strong> ${personalityPersonalInfo.schoolType || getCycleConfig(currentCycle).schoolName}</p>
+                <p><strong>السنة الدراسية:</strong> ${(personalityPersonalInfo as any).academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}</p>
                 <p><strong>تاريخ الإجراء:</strong> ${personalityPersonalInfo.date || new Date().toLocaleDateString('ar-SA')}</p>
               </div>
             </div>
@@ -1858,32 +1934,32 @@ function TestList() {
               <h4 style="color: #374151; margin-bottom: 10px; text-align: center; font-size: 16px;">مخطط الأعمدة - السمات الشخصية</h4>
               <div style="display: flex; align-items: end; justify-content: center; height: 140px; border: 1px solid #e5e7eb; padding: 15px; background: #f9fafb;">
                 <div style="display: flex; flex-direction: column; align-items: center; margin: 0 8px;">
-                  <div style="width: 40px; background: linear-gradient(to top, #3b82f6, #60a5fa); height: ${(personalityResults.extroversion / 100) * 100}px; border-radius: 4px 4px 0 0; position: relative;">
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #1e40af; font-size: 12px;">${personalityResults.extroversion}%</div>
+                  <div style="width: 40px; background: #60a5fa; height: ${ext}px; border-radius: 4px 4px 0 0; position: relative;">
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #1e40af; font-size: 12px;">${ext}%</div>
                   </div>
                   <div style="margin-top: 8px; font-weight: bold; color: #1e40af; font-size: 10px;">انبساطية</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: center; margin: 0 8px;">
-                  <div style="width: 40px; background: linear-gradient(to top, #f59e0b, #fbbf24); height: ${(personalityResults.agreeableness / 100) * 100}px; border-radius: 4px 4px 0 0; position: relative;">
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #d97706; font-size: 12px;">${personalityResults.agreeableness}%</div>
+                  <div style="width: 40px; background: #fbbf24; height: ${agr}px; border-radius: 4px 4px 0 0; position: relative;">
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #d97706; font-size: 12px;">${agr}%</div>
                   </div>
                   <div style="margin-top: 8px; font-weight: bold; color: #d97706; font-size: 10px;">موافقة</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: center; margin: 0 8px;">
-                  <div style="width: 40px; background: linear-gradient(to top, #10b981, #34d399); height: ${(personalityResults.conscientiousness / 100) * 100}px; border-radius: 4px 4px 0 0; position: relative;">
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #059669; font-size: 12px;">${personalityResults.conscientiousness}%</div>
+                  <div style="width: 40px; background: #34d399; height: ${con}px; border-radius: 4px 4px 0 0; position: relative;">
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #059669; font-size: 12px;">${con}%</div>
                   </div>
                   <div style="margin-top: 8px; font-weight: bold; color: #059669; font-size: 10px;">ضمير</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: center; margin: 0 8px;">
-                  <div style="width: 40px; background: linear-gradient(to top, #ef4444, #f87171); height: ${(personalityResults.neuroticism / 100) * 100}px; border-radius: 4px 4px 0 0; position: relative;">
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #dc2626; font-size: 12px;">${personalityResults.neuroticism}%</div>
+                  <div style="width: 40px; background: #f87171; height: ${neu}px; border-radius: 4px 4px 0 0; position: relative;">
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #dc2626; font-size: 12px;">${neu}%</div>
                   </div>
                   <div style="margin-top: 8px; font-weight: bold; color: #dc2626; font-size: 10px;">عصابية</div>
                 </div>
                 <div style="display: flex; flex-direction: column; align-items: center; margin: 0 8px;">
-                  <div style="width: 40px; background: linear-gradient(to top, #8b5cf6, #a78bfa); height: ${(personalityResults.openness / 100) * 100}px; border-radius: 4px 4px 0 0; position: relative;">
-                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #7c3aed; font-size: 12px;">${personalityResults.openness}%</div>
+                  <div style="width: 40px; background: #a78bfa; height: ${ope}px; border-radius: 4px 4px 0 0; position: relative;">
+                    <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-weight: bold; color: #7c3aed; font-size: 12px;">${ope}%</div>
                   </div>
                   <div style="margin-top: 8px; font-weight: bold; color: #7c3aed; font-size: 10px;">انفتاح</div>
                 </div>
@@ -1892,42 +1968,42 @@ function TestList() {
             
             <!-- Results Cards -->
             <div style="display: flex; justify-content: space-around; margin-bottom: 15px;">
-              <div style="text-align: center; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background: linear-gradient(135deg, #eff6ff, #dbeafe); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <div style="text-align: center; padding: 15px; border: 2px solid #3b82f6; border-radius: 8px; background: #dbeafe; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 32px; margin-bottom: 8px;">👥</div>
                 <h4 style="color: #1e40af; margin: 0 0 8px 0; font-size: 14px;">الانبساطية</h4>
-                <div style="font-size: 20px; font-weight: bold; color: #1e40af;">${personalityResults.extroversion}%</div>
+                <div style="font-size: 20px; font-weight: bold; color: #1e40af;">${ext}%</div>
               </div>
-              <div style="text-align: center; padding: 15px; border: 2px solid #f59e0b; border-radius: 8px; background: linear-gradient(135deg, #fffbeb, #fef3c7); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <div style="text-align: center; padding: 15px; border: 2px solid #f59e0b; border-radius: 8px; background: #fef3c7; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 32px; margin-bottom: 8px;">🤝</div>
                 <h4 style="color: #d97706; margin: 0 0 8px 0; font-size: 14px;">الموافقة</h4>
-                <div style="font-size: 20px; font-weight: bold; color: #d97706;">${personalityResults.agreeableness}%</div>
+                <div style="font-size: 20px; font-weight: bold; color: #d97706;">${agr}%</div>
               </div>
-              <div style="text-align: center; padding: 15px; border: 2px solid #10b981; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <div style="text-align: center; padding: 15px; border: 2px solid #10b981; border-radius: 8px; background: #d1fae5; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 32px; margin-bottom: 8px;">📋</div>
                 <h4 style="color: #059669; margin: 0 0 8px 0; font-size: 14px;">الضمير الحي</h4>
-                <div style="font-size: 20px; font-weight: bold; color: #059669;">${personalityResults.conscientiousness}%</div>
+                <div style="font-size: 20px; font-weight: bold; color: #059669;">${con}%</div>
               </div>
-              <div style="text-align: center; padding: 15px; border: 2px solid #ef4444; border-radius: 8px; background: linear-gradient(135deg, #fef2f2, #fecaca); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <div style="text-align: center; padding: 15px; border: 2px solid #ef4444; border-radius: 8px; background: #fecaca; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 32px; margin-bottom: 8px;">😰</div>
                 <h4 style="color: #dc2626; margin: 0 0 8px 0; font-size: 14px;">العصابية</h4>
-                <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${personalityResults.neuroticism}%</div>
+                <div style="font-size: 20px; font-weight: bold; color: #dc2626;">${neu}%</div>
               </div>
-              <div style="text-align: center; padding: 15px; border: 2px solid #8b5cf6; border-radius: 8px; background: linear-gradient(135deg, #faf5ff, #e9d5ff); box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <div style="text-align: center; padding: 15px; border: 2px solid #8b5cf6; border-radius: 8px; background: #e9d5ff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="font-size: 32px; margin-bottom: 8px;">🎨</div>
                 <h4 style="color: #7c3aed; margin: 0 0 8px 0; font-size: 14px;">الانفتاح</h4>
-                <div style="font-size: 20px; font-weight: bold; color: #7c3aed;">${personalityResults.openness}%</div>
+                <div style="font-size: 20px; font-weight: bold; color: #7c3aed;">${ope}%</div>
               </div>
             </div>
           </div>
           
-          <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border-radius: 8px; border-right: 4px solid #2c5aa0;">
+          <div style="margin-bottom: 15px; padding: 15px; background: #e5e7eb; border-radius: 8px; border-right: 4px solid #2c5aa0;">
             <h3 style="color: #2c5aa0; margin-bottom: 10px; font-size: 16px;">🎯 الصفة المهيمنة</h3>
             <p style="font-size: 18px; font-weight: bold; color: #1f2937; text-align: center; padding: 12px; background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${personalityResults.dominantTrait}</p>
           </div>
           
           <div style="margin-bottom: 15px;">
             <h3 style="color: #2c5aa0; margin-bottom: 10px; font-size: 16px;">💡 الوصف الشخصي</h3>
-            <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 15px; border-radius: 8px; border-right: 4px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="background: #fde68a; padding: 15px; border-radius: 8px; border-right: 4px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
               <p style="font-size: 14px; line-height: 1.6; color: #92400e; margin: 0;">
                 ${personalityResults.description}
               </p>
@@ -1990,8 +2066,8 @@ function TestList() {
       
       pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       
-      // Save PDF
-      const fileName = `personality_test_${studentName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Save PDF with requested Arabic filename
+      const fileName = `تقرير التوجه الشخصي.pdf`;
       pdf.save(fileName);
       
       // Show success message
@@ -2062,16 +2138,34 @@ function TestList() {
     ];
 
     // Calculate scores
+    const increment = (trait: string) => {
+      switch (trait) {
+        case 'leadership':
+          leadership++;
+          break;
+        case 'teamwork':
+          teamwork++;
+          break;
+        case 'creativity':
+          creativity++;
+          break;
+        case 'organization':
+          organization++;
+          break;
+        case 'communication':
+          communication++;
+          break;
+      }
+    };
+
     Object.entries(professionalAnswers).forEach(([questionIndex, answer]) => {
-      if (answer) {
-        const mapping = traitMapping[parseInt(questionIndex)];
-        if (mapping) {
-          if (answer === 'a') {
-            (mapping as any)[mapping.a]++;
-          } else if (answer === 'b') {
-            (mapping as any)[mapping.b]++;
-          }
-        }
+      if (!answer) return;
+      const mapping = traitMapping[parseInt(questionIndex)];
+      if (!mapping) return;
+      if (answer === 'a') {
+        increment(mapping.a);
+      } else if (answer === 'b') {
+        increment(mapping.b);
       }
     });
 
@@ -2149,7 +2243,7 @@ function TestList() {
         results: professionalResults
       };
 
-      await submitTestResult('professional_orientation', professionalSelectedStudent, answers, result.score);
+      await submitTestResult('professional_orientation', professionalSelectedStudent, answers, result.score, currentCycle);
       alert('تم حفظ النتيجة بنجاح!');
       setShowProfessionalModal(false);
       setProfessionalAnswers({});
@@ -2315,7 +2409,7 @@ function TestList() {
         results: cognitiveResults
       };
 
-      await submitTestResult('cognitive_abilities', cognitiveSelectedStudent, answers, result.score);
+      await submitTestResult('cognitive_abilities', cognitiveSelectedStudent, answers, result.score, currentCycle);
       alert('تم حفظ النتيجة بنجاح!');
       setShowCognitiveModal(false);
       setCognitiveAnswers({});
@@ -2481,7 +2575,7 @@ function TestList() {
         results: emotionalResults
       };
 
-      await submitTestResult('emotional_intelligence', emotionalSelectedStudent, answers, result.score);
+      await submitTestResult('emotional_intelligence', emotionalSelectedStudent, answers, result.score, currentCycle);
       alert('تم حفظ النتيجة بنجاح!');
       setShowEmotionalModal(false);
       setEmotionalAnswers({});
@@ -2890,8 +2984,8 @@ function TestList() {
       
       pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       
-      // Save PDF
-      const fileName = `representational_styles_${studentName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Save PDF with requested Arabic filename
+      const fileName = `تقرير الأنماط التمثيلية.pdf`;
       pdf.save(fileName);
       
       // Show success message
@@ -2900,6 +2994,859 @@ function TestList() {
       console.error('خطأ في إنشاء ملف PDF:', error);
       alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
     }
+  };
+
+  const exportCreativePDF = async () => {
+    try {
+      const student = students.find(s => s.id === creativeSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${creativePersonalInfo.name} ${creativePersonalInfo.surname}`;
+      const schoolType = creativePersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = creativePersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const htmlContent = `
+        <div id="creative-rep-like" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <!-- Header (same structure as الأنماط التمثيلية) -->
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${creativePersonalInfo.academicYear || academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${creativePersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #7e22ce; margin: 0; font-size: 20px; border: 2px solid #7e22ce; padding: 10px; border-radius: 8px; background: #faf5ff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار التفكير الإبداعي</h1>
+            </div>
+          </div>
+
+          <!-- Student Info (structure aligned with الأنماط التمثيلية) -->
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #7e22ce; padding-bottom: 15px;">
+            <h3 style="color: #7e22ce; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || creativePersonalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
+                <p><strong>السنة الدراسية:</strong> ${academicYear}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Section (kept, but visually consistent) -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #7e22ce; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1; padding: 12px; border: 2px solid #a855f7; border-radius: 8px; background: linear-gradient(135deg, #faf5ff, #f3e8ff);">
+                <h4 style="color: #7e22ce; margin: 0 0 8px 0; font-size: 14px;">التحليل الشخصي</h4>
+                <div style="font-size: 13px; color: #374151;">${creativeResults?.analysis || ''}</div>
+              </div>
+              <div style="flex: 1; padding: 12px; border: 2px solid #a855f7; border-radius: 8px; background: linear-gradient(135deg, #faf5ff, #f3e8ff); text-align: center;">
+                <h4 style="color: #7e22ce; margin: 0 0 8px 0; font-size: 14px;">الدرجة المئوية</h4>
+                <div style="font-size: 28px; font-weight: 800; color: #7e22ce; margin-bottom: 6px;">${creativeResults?.score ?? 0}%</div>
+                <div style="width: 100%; height: 10px; background: #e9d5ff; border-radius: 9999px; overflow: hidden;">
+                  <div style="height: 10px; background: #a855f7; width: ${creativeResults?.score ?? 0}%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interpretation Section (modeled after الأنماط التمثيلية) -->
+          <div style="margin-bottom: 15px; padding: 15px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h3 style="color: #7e22ce; margin-bottom: 12px; font-size: 16px;">📊 تفسير النتائج</h3>
+            <p style="font-size: 13px; color: #374151; margin-bottom: 10px;">
+              تعكس الدرجة مستوى مهارات التفكير الإبداعي لدى التلميذ مثل الطلاقة، المرونة، والأصالة. الدرجات الأعلى تدل على قدرة أكبر على توليد أفكار متنوعة ومبتكرة، ويمكن تنميتها عبر التدريب.
+            </p>
+          </div>
+
+          <!-- Strengths & Recommendations (aligned as two cards like template) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+              <h4 style="color: #7e22ce; margin: 0 0 8px 0;">نقاط القوة</h4>
+              <ul style="margin: 0; padding-right: 18px; color: #374151; font-size: 13px; list-style: square;">
+                ${(creativeResults?.strengths || []).map(s => `<li>${s}</li>`).join('')}
+              </ul>
+            </div>
+            <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+              <h4 style="color: #7e22ce; margin: 0 0 8px 0;">التوصيات</h4>
+              <ul style="margin: 0; padding-right: 18px; color: #374151; font-size: 13px; list-style: square;">
+                ${(creativeResults?.recommendations || []).map(r => `<li>${r}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+
+          <!-- Methodology/Notes Section (kept from template) -->
+          <div style="margin-top: 15px; padding: 12px; background:#f9fafb; border:1px dashed #cbd5e1; border-radius:8px;">
+            <h4 style="margin:0 0 8px 0; color:#475569; font-size:14px;">ℹ️ ملاحظات منهجية</h4>
+            <p style="margin:0; font-size:12px; color:#374151; line-height:1.6;">
+              هذا الاختبار مؤشر إرشادي لقياس جوانب التفكير الإبداعي ولا يمثل حُكماً نهائياً على قدرات التلميذ. يوصى بتوفير أنشطة وتدريبات منتظمة لتنمية الطلاقة والمرونة والأصالة.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280;">
+              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
+            </div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) {
+          await fonts.ready;
+        }
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+
+      // Save PDF with requested Arabic filename
+      const fileName = `تقرير التفكير الإبداعي.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
+  };
+
+  const exportSocialPDF = async () => {
+    try {
+      const student = students.find(s => s.id === socialSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${socialPersonalInfo.name} ${socialPersonalInfo.surname}`;
+      const schoolType = socialPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = socialPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const htmlContent = `
+        <div id="social-rep-like" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${socialPersonalInfo.academicYear || academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${socialPersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #059669; margin: 0; font-size: 20px; border: 2px solid #059669; padding: 10px; border-radius: 8px; background: #ecfdf5; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار المهارات الاجتماعية</h1>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #059669; padding-bottom: 15px;">
+            <h3 style="color: #059669; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || socialPersonalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
+                <p><strong>السنة الدراسية:</strong> ${socialPersonalInfo.academicYear || academicYear}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #059669; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1; padding: 12px; border: 2px solid #34d399; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #d1fae5);">
+                <h4 style="color: #047857; margin: 0 0 8px 0; font-size: 14px;">التحليل</h4>
+                <div style="font-size: 13px; color: #374151;">${socialResults?.analysis || ''}</div>
+              </div>
+              <div style="flex: 1; padding: 12px; border: 2px solid #34d399; border-radius: 8px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); text-align: center;">
+                <h4 style="color: #047857; margin: 0 0 8px 0; font-size: 14px;">الدرجة المئوية</h4>
+                <div style="font-size: 28px; font-weight: 800; color: #047857; margin-bottom: 6px;">${socialResults?.score ?? 0}%</div>
+                <div style="width: 100%; height: 10px; background: #bbf7d0; border-radius: 9999px; overflow: hidden;">
+                  <div style="height: 10px; background: #10b981; width: ${socialResults?.score ?? 0}%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+              <h4 style="color: #047857; margin: 0 0 8px 0;">نقاط القوة</h4>
+              <ul style="margin: 0; padding-inline-start: 18px; color: #374151; font-size: 13px;">
+                ${(socialResults?.strengths || []).map(s => `<li>${s}</li>`).join('')}
+              </ul>
+            </div>
+            <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+              <h4 style="color: #047857; margin: 0 0 8px 0;">التوصيات</h4>
+              <ul style="margin: 0; padding-inline-start: 18px; color: #374151; font-size: 13px;">
+                ${(socialResults?.recommendations || []).map(r => `<li>${r}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280;">تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي</div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) {
+          await fonts.ready;
+        }
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+
+      // Save PDF with requested Arabic filename
+      const fileName = `تقرير المهارات الاجتماعية.pdf`;
+      pdf.save(fileName);
+    } catch (error) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
+  };
+
+  // Generic helper to export the currently visible results area (element with class 'print-area') to PDF
+  const exportPrintArea = async (outputFileName: string) => {
+    const area = document.querySelector('.print-area') as HTMLElement | null;
+    if (!area) {
+      alert('اعرض النتائج أولاً قبل حفظ PDF.');
+      return;
+    }
+    try {
+      const canvas = await html2canvas(area, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save(outputFileName);
+    } catch (error) {
+      console.error('خطأ في حفظ ملف PDF:', error);
+      alert('تعذر إنشاء ملف PDF.');
+    }
+  };
+
+  // Export PDF for Professional Orientation using the same structured template as Representational Styles
+  const exportProfessionalPDF = async () => {
+    if (!professionalResults) {
+      alert('اعرض النتائج أولاً قبل حفظ PDF.');
+      return;
+    }
+    try {
+      const student = students.find(s => s.id === professionalSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${professionalPersonalInfo.name} ${professionalPersonalInfo.surname}`;
+      const schoolType = professionalPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = professionalPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const htmlContent = `
+        <div id="professional-like" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <!-- Header (aligned with الأنماط التمثيلية) -->
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${professionalPersonalInfo.academicYear || academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${professionalPersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #0e7490; margin: 0; font-size: 20px; border: 2px solid #0e7490; padding: 10px; border-radius: 8px; background: #ecfeff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار الميول المهنية</h1>
+            </div>
+          </div>
+
+          <!-- Student Info -->
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #0e7490; padding-bottom: 15px;">
+            <h3 style="color: #0e7490; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || professionalPersonalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
+                <p><strong>السنة الدراسية:</strong> ${professionalPersonalInfo.academicYear || academicYear}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Summary -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #0e7490; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #0e7490; font-size: 14px;">القيادة</h4>
+                <div style="font-size: 13px; color: #111827;">${professionalResults.leadership}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #0e7490; font-size: 14px;">العمل الجماعي</h4>
+                <div style="font-size: 13px; color: #111827;">${professionalResults.teamwork}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #0e7490; font-size: 14px;">الإبداع</h4>
+                <div style="font-size: 13px; color: #111827;">${professionalResults.creativity}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #0e7490; font-size: 14px;">التنظيم</h4>
+                <div style="font-size: 13px; color: #111827;">${professionalResults.organization}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #0e7490; font-size: 14px;">التواصل</h4>
+                <div style="font-size: 13px; color: #111827;">${professionalResults.communication}%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dominant Orientation and Description -->
+          <div style="margin-bottom: 15px; padding: 15px; background: #f0f9ff; border-radius: 8px; border-right: 4px solid #0ea5e9;">
+            <h3 style="color: #0369a1; margin-bottom: 10px; font-size: 16px;">🎯 التوجه المهني الغالب</h3>
+            <p style="font-size: 18px; font-weight: bold; color: #0f172a; text-align: center; padding: 12px; background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${professionalResults.dominantOrientation}</p>
+          </div>
+
+          <div style="margin-bottom: 15px;">
+            <h3 style="color: #0e7490; margin-bottom: 10px; font-size: 16px;">💡 الوصف والتفسير</h3>
+            <div style="background: #ecfeff; padding: 15px; border-radius: 8px; border-right: 4px solid #06b6d4; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <p style="font-size: 14px; line-height: 1.6; color: #064e3b; margin: 0;">
+                ${professionalResults.description}
+              </p>
+            </div>
+          </div>
+
+          <!-- Methodology Notes -->
+          <div style="margin-bottom: 15px; padding: 12px; background:#f9fafb; border:1px dashed #cbd5e1; border-radius:8px;">
+            <h4 style="margin:0 0 8px 0; color:#475569; font-size:14px;">ℹ️ ملاحظات منهجية</h4>
+            <p style="margin:0; font-size:12px; color:#374151; line-height:1.6;">
+              هذا الاختبار مؤشر إرشادي يساعد على فهم الميول المهنية ولا يُعدّ حكماً نهائياً على القدرات. يُنصح بدمج النتائج مع مقابلة إرشادية وملاحظة سلوكية.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280;">
+              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Create temporary element and render to canvas
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) {
+          await fonts.ready;
+        }
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save('تقرير الميول المهنية.pdf');
+    } catch (error) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
+  };
+
+  const exportCognitivePDF = async () => {
+    if (!cognitiveResults) {
+      alert('اعرض النتائج أولاً قبل حفظ PDF.');
+      return;
+    }
+    try {
+      const student = students.find(s => s.id === cognitiveSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${cognitivePersonalInfo.name} ${cognitivePersonalInfo.surname}`;
+      const schoolType = cognitivePersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = cognitivePersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const htmlContent = `
+        <div id="cognitive-like" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <!-- Header (aligned with الأنماط التمثيلية) -->
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${cognitivePersonalInfo.academicYear || academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار التوجيه :</span> <span>${settings?.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار القدرات الفكرية</h1>
+            </div>
+          </div>
+
+          <!-- Student Info -->
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #2c5aa0; padding-bottom: 15px;">
+            <h3 style="color: #2c5aa0; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || cognitivePersonalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
+                <p><strong>السنة الدراسية:</strong> ${cognitivePersonalInfo.academicYear || academicYear}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Summary -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #2c5aa0; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px;">التحليل</h4>
+                <div style="font-size: 13px; color: #111827;">${cognitiveResults.analytical}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px;">الإبداع</h4>
+                <div style="font-size: 13px; color: #111827;">${cognitiveResults.creative}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px;">اجتماعي</h4>
+                <div style="font-size: 13px; color: #111827;">${cognitiveResults.social}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px;">قيادة</h4>
+                <div style="font-size: 13px; color: #111827;">${cognitiveResults.leadership}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #1e40af; font-size: 14px;">تفاصيل</h4>
+                <div style="font-size: 13px; color: #111827;">${cognitiveResults.detail}%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interpretation and Notes -->
+          <div style="margin-bottom: 15px; padding: 15px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <h3 style="color: #2c5aa0; margin-bottom: 12px; font-size: 16px;">📊 تفسير النتائج</h3>
+            <p style="font-size: 13px; color: #374151; margin-bottom: 10px;">
+              تشير النتائج إلى توزيع القدرات الفكرية لدى التلميذ. الدرجات الأعلى تعكس نقاط قوة يمكن البناء عليها في التخطيط الدراسي والمهني.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280;">
+              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
+            </div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) {
+          await fonts.ready;
+        }
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save('تقرير القدرات الفكرية.pdf');
+    } catch (error) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
+  };
+
+  const exportEmotionalPDF = async () => {
+    if (!emotionalResults) {
+      alert('اعرض النتائج أولاً قبل حفظ PDF.');
+      return;
+    }
+    try {
+      const student = students.find(s => s.id === emotionalSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${emotionalPersonalInfo.name} ${emotionalPersonalInfo.surname}`;
+      const schoolType = emotionalPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = emotionalPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const htmlContent = `
+        <div id="emotional-like" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <!-- Header (aligned with الأنماط التمثيلية) -->
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار التوجيه :</span> <span>${settings?.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #047857; margin: 0; font-size: 20px; border: 2px solid #047857; padding: 10px; border-radius: 8px; background: #ecfdf5; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار الذكاء العاطفي</h1>
+            </div>
+          </div>
+
+          <!-- Student Info -->
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #047857; padding-bottom: 15px;">
+            <h3 style="color: #047857; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || emotionalPersonalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
+                <p><strong>السنة الدراسية:</strong> ${academicYear}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Summary -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #047857; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px;">الوعي الذاتي</h4>
+                <div style="font-size: 13px; color: #111827;">${emotionalResults.selfAwareness}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px;">الضبط الذاتي</h4>
+                <div style="font-size: 13px; color: #111827;">${emotionalResults.selfRegulation}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px;">التعاطف</h4>
+                <div style="font-size: 13px; color: #111827;">${emotionalResults.empathy}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px;">المهارات الاجتماعية</h4>
+                <div style="font-size: 13px; color: #111827;">${emotionalResults.socialSkills}%</div>
+              </div>
+              <div style="padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #ffffff;">
+                <h4 style="margin: 0 0 8px 0; color: #065f46; font-size: 14px;">الدافعية</h4>
+                <div style="font-size: 13px; color: #111827;">${emotionalResults.motivation}%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dominant and Description -->
+          <div style="margin-bottom: 15px; padding: 15px; background: #ecfdf5; border-radius: 8px; border-right: 4px solid #10b981;">
+            <h3 style="color: #047857; margin-bottom: 10px; font-size: 16px;">🎯 الجانب العاطفي الغالب</h3>
+            <p style="font-size: 18px; font-weight: bold; color: #0f172a; text-align: center; padding: 12px; background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${emotionalResults.dominantTrait}</p>
+          </div>
+
+          <div style="margin-bottom: 15px;">
+            <h3 style="color: #047857; margin-bottom: 10px; font-size: 16px;">💡 الوصف والتفسير</h3>
+            <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; border-right: 4px solid #10b981; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <p style="font-size: 14px; line-height: 1.6; color: #064e3b; margin: 0;">
+                ${emotionalResults.description}
+              </p>
+            </div>
+          </div>
+
+          <!-- Methodology Notes -->
+          <div style="margin-bottom: 15px; padding: 12px; background:#f9fafb; border:1px dashed #cbd5e1; border-radius:8px;">
+            <h4 style="margin:0 0 8px 0; color:#475569; font-size:14px;">ℹ️ ملاحظات منهجية</h4>
+            <p style="margin:0; font-size:12px; color:#374151; line-height:1.6;">
+              هذا الاختبار مؤشر إرشادي يساعد على فهم الذكاء العاطفي ولا يُعدّ حكماً نهائياً على القدرات. يُنصح بدعم النتائج بتتبع سلوكي ومقابلة إرشادية.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
+            <div style="font-size: 12px; color: #6b7280;">
+              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
+            </div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) {
+          await fonts.ready;
+        }
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save('تقرير الذكاء العاطفي.pdf');
+    } catch (error) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
+  };
+
+  const exportSubjectInclinationPDF = async () => {
+    await exportPrintArea('تقرير الميول نحو المواد.pdf');
+  };
+
+  // Reset function for Representational Styles test
+  const resetRepTest = () => {
+    setRepAnswers({});
+    setRepRanks({});
+    setRepTotals({ visual: 0, auditory: 0, kinesthetic: 0 });
+    setRepSelectedStudent('');
+    setRepPersonalInfo({ ...repPersonalInfo, name: '', surname: '', section: '', schoolType: '', date: '' } as any);
   };
 
   const saveRepResult = async () => {
@@ -2921,7 +3868,8 @@ function TestList() {
         'representational_styles',
         repSelectedStudent,
         answers as any,
-        score
+        score,
+        currentCycle
       );
       alert('تم حفظ النتيجة بنجاح');
     } catch (e) {
@@ -2979,7 +3927,8 @@ function TestList() {
         'creative',
         creativeSelectedStudent,
         answers as any,
-        results.score
+        results.score,
+        currentCycle
       );
       
       alert('تم حفظ النتيجة بنجاح');
@@ -3041,7 +3990,8 @@ function TestList() {
         'social',
         socialSelectedStudent,
         answers as any,
-        results.score
+        results.score,
+        currentCycle
       );
       
       alert('تم حفظ النتيجة بنجاح');
@@ -5643,7 +6593,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-teal-700 mb-1">نوع المؤسسة :</label>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
                         <input
                           type="text"
                           value={repPersonalInfo.schoolType || ''}
@@ -5706,6 +6656,7 @@ function TestList() {
                       </select>
                     </div>
                   </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {repQuestions.map((it, idx) => (
                       <div
                         key={idx}
@@ -5739,14 +6690,14 @@ function TestList() {
                         )}
                       </div>
                     ))}
-                  <div className="flex justify-end">
-                    <div className="flex gap-2">
-                      <button onClick={()=>{ computeRepTotals(); }} className="px-6 py-2 rounded-lg text-white bg-teal-600 hover:bg-teal-700">حساب النتائج</button>
-                      <button onClick={exportRepPDF} className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        حفظ كـ PDF
-                      </button>
-                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onClick={()=>{ computeRepTotals(); }} className="px-6 py-2 rounded-lg text-white bg-teal-600 hover:bg-teal-700">حساب النتائج</button>
+                    <button onClick={resetRepTest} className="px-6 py-2 rounded-lg text-white bg-orange-600 hover:bg-orange-700">تهيئة/إعادة تعيين الاختبار</button>
+                    <button onClick={exportRepPDF} className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                      <FileText className="w-4 h-4" />
+                      حفظ كـ PDF
+                    </button>
                   </div>
                   {(repTotals.visual+repTotals.auditory+repTotals.kinesthetic) > 0 && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
@@ -5867,13 +6818,33 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-indigo-700 mb-1">نوع المؤسسة :</label>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
                         <input
                           type="text"
                           value={personalityPersonalInfo.schoolType || ''}
                           onChange={(e) => handlePersonalityPersonalInfoChange('schoolType', e.target.value)}
                           className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
                           placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">مستشار(ة) التوجيه :</label>
+                        <input
+                          type="text"
+                          value={(personalityPersonalInfo as any).counselorName || ''}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('counselorName', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="أدخل اسم مستشار(ة) التوجيه"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">السنة الدراسية :</label>
+                        <input
+                          type="text"
+                          value={(personalityPersonalInfo as any).academicYear || ''}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('academicYear', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="مثال: 2025-2026"
                         />
                       </div>
                       <div className="col-span-2">
@@ -5922,6 +6893,7 @@ function TestList() {
                   </div>
 
                   {/* Questions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {personalityQuestions.map((question, idx) => (
                     <div key={idx} className="border rounded-lg p-4 border-indigo-200 bg-indigo-50">
                       <div className="font-semibold mb-3 text-indigo-800">السؤال {idx + 1}</div>
@@ -5952,30 +6924,28 @@ function TestList() {
                       </div>
                     </div>
                   ))}
+                  </div>
 
                   <div className="flex justify-end gap-2">
                     <button 
-                      onClick={calculatePersonalityResults} 
-                      className="px-6 py-2 rounded-lg text-white bg-indigo-600 hover:bg-indigo-700"
+                      onClick={exportPersonalityPDF}
+                      className="px-6 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 flex items-center gap-2"
                     >
-                      حساب النتائج
+                      <FileText className="w-4 h-4" />
+                      حفظ كـ PDF
                     </button>
                     <button 
-                      onClick={savePersonalityResult}
-                      disabled={personalitySaving}
-                      className="px-6 py-2 rounded-lg text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                      onClick={() => setPersonalityAnswers({})}
+                      className="px-6 py-2 rounded-lg text-white bg-orange-600 hover:bg-orange-700"
                     >
-                      {personalitySaving ? 'جاري الحفظ...' : 'حفظ النتيجة'}
+                      تهيئة/إعادة تعيين الاختبار
                     </button>
-                    {personalityResults && (
-                      <button 
-                        onClick={exportPersonalityPDF}
-                        className="px-6 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" />
-                        حفظ كـ PDF
-                      </button>
-                    )}
+                    <button 
+                      onClick={calculatePersonalityResults} 
+                      className="px-6 py-2 rounded-lg text-white bg-teal-600 hover:bg-teal-700"
+                    >
+                      حساب النتائج والتوصية
+                    </button>
                   </div>
 
                   {/* Results Display */}
@@ -6068,16 +7038,34 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-blue-700 mb-1">نوع المؤسسة :</label>
-                        <select
-                          value={cognitivePersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة')}
+                        <label className="block text-sm font-medium text-blue-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <input
+                          type="text"
+                          value={cognitivePersonalInfo.schoolType || ''}
                           onChange={e => handleCognitivePersonalInfoChange('schoolType', e.target.value)}
                           className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
-                        >
-                <option value={getCycleConfig(currentCycle).schoolName}>
-                  {getCycleConfig(currentCycle).schoolName}
-                          </option>
-                        </select>
+                          placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">مستشار(ة) التوجيه :</label>
+                        <input
+                          type="text"
+                          value={(cognitivePersonalInfo as any).counselorName || ''}
+                          onChange={e => handleCognitivePersonalInfoChange('counselorName', e.target.value)}
+                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
+                          placeholder="أدخل اسم مستشار(ة) التوجيه"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">السنة الدراسية :</label>
+                        <input
+                          type="text"
+                          value={(cognitivePersonalInfo as any).academicYear || ''}
+                          onChange={e => handleCognitivePersonalInfoChange('academicYear', e.target.value)}
+                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
+                          placeholder="مثال: 2025-2026"
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-blue-700 mb-1">تاريخ الإجراء :</label>
@@ -6125,6 +7113,7 @@ function TestList() {
                   </div>
 
                   {/* Questions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {cognitiveQuestions.map((question, idx) => (
                     <div key={idx} className="border rounded-lg p-4 border-blue-200 bg-blue-50">
                       <div className="font-semibold mb-3 text-blue-800">السؤال {idx + 1}</div>
@@ -6155,8 +7144,9 @@ function TestList() {
                       </div>
                     </div>
                   ))}
+                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
                     <button 
                       onClick={calculateCognitiveResults} 
                       disabled={Object.keys(cognitiveAnswers).length < 20}
@@ -6169,6 +7159,13 @@ function TestList() {
                       className="px-6 py-2 rounded-lg text-white bg-orange-600 hover:bg-orange-700"
                     >
                       تهيئة/إعادة تعيين الاختبار
+                    </button>
+                    <button
+                      onClick={exportCognitivePDF}
+                      disabled={!cognitiveResults}
+                      className="px-6 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      حفظ كـ PDF
                     </button>
                     <button 
                       onClick={saveCognitiveResult}
@@ -6274,15 +7271,34 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نوع المدرسة</label>
-                        <select
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <input
+                          type="text"
                           value={professionalPersonalInfo.schoolType}
                           onChange={(e) => handleProfessionalPersonalInfoChange('schoolType', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        >
-                          <option value="المتوسطة">المتوسطة</option>
-                          <option value="الثانوية">الثانوية</option>
-                        </select>
+                          placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">مستشار(ة) التوجيه</label>
+                        <input
+                          type="text"
+                          value={professionalPersonalInfo.counselorName}
+                          onChange={(e) => handleProfessionalPersonalInfoChange('counselorName', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="أدخل اسم المستشار(ة)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">السنة الدراسية</label>
+                        <input
+                          type="text"
+                          value={professionalPersonalInfo.academicYear}
+                          onChange={(e) => handleProfessionalPersonalInfoChange('academicYear', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="مثال: 2025-2026"
+                        />
                       </div>
                     </div>
                   </div>
@@ -6314,7 +7330,7 @@ function TestList() {
                   </div>
 
                   {/* Questions */}
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {professionalQuestions.map((question, idx) => (
                       <div key={idx} className="bg-white rounded-lg p-6 border border-emerald-200">
                         <h4 className="font-semibold text-gray-800 mb-4 text-lg">
@@ -6348,7 +7364,7 @@ function TestList() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-6">
                     <button
                       onClick={calculateProfessionalResults}
                       disabled={Object.keys(professionalAnswers).length < 20}
@@ -6362,6 +7378,14 @@ function TestList() {
                       className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 font-semibold"
                     >
                       تهيئة/إعادة تعيين الاختبار
+                    </button>
+                    <button
+                      onClick={exportProfessionalPDF}
+                      disabled={!professionalResults}
+                      className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FileText className="w-5 h-5" />
+                      حفظ كـ PDF
                     </button>
                     <button
                       onClick={saveProfessionalResult}
@@ -6473,15 +7497,34 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">نوع المدرسة</label>
-                        <select
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <input
+                          type="text"
                           value={emotionalPersonalInfo.schoolType}
                           onChange={(e) => handleEmotionalPersonalInfoChange('schoolType', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-md"
-                        >
-                          <option value="المتوسطة">المتوسطة</option>
-                          <option value="الثانوية">الثانوية</option>
-                        </select>
+                          placeholder={getCycleConfig(currentCycle).schoolName}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">مستشار(ة) التوجيه</label>
+                        <input
+                          type="text"
+                          value={emotionalPersonalInfo.counselorName}
+                          onChange={(e) => handleEmotionalPersonalInfoChange('counselorName', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="أدخل اسم المستشار(ة)"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">السنة الدراسية</label>
+                        <input
+                          type="text"
+                          value={emotionalPersonalInfo.academicYear}
+                          onChange={(e) => handleEmotionalPersonalInfoChange('academicYear', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="مثال: 2025-2026"
+                        />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
@@ -6528,7 +7571,7 @@ function TestList() {
                   </div>
 
                   {/* Questions */}
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {emotionalQuestions.map((question, index) => (
                       <div key={index} className="bg-white rounded-lg p-6 border border-pink-200 hover:border-pink-300 transition-colors">
                         <h6 className="font-semibold text-pink-800 mb-4 flex items-center gap-2">
@@ -6570,7 +7613,7 @@ function TestList() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-8 pt-6 border-t border-pink-200">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-8 pt-6 border-t border-pink-200">
                   <button
                     onClick={calculateEmotionalResults}
                     disabled={Object.keys(emotionalAnswers).length < 20}
@@ -6584,6 +7627,14 @@ function TestList() {
                       className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2 font-semibold"
                     >
                       تهيئة/إعادة تعيين الاختبار
+                    </button>
+                    <button
+                      onClick={exportEmotionalPDF}
+                      disabled={!emotionalResults}
+                      className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FileText className="w-5 h-5" />
+                      حفظ كـ PDF
                     </button>
                   <button
                     onClick={saveEmotionalResult}
@@ -6724,26 +7775,45 @@ function TestList() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">نوع المدرسة</label>
-                      <select
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                      <input
+                        type="text"
                         value={creativePersonalInfo.schoolType}
                         onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, schoolType: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="المتوسطة">المتوسطة</option>
-                        <option value="الثانوية">الثانوية</option>
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
-                      <DatePicker
-                        selected={creativePersonalInfo.date ? new Date(creativePersonalInfo.date) : null}
-                        onChange={(date) => setCreativePersonalInfo(prev => ({ ...prev, date: date?.toISOString().split('T')[0] || '' }))}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholderText="اختر التاريخ"
-                        dateFormat="yyyy-MM-dd"
+                        placeholder={getCycleConfig(currentCycle).schoolName}
                       />
                     </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">مستشار(ة) التوجيه</label>
+                  <input
+                    type="text"
+                    value={creativePersonalInfo.counselorName}
+                    onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, counselorName: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="أدخل اسم المستشار(ة)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">السنة الدراسية</label>
+                  <input
+                    type="text"
+                    value={creativePersonalInfo.academicYear}
+                    onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, academicYear: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="مثال: 2025-2026"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
+                  <DatePicker
+                    selected={creativePersonalInfo.date ? new Date(creativePersonalInfo.date) : null}
+                    onChange={(date) => setCreativePersonalInfo(prev => ({ ...prev, date: date?.toISOString().split('T')[0] || '' }))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholderText="اختر التاريخ"
+                    dateFormat="yyyy-MM-dd"
+                  />
+                </div>
                   </div>
                 </div>
 
@@ -6778,7 +7848,7 @@ function TestList() {
                 </div>
 
                 {/* Questions */}
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {creativeQuestions.map((question, index) => (
                     <div key={index} className="bg-white rounded-lg p-6 border border-purple-200 hover:border-purple-300 transition-colors">
                       <h6 className="font-semibold text-purple-800 mb-4 flex items-center gap-2">
@@ -6822,21 +7892,12 @@ function TestList() {
                 {/* Action Buttons */}
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
-                    onClick={handleCreativeSubmit}
-                    disabled={creativeSaving || Object.keys(creativeAnswers).length < 20}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center gap-2 text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={exportCreativePDF}
+                    disabled={Object.keys(creativeAnswers).length < 20}
+                    className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-all duration-300 flex items-center justify-center gap-2 text-base font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {creativeSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>جاري الحفظ...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-5 h-5" />
-                        <span>حفظ النتائج</span>
-                      </>
-                    )}
+                    <FileText className="w-5 h-5" />
+                    <span>حفظ كـ PDF</span>
                   </button>
                   <button
                     onClick={resetCreativeTest}
@@ -6855,7 +7916,7 @@ function TestList() {
 
                 {/* Results Display */}
                 {creativeResults && (
-                  <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200 print-area">
+                  <div id="creative-pdf-content" className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6 border border-purple-200 print-area">
       <h3 className="text-2xl font-bold text-purple-800 mb-6 text-center">نتائج التفكير الإبداعي</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -6985,15 +8046,34 @@ function TestList() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">نوع المدرسة</label>
-                      <select
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                      <input
+                        type="text"
                         value={socialPersonalInfo.schoolType}
                         onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, schoolType: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
-                      >
-                        <option value="المتوسطة">المتوسطة</option>
-                        <option value="الثانوية">الثانوية</option>
-                      </select>
+                        placeholder={getCycleConfig(currentCycle).schoolName}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">مستشار(ة) التوجيه</label>
+                      <input
+                        type="text"
+                        value={socialPersonalInfo.counselorName}
+                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, counselorName: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="أدخل اسم المستشار(ة)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">السنة الدراسية</label>
+                      <input
+                        type="text"
+                        value={socialPersonalInfo.academicYear}
+                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, academicYear: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="مثال: 2025-2026"
+                      />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">التاريخ</label>
@@ -7039,7 +8119,7 @@ function TestList() {
                 </div>
 
                 {/* Questions */}
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {socialQuestions.map((question, index) => (
                     <div key={index} className="bg-white rounded-lg p-6 border border-green-200 hover:border-green-300 transition-colors">
                       <h6 className="font-semibold text-green-800 mb-4 flex items-center gap-2">
@@ -7083,21 +8163,12 @@ function TestList() {
                 {/* Submit Button */}
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-3">
                   <button
-                    onClick={handleSocialSubmit}
-                    disabled={socialSaving || Object.keys(socialAnswers).length < 20}
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-3 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-300 flex items-center gap-2 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={exportSocialPDF}
+                    disabled={Object.keys(socialAnswers).length < 20}
+                    className="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 transition-all duration-300 flex items-center gap-2 text-lg font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {socialSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>جاري الحفظ...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Users className="w-5 h-5" />
-                        <span>حفظ النتائج</span>
-                      </>
-                    )}
+                    <FileText className="w-5 h-5" />
+                    <span>حفظ كـ PDF</span>
                   </button>
                   <button
                     onClick={resetSocialTest}
