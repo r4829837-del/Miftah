@@ -16,7 +16,8 @@ import {
   FileText,
   Settings,
   Brain,
-  Video
+  Video,
+  Play
 } from 'lucide-react';
 
 const getDashboardCards = (currentCycle: string) => [
@@ -43,6 +44,9 @@ function Dashboard() {
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [backupName, setBackupName] = useState('');
   const [postBackupLogout, setPostBackupLogout] = useState(false);
+  
+  // État pour la vidéo de démonstration
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   // Mettre à jour les cartes quand le cycle change
   React.useEffect(() => {
@@ -200,6 +204,13 @@ function Dashboard() {
             >
               <BookOpen className="w-5 h-5" />
               <span>الدليل المنهجي</span>
+            </button>
+            <button
+              onClick={() => setShowVideoModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 transition-colors"
+            >
+              <Play className="w-5 h-5" />
+              <span>دليل مرئي</span>
             </button>
           </div>
         </div>
@@ -398,6 +409,54 @@ function Dashboard() {
               >
                 إلغاء
               </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de la video de demonstration */}
+      {showVideoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl mx-4 relative">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="text-xl font-bold text-gray-800">دليل مرئي - دليل استخدام التطبيق</h3>
+              <button
+                onClick={() => setShowVideoModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="p-4">
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                <video
+                  className="absolute top-0 left-0 w-full h-full rounded-lg"
+                  controls
+                  preload="metadata"
+                  poster="/chatbot-background.jpg"
+                >
+                  <source src="/دليل.mp4" type="video/mp4" />
+                  <p className="text-center text-gray-600 p-8">
+                    متصفحك لا يدعم تشغيل الفيديو. 
+                    <a href="/دليل.mp4" className="text-blue-600 hover:underline" download>
+                      اضغط هنا لتحميل الفيديو
+                    </a>
+                  </p>
+                </video>
+              </div>
+              
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Video className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-blue-800 mb-1">دليل مرئي شامل</h4>
+                    <p className="text-sm text-blue-700">
+                      شاهد هذا الفيديو التعليمي لتعلم كيفية استخدام جميع ميزات تطبيق Appamine بسهولة وفعالية
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
