@@ -274,6 +274,9 @@ function TestList() {
   const [scienceQ9Subject, setScienceQ9Subject] = useState<string>('');
   const [artsQ5Subject, setArtsQ5Subject] = useState<string>('');
   const [artsQ9Subject, setArtsQ9Subject] = useState<string>('');
+  
+  // Student selection for inclination test
+  const [inclinationSelectedStudent, setInclinationSelectedStudent] = useState<string>('');
 
   // Representational styles (VAK) modal states
   const [showRepModal, setShowRepModal] = useState(false);
@@ -3840,6 +3843,49 @@ function TestList() {
     await exportPrintArea('تقرير الميول نحو المواد.pdf');
   };
 
+  // Save inclination test result
+  const saveInclinationResult = async () => {
+    if (!inclinationSelectedStudent) {
+      alert('اختر تلميذاً لحفظ النتيجة');
+      return;
+    }
+    try {
+      const student = students.find(s => s.id === inclinationSelectedStudent);
+      if (!student) {
+        alert('التلميذ المحدد غير موجود');
+        return;
+      }
+
+      const testResult = {
+        id: Date.now().toString(),
+        studentId: inclinationSelectedStudent,
+        studentName: `${student.firstName} ${student.lastName}`,
+        testType: 'subject_inclination',
+        testName: 'الميول نحو المواد',
+        score: Math.max(scienceScore, artsScore),
+        maxScore: 100,
+        date: new Date().toISOString(),
+        details: {
+          scienceScore,
+          artsScore,
+          recommendation,
+          scienceAnswers,
+          artsAnswers,
+          personalInfo
+        }
+      };
+
+      await submitTestResult(testResult);
+      alert('تم حفظ النتيجة بنجاح');
+      setShowInclinationModal(false);
+      setShowResults(false);
+      resetInclinationTest();
+    } catch (error) {
+      console.error('Error saving inclination result:', error);
+      alert('حدث خطأ أثناء حفظ النتيجة');
+    }
+  };
+
   // Reset function for Representational Styles test
   const resetRepTest = () => {
     setRepAnswers({});
@@ -4965,6 +5011,33 @@ function TestList() {
             
             {!showResults ? (
               <div className="p-6 overflow-auto max-h-[calc(95vh-100px)]">
+                {/* Student Selection Section */}
+                <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+                  <h4 className="text-lg font-bold text-gray-800 mb-4 text-center">اختيار التلميذ</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">اختر تلميذاً (اختياري للحفظ)</label>
+                      <select 
+                        value={inclinationSelectedStudent} 
+                        onChange={(e) => setInclinationSelectedStudent(e.target.value)} 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">اختر تلميذاً (اختياري للحفظ)</option>
+                        {students.map(student => (
+                          <option key={student.id} value={student.id}>
+                            {student.firstName} {student.lastName} - {student.level} - {student.group}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-end">
+                      <div className="text-sm text-gray-600 bg-white p-3 rounded-lg border">
+                        <strong>ملاحظة:</strong> يمكنك إجراء الاختبار بدون اختيار تلميذ، ولكن لن يتم حفظ النتائج تلقائياً
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   
                   {/* علوم و تكنولوجيا */}

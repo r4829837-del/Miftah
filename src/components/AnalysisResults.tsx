@@ -83,11 +83,11 @@ const AnalysisResults: React.FC = () => {
     } else {
       // Criteria for college cycle (متوسط) - BEM orientation
       if (generalAverage >= 16) {
-        return 'ثانوي علمي';
+        return 'علمي';
       } else if (generalAverage >= 14) {
-        return 'ثانوي تقني';
+        return 'تقني';
       } else if (generalAverage >= 10) {
-        return 'ثانوي مهني';
+        return 'مهني';
       } else if (generalAverage > 0) {
         return 'إعادة السنة';
       }
@@ -225,34 +225,24 @@ const AnalysisResults: React.FC = () => {
       let performance = '';
       
       // Debug logging
-      console.log(`Student ${index + 1}: Science=${scienceAverage}, Arts=${artsAverage}, ScienceGrades=${scienceGrades.length}, ArtsGrades=${artsGrades.length}`);
+      console.log(`Student ${index + 1}: Science=${scienceAverage}, Arts=${artsAverage}, ScienceGrades=${scienceGrades.length}, ArtsGrades=${artsGrades.length}, Difference=${Math.abs(scienceAverage - artsAverage)}`);
       
       if (scienceAverage > 0 && artsAverage > 0) {
         const difference = Math.abs(scienceAverage - artsAverage);
         
-        if (scienceAverage > artsAverage) {
-          guidance = 'ميل نحو العلوم';
-          if (difference > 2) {
-            guidanceAdvice = 'توجه واضح للعلوم';
-            performance = scienceAverage >= 14 ? 'ممتاز في العلوم' : scienceAverage >= 12 ? 'جيد في العلوم' : 'يحتاج تحسين';
-          } else {
-            guidanceAdvice = 'ميل طفيف للعلوم';
-            performance = 'متوازن';
-          }
-        } else if (artsAverage > scienceAverage) {
-          guidance = 'ميل نحو الآداب';
-          if (difference > 2) {
-            guidanceAdvice = 'توجه واضح للآداب';
-            performance = artsAverage >= 14 ? 'ممتاز في الآداب' : artsAverage >= 12 ? 'جيد في الآداب' : 'يحتاج تحسين';
-          } else {
-            guidanceAdvice = 'ميل طفيف للآداب';
-            performance = 'متوازن';
-          }
-        } else {
-          // Equal averages
+        // Check if the difference is small enough to be considered balanced
+        if (difference <= 2) {
           guidance = 'متوازن';
           guidanceAdvice = 'أداء متوازن في كلا المجالين';
           performance = 'متوازن';
+        } else if (scienceAverage > artsAverage) {
+          guidance = 'ميل نحو العلوم';
+          guidanceAdvice = 'توجه واضح للعلوم';
+          performance = scienceAverage >= 14 ? 'ممتاز في العلوم' : scienceAverage >= 12 ? 'جيد في العلوم' : 'يحتاج تحسين';
+        } else {
+          guidance = 'ميل نحو الآداب';
+          guidanceAdvice = 'توجه واضح للآداب';
+          performance = artsAverage >= 14 ? 'ممتاز في الآداب' : artsAverage >= 12 ? 'جيد في الآداب' : 'يحتاج تحسين';
         }
       } else if (scienceAverage > 0 && artsAverage === 0) {
         // Only science grades available
@@ -280,7 +270,7 @@ const AnalysisResults: React.FC = () => {
       // Get name
       const name = student.name || student.lastName || student.nom || student.nom_famille || '';
       const firstName = student.firstName || student.prenom || '';
-      const fullName = `${name} ${firstName}`.trim() || `طالب ${index + 1}`;
+      const fullName = `${name} ${firstName}`.trim() || `${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} ${index + 1}`;
       
       // Calculate overall performance with improved logic
       let overallAverage = 0;
@@ -356,6 +346,11 @@ const AnalysisResults: React.FC = () => {
     console.log('Balanced students:', balancedCount);
     console.log('Undefined orientation:', undefinedCount);
     console.log('Excellent students:', excellentCount);
+    
+    // Debug: Log all guidance values
+    const allGuidanceValues = guidanceStudents.map(s => s.guidance);
+    console.log('All guidance values:', allGuidanceValues);
+    console.log('Unique guidance values:', [...new Set(allGuidanceValues)]);
     
     return {
       scienceCount,
@@ -459,13 +454,13 @@ const AnalysisResults: React.FC = () => {
     const weakCount = grades.filter(g => g < 10).length;
     
     if (average >= 16) {
-      return `طالب متفوق! معدل ${average.toFixed(1)} مع ${excellentCount} مادة ممتازة. أداء متميز يستحق التقدير.`;
+      return `${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} متفوق! معدل ${average.toFixed(1)} مع ${excellentCount} مادة ممتازة. أداء متميز يستحق التقدير.`;
     } else if (average >= 14) {
-      return `طالب جيد! معدل ${average.toFixed(1)}. أداء مقبول مع إمكانية التحسن في بعض المواد.`;
+      return `${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} جيد! معدل ${average.toFixed(1)}. أداء مقبول مع إمكانية التحسن في بعض المواد.`;
     } else if (average >= 10) {
-      return `طالب مقبول! معدل ${average.toFixed(1)}. يحتاج دعم في ${weakCount} مادة لتحسين الأداء.`;
+      return `${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} مقبول! معدل ${average.toFixed(1)}. يحتاج دعم في ${weakCount} مادة لتحسين الأداء.`;
     } else {
-      return `طالب يحتاج دعم! معدل ${average.toFixed(1)}. ${weakCount} مادة تحتاج متابعة فورية.`;
+      return `${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} يحتاج دعم! معدل ${average.toFixed(1)}. ${weakCount} مادة تحتاج متابعة فورية.`;
     }
   };
 
@@ -734,7 +729,7 @@ const AnalysisResults: React.FC = () => {
             studentCount: data?.count || '—'
           })) : null,
         
-        // أفضل الطلاب
+        // أفضل {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}
         topStudents: students
           .sort((a, b) => ((b as any)[moyenneKey] || 0) - ((a as any)[moyenneKey] || 0))
           .slice(0, 10)
@@ -1022,7 +1017,7 @@ const AnalysisResults: React.FC = () => {
             pdf.setTextColor(0, 0, 0);
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
-            pdf.text(`${name}: ${v.count} طالب (${v.percent}%)`, barLeft, yy - 2);
+            pdf.text(`${name}: ${v.count} ${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} (${v.percent}%)`, barLeft, yy - 2);
             yy += barH + 8;
           });
         }
@@ -1057,7 +1052,7 @@ const AnalysisResults: React.FC = () => {
             pdf.setTextColor(0, 0, 0);
             pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(9);
-            pdf.text(`${name}: ${v.count} طالب (${v.percent}%)`, barLeft, yy - 2);
+            pdf.text(`${name}: ${v.count} ${currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} (${v.percent}%)`, barLeft, yy - 2);
             yy += barH + 8;
           });
         }
@@ -1102,9 +1097,9 @@ const AnalysisResults: React.FC = () => {
     
     const recommendations = [
       '• مراجعة المناهج والطرق التعليمية للمواد ذات المعدلات المنخفضة',
-      '• تنظيم حصص دعم إضافية للطلاب الذين يحتاجون إلى تحسين',
-      '• تشجيع الطلاب المتميزين والمحافظة على مستواهم',
-      '• متابعة دورية لنتائج الطلاب وتقديم الدعم اللازم',
+      `• تنظيم حصص دعم إضافية لل${currentCycle === 'ثانوي' ? 'طلاب' : 'تلاميذ'} الذين يحتاجون إلى تحسين`,
+      `• تشجيع ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} المتميزين والمحافظة على مستواهم`,
+      `• متابعة دورية لنتائج ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} وتقديم الدعم اللازم`,
       '• تحسين البيئة التعليمية وتوفير الموارد اللازمة'
     ];
     
@@ -1487,19 +1482,19 @@ const AnalysisResults: React.FC = () => {
                     // College cycle orientations
                     <>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{orientationCounts['ثانوي علمي'] || 0}</div>
-                        <div className="text-sm text-gray-600">ثانوي علمي</div>
-                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي علمي'] || 0) / total) * 100) : 0}%</div>
+                        <div className="text-2xl font-bold text-blue-600">{orientationCounts['علمي'] || 0}</div>
+                        <div className="text-sm text-gray-600">علمي</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['علمي'] || 0) / total) * 100) : 0}%</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">{orientationCounts['ثانوي تقني'] || 0}</div>
-                        <div className="text-sm text-gray-600">ثانوي تقني</div>
-                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي تقني'] || 0) / total) * 100) : 0}%</div>
+                        <div className="text-2xl font-bold text-green-600">{orientationCounts['تقني'] || 0}</div>
+                        <div className="text-sm text-gray-600">تقني</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['تقني'] || 0) / total) * 100) : 0}%</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">{orientationCounts['ثانوي مهني'] || 0}</div>
-                        <div className="text-sm text-gray-600">ثانوي مهني</div>
-                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['ثانوي مهني'] || 0) / total) * 100) : 0}%</div>
+                        <div className="text-2xl font-bold text-purple-600">{orientationCounts['مهني'] || 0}</div>
+                        <div className="text-sm text-gray-600">مهني</div>
+                        <div className="text-xs text-gray-500">{total > 0 ? Math.round(((orientationCounts['مهني'] || 0) / total) * 100) : 0}%</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-gray-500">{orientationCounts['غير محدد'] || 0}</div>
@@ -1518,7 +1513,7 @@ const AnalysisResults: React.FC = () => {
             <div className="flex flex-col items-center gap-4 mb-6">
               {/* Page info */}
               <div className="text-sm text-gray-600">
-                صفحة {currentPage} من {totalPages} ({actualStudents.length} طالب)
+                صفحة {currentPage} من {totalPages} ({actualStudents.length} {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'})
               </div>
               
               {/* Pagination buttons */}
@@ -1773,7 +1768,7 @@ const AnalysisResults: React.FC = () => {
           <div className="mb-6 p-4 bg-white border border-orange-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4 space-x-reverse">
-                <span className="text-sm font-medium text-gray-700">عرض الطلاب حسب:</span>
+                <span className="text-sm font-medium text-gray-700">عرض {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} حسب:</span>
                 <button
                   onClick={() => {
                     console.log('Recalculating guidance indicators...');
@@ -1794,7 +1789,7 @@ const AnalysisResults: React.FC = () => {
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    جميع الطلاب ({guidanceStudents.length})
+                    جميع {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} ({guidanceStudents.length})
                   </button>
                   <button
                     onClick={() => handleGuidanceFilter('ميل نحو العلوم')}
@@ -1839,7 +1834,7 @@ const AnalysisResults: React.FC = () => {
                 </div>
               </div>
               <div className="text-sm text-gray-600">
-                {actualStudents.length} طالب من أصل {actualStudents.length}
+                {actualStudents.length} {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} من أصل {actualStudents.length}
               </div>
             </div>
           </div>
@@ -1891,10 +1886,10 @@ const AnalysisResults: React.FC = () => {
               </div>
             </div>
             <div className="mt-3 text-sm text-blue-700">
-              💡 <strong>نصيحة:</strong> الطلاب المتفوقون يمكنهم اختيار أي تخصص، بينما يحتاج الآخرون للتوجيه حسب ميولهم
+              💡 <strong>نصيحة:</strong> {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} المتفوقون يمكنهم اختيار أي تخصص، بينما يحتاج الآخرون للتوجيه حسب ميولهم
             </div>
             <div className="mt-2 text-xs text-gray-600">
-              إجمالي الطلاب: {indicators.total} | تم تحليل: {indicators.scienceCount + indicators.artsCount + indicators.balancedCount + indicators.undefinedCount}
+              إجمالي {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}: {indicators.total} | تم تحليل: {indicators.scienceCount + indicators.artsCount + indicators.balancedCount + indicators.undefinedCount}
             </div>
           </div>
         )}
@@ -1982,81 +1977,7 @@ const AnalysisResults: React.FC = () => {
             </>
           ) : (
             <>
-              {isHighSchool ? (
-                <>
-                  {/* س1ث */}
-                  <div 
-                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '1AS' || selectedLevel === 'all' 
-                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
-                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
-                        : (selectedLevel === '1AS' || selectedLevel === 'all'
-                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
-                            : 'bg-white border border-purple-200 hover:bg-blue-50')
-                    }`}
-                    onClick={() => setSelectedLevel(selectedLevel === '1AS' ? 'all' : '1AS')}
-                  >
-                    <div className={`font-bold transition-colors duration-300 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '1AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
-                        : (selectedLevel === '1AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
-                    }`}>س1ث</div>
-                    <div className="text-sm text-gray-600">السنة الأولى ثانوي</div>
-                    {(selectedLevel === '1AS' || selectedLevel === 'all') && (
-                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
-                    )}
-                  </div>
-
-                  {/* س2ث */}
-                  <div 
-                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '2AS' || selectedLevel === 'all' 
-                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
-                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
-                        : (selectedLevel === '2AS' || selectedLevel === 'all'
-                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
-                            : 'bg-white border border-purple-200 hover:bg-blue-50')
-                    }`}
-                    onClick={() => setSelectedLevel(selectedLevel === '2AS' ? 'all' : '2AS')}
-                  >
-                    <div className={`font-bold transition-colors duration-300 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '2AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
-                        : (selectedLevel === '2AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
-                    }`}>س2ث</div>
-                    <div className="text-sm text-gray-600">السنة الثانية ثانوي</div>
-                    {(selectedLevel === '2AS' || selectedLevel === 'all') && (
-                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
-                    )}
-                  </div>
-
-                  {/* س3ث */}
-                  <div 
-                    className={`rounded p-3 text-center transition-all duration-300 cursor-pointer hover:scale-105 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '3AS' || selectedLevel === 'all' 
-                            ? 'bg-green-100 border-2 border-green-500 shadow-lg transform scale-105' 
-                            : 'bg-green-50 border border-green-300 hover:bg-green-100')
-                        : (selectedLevel === '3AS' || selectedLevel === 'all'
-                            ? 'bg-blue-100 border-2 border-blue-500 shadow-lg transform scale-105'
-                            : 'bg-white border border-purple-200 hover:bg-blue-50')
-                    }`}
-                    onClick={() => setSelectedLevel(selectedLevel === '3AS' ? 'all' : '3AS')}
-                  >
-                    <div className={`font-bold transition-colors duration-300 ${
-                      hasAllLevels 
-                        ? (selectedLevel === '3AS' || selectedLevel === 'all' ? 'text-green-800' : 'text-green-700')
-                        : (selectedLevel === '3AS' || selectedLevel === 'all' ? 'text-blue-800' : 'text-purple-800')
-                    }`}>س3ث</div>
-                    <div className="text-sm text-gray-600">السنة الثالثة ثانوي</div>
-                    {(selectedLevel === '3AS' || selectedLevel === 'all') && (
-                      <div className="text-xs text-green-600 mt-1">✓ مختار</div>
-                    )}
-                  </div>
-                </>
-              ) : (
+              {!isHighSchool ? (
                 <>
                   {/* س1م */}
               <div 
@@ -2153,6 +2074,14 @@ const AnalysisResults: React.FC = () => {
                   <div className="text-xs text-green-600 mt-1">✓ مختار</div>
                 )}
               </div>
+                </>
+              ) : (
+                <>
+                  {/* Fallback for unexpected state */}
+                  <div className="bg-white border border-gray-200 rounded p-3 text-center">
+                    <div className="font-bold text-gray-800">—</div>
+                    <div className="text-sm text-gray-600">—</div>
+                  </div>
                 </>
               )}
             </>
@@ -2378,10 +2307,10 @@ const AnalysisResults: React.FC = () => {
                     {typeof success === 'number' ? `${success}%` : '—'}
                   </div>
                   <div className="text-sm text-gray-600">نسبة النجاح</div>
-                  <div className="text-xs text-gray-500 mt-1">الطلاب الناجحون</div>
+                  <div className="text-xs text-gray-500 mt-1">{currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} الناجحون</div>
                 </div>
 
-                {/* عدد الطلاب */}
+                {/* عدد {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} */}
                 <div className="bg-white rounded-xl p-6 shadow-md border border-blue-100 hover:shadow-lg transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-2xl">👥</div>
@@ -2508,10 +2437,10 @@ const AnalysisResults: React.FC = () => {
                       <strong>نسبة النجاح:</strong> {successLevel}
                     </div>
                     <div className="text-sm text-gray-700">
-                      <strong>إجمالي الطلاب:</strong> {present} طالب
+                      <strong>إجمالي {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}:</strong> {present} {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}
                     </div>
                     <div className="text-sm text-gray-700">
-                      <strong>الطلاب الناجحون:</strong> {Math.round((success * present) / 100)} طالب
+                      <strong>{currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} الناجحون:</strong> {Math.round((success * present) / 100)} {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}
                     </div>
                   </>
                 );
@@ -2552,7 +2481,7 @@ const AnalysisResults: React.FC = () => {
                     ونسبة نجاح <span className="font-bold text-green-700">{success}%</span>
                   </p>
                   <p className="text-base text-gray-600">
-                    من أصل <strong>{present}</strong> طالب، نجح <strong>{successfulStudents}</strong> طالب 
+                    من أصل <strong>{present}</strong> {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'}، نجح <strong>{successfulStudents}</strong> {currentCycle === 'ثانوي' ? 'طالب' : 'تلميذ'} 
                     ({successLevel})
                   </p>
                 </div>
@@ -2988,9 +2917,8 @@ const AnalysisResults: React.FC = () => {
                               if (orientation === 'تقني سامي') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني السامي';
                               if (orientation === 'مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم المهني';
                               if (orientation === 'تدريب مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو التدريب المهني';
-                              if (orientation === 'ثانوي علمي') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي العلمي';
-                              if (orientation === 'ثانوي تقني') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي التقني';
-                              if (orientation === 'ثانوي مهني') return 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي المهني';
+                              if (orientation === 'علمي') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم العلمي';
+                              if (orientation === 'تقني') return 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني';
                               if (orientation === 'إعادة السنة') return 'تقدير مؤقت: يُنصح بإعادة السنة لتحسين الأداء';
                               return 'يحتاج إلى مزيد من البيانات لتحديد التوجه المناسب';
                             })()}
@@ -3160,9 +3088,9 @@ const AnalysisResults: React.FC = () => {
                   'إعادة السنة': 'from-red-50 to-orange-50 border-red-200 text-red-800',
                   'غير محدد': 'from-gray-50 to-slate-50 border-gray-200 text-gray-800'
                 } : {
-                  'ثانوي علمي': 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
-                  'ثانوي تقني': 'from-green-50 to-emerald-50 border-green-200 text-green-800',
-                  'ثانوي مهني': 'from-purple-50 to-violet-50 border-purple-200 text-purple-800',
+                  'علمي': 'from-blue-50 to-cyan-50 border-blue-200 text-blue-800',
+                  'تقني': 'from-green-50 to-emerald-50 border-green-200 text-green-800',
+                  'مهني': 'from-purple-50 to-violet-50 border-purple-200 text-purple-800',
                   'إعادة السنة': 'from-red-50 to-orange-50 border-red-200 text-red-800',
                   'غير محدد': 'from-gray-50 to-slate-50 border-gray-200 text-gray-800'
                 };
@@ -3175,9 +3103,9 @@ const AnalysisResults: React.FC = () => {
                   'إعادة السنة': '🔄',
                   'غير محدد': '❓'
                 } : {
-                  'ثانوي علمي': '🔬',
-                  'ثانوي تقني': '⚙️',
-                  'ثانوي مهني': '🔧',
+                  'علمي': '🔬',
+                  'تقني': '⚙️',
+                  'مهني': '🔧',
                   'إعادة السنة': '🔄',
                   'غير محدد': '❓'
                 };
@@ -3202,9 +3130,8 @@ const AnalysisResults: React.FC = () => {
                           {orientation === 'تقني سامي' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني السامي'}
                           {orientation === 'مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم المهني'}
                           {orientation === 'تدريب مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو التدريب المهني'}
-                          {orientation === 'ثانوي علمي' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي العلمي'}
-                          {orientation === 'ثانوي تقني' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي التقني'}
-                          {orientation === 'ثانوي مهني' && 'تقدير مؤقت: يُنصح بالتوجه نحو الثانوي المهني'}
+                          {orientation === 'علمي' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم العلمي'}
+                          {orientation === 'تقني' && 'تقدير مؤقت: يُنصح بالتوجه نحو التعليم التقني'}
                           {orientation === 'إعادة السنة' && 'تقدير مؤقت: يُنصح بإعادة السنة لتحسين الأداء'}
                           {orientation === 'غير محدد' && 'يحتاج إلى مزيد من البيانات لتحديد التوجه المناسب'}
                         </div>
