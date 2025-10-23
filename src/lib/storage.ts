@@ -290,6 +290,49 @@ export const getScheduleDB = (cycle?: string) => getDBInstance(scheduleDB, cycle
 export const getAnalysisDB = (cycle?: string) => getDBInstance(analysisDB, cycle);
 export const getRecommendationsDB = (cycle?: string) => getDBInstance(recommendationsDB, cycle);
 
+// Schedule functions (persist interviews/appointments)
+export interface StoredScheduleSession {
+  id: string;
+  day: string;
+  time: string;
+  title: string;
+  description?: string;
+  sessionType: 'individual' | 'group';
+  level?: string;
+  group?: string;
+  studentId?: string;
+  // Optional manual entry fields for interviews (used when not selecting from lists)
+  manualLastName?: string; // اللقب
+  manualFirstName?: string; // الاسم
+  manualLevel?: string; // المستوى
+  manualSection?: string; // القسم
+  manualCohort?: string; // الفوج
+  targetType?: 'students' | 'class' | 'group';
+  studentIds?: string[];
+  // ISO date (YYYY-MM-DD) for the specific appointment date
+  date?: string;
+}
+
+export const getScheduleSessions = async (cycle?: string): Promise<StoredScheduleSession[]> => {
+  const items: StoredScheduleSession[] = [];
+  const db = getScheduleDB(cycle);
+  await db.iterate((value: StoredScheduleSession) => {
+    items.push(value);
+  });
+  return items;
+};
+
+export const upsertScheduleSession = async (session: StoredScheduleSession, cycle?: string): Promise<StoredScheduleSession> => {
+  const db = getScheduleDB(cycle);
+  await db.setItem(session.id, session);
+  return session;
+};
+
+export const deleteScheduleSession = async (id: string, cycle?: string): Promise<void> => {
+  const db = getScheduleDB(cycle);
+  await db.removeItem(id);
+};
+
 // Function to clear all student data for all cycles
 export const clearAllStudentData = async () => {
   try {
@@ -603,6 +646,11 @@ export const getTestResults = async (studentId?: string, cycle?: string): Promis
 export const getTestResult = async (id: string, cycle?: string): Promise<TestResult | null> => {
   const db = getTestResultsDB(cycle);
   return db.getItem(id);
+};
+
+export const deleteTestResult = async (id: string, cycle?: string): Promise<void> => {
+  const db = getTestResultsDB(cycle);
+  await db.removeItem(id);
 };
 
 // Bulk student upsert for spreadsheet imports

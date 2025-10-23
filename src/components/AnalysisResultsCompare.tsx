@@ -4,7 +4,7 @@ import { useCycle } from '../contexts/CycleContext';
 import { getStudents, getAnalysisDB } from '../lib/storage';
 import { BarChart3, RefreshCw } from 'lucide-react';
 
-const Tabs: React.FC = () => {
+  const Tabs: React.FC = () => {
   const location = useLocation();
   const { currentCycle } = useCycle();
   const isActive = (path: string) => location.pathname === path;
@@ -48,6 +48,826 @@ export default function AnalysisResultsCompare() {
     } catch (e) {
       console.error('Failed to reset annual analysis data', e);
       alert('تعذر تهيئة البيانات. حاول مرة أخرى.');
+    }
+  };
+
+
+  // Fonction pour imprimer les cartes individuelles des élèves - التحليل السنوي
+  const handlePrintStudentCards = () => {
+    // Utiliser les données de l'analyse annuelle (annualDetails)
+    if (!annualDetails || annualDetails.perStudent.length === 0) {
+      alert('لا توجد بيانات للطباعة');
+      return;
+    }
+
+    const studentsList = annualDetails.perStudent;
+
+    // Créer le contenu HTML pour l'impression
+    const printContent = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>بطاقات التلاميذ الفردية - التحليل السنوي</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
+          
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Amiri', Arial, sans-serif;
+            direction: rtl;
+            text-align: right;
+            line-height: 1.5;
+            background: white;
+            color: #1f2937;
+            font-size: 11px;
+            padding: 20px;
+          }
+          
+          .print-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          
+          .print-header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: bold;
+          }
+          
+          .print-header p {
+            font-size: 14px;
+            opacity: 0.9;
+          }
+          
+          .print-buttons {
+            margin-top: 15px;
+          }
+          
+          .print-buttons button {
+            background: #059669;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+          }
+          
+          .print-buttons button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+          }
+          
+          .print-buttons button.close-btn {
+            background: #dc2626;
+          }
+          
+          .student-card {
+            page-break-inside: avoid;
+            margin-bottom: 25px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            position: relative;
+            overflow: hidden;
+          }
+          
+          .student-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+          }
+          
+          .card-header {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            position: relative;
+          }
+          
+          .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            right: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #1d4ed8;
+          }
+          
+          .card-header h2 {
+            font-size: 20px;
+            margin-bottom: 5px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+          }
+          
+          .card-header p {
+            font-size: 13px;
+            margin: 0;
+            opacity: 0.9;
+          }
+          
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          
+          .info-section {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border-right: 4px solid #3b82f6;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          }
+          
+          .info-section.green {
+            border-right-color: #059669;
+            background: #f0fdf4;
+          }
+          
+          .info-section.blue {
+            border-right-color: #3b82f6;
+            background: #eff6ff;
+          }
+          
+          .info-section.purple {
+            border-right-color: #7c3aed;
+            background: #faf5ff;
+          }
+          
+          .info-section h3 {
+            font-size: 16px;
+            margin: 0 0 12px 0;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          
+          .info-section h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            border-radius: 2px;
+            background: currentColor;
+          }
+          
+          .info-section h3.blue {
+            color: #3b82f6;
+          }
+          
+          .info-section h3.green {
+            color: #059669;
+          }
+          
+          .info-section h3.purple {
+            color: #7c3aed;
+          }
+          
+          .info-section p {
+            margin: 6px 0;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+          }
+          
+          .info-section p:last-child {
+            border-bottom: none;
+          }
+          
+          .info-section p strong {
+            color: #374151;
+            font-weight: 600;
+          }
+          
+          .info-section p.highlight {
+            color: #059669;
+            font-weight: bold;
+            background: #ecfdf5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #d1fae5;
+          }
+          
+          .subjects-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+            margin-top: 10px;
+          }
+          
+          .subject-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+          }
+          
+          .subject-item:hover {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          .subject-item .subject-name {
+            font-weight: 600;
+            color: #374151;
+            flex: 1;
+          }
+          
+          .subject-item .subject-grade {
+            font-weight: bold;
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            min-width: 40px;
+            text-align: center;
+          }
+          
+          .subject-item .subject-grade.pass {
+            color: #059669;
+            background: #ecfdf5;
+            border: 1px solid #d1fae5;
+          }
+          
+          .subject-item .subject-grade.fail {
+            color: #dc2626;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+          }
+          
+          .card-footer {
+            margin-top: 20px;
+            padding: 15px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 8px;
+            text-align: center;
+            border-top: 3px solid #3b82f6;
+            position: relative;
+          }
+          
+          .card-footer::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            right: 50%;
+            transform: translateX(50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 10px solid #3b82f6;
+          }
+          
+          .card-footer p {
+            color: #64748b;
+            font-size: 12px;
+            margin: 0;
+            font-weight: 500;
+          }
+          
+          .student-number {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: #3b82f6;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          @media print {
+            body {
+              margin: 0;
+              padding: 15px;
+              font-size: 10px;
+            }
+            
+            .print-header {
+              margin-bottom: 20px;
+              padding: 15px;
+            }
+            
+            .print-header h1 {
+              font-size: 20px;
+            }
+            
+            .print-buttons {
+              display: none !important;
+            }
+            
+            .student-card {
+              page-break-inside: avoid;
+              margin-bottom: 20px;
+              padding: 15px;
+              box-shadow: none;
+              border: 1px solid #d1d5db;
+            }
+            
+            .info-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 15px;
+            }
+            
+            .subjects-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 8px;
+            }
+            
+            .info-section {
+              padding: 12px;
+            }
+            
+            .info-section h3 {
+              font-size: 14px;
+            }
+            
+            .info-section p {
+              font-size: 11px;
+            }
+            
+            .subject-item {
+              padding: 6px 10px;
+              font-size: 10px;
+            }
+            
+            .card-header h2 {
+              font-size: 18px;
+            }
+            
+            .student-number {
+              width: 25px;
+              height: 25px;
+              font-size: 12px;
+            }
+          }
+          
+          @page {
+            margin: 1cm;
+            size: A4;
+          }
+          
+          /* Styles pour les tableaux d'analyse */
+          .analysis-tables {
+            margin-bottom: 30px;
+          }
+          
+          .table-section {
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+          }
+          
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 15px;
+            text-align: center;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 8px;
+          }
+          
+          .analysis-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 12px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+          
+          .analysis-table th {
+            background: #1e40af;
+            color: white;
+            padding: 12px 8px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+          }
+          
+          .analysis-table td {
+            padding: 10px 8px;
+            text-align: center;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 11px;
+          }
+          
+          .analysis-table tr:nth-child(even) {
+            background: #f8fafc;
+          }
+          
+          .blue-text { color: #3b82f6; font-weight: bold; }
+          .green-text { color: #059669; font-weight: bold; }
+          .orange-text { color: #ea580c; font-weight: bold; }
+          .red-text { color: #dc2626; font-weight: bold; }
+          .gold-text { color: #d97706; font-weight: bold; }
+          
+          .gender-analysis {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+          }
+          
+          .gender-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 2px solid;
+          }
+          
+          .gender-card.female {
+            border-color: #ec4899;
+            background: linear-gradient(135deg, #fdf2f8, #fce7f3);
+          }
+          
+          .gender-card.male {
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+          }
+          
+          .gender-card h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            color: white;
+          }
+          
+          .gender-card.female h3 {
+            background: #ec4899;
+          }
+          
+          .gender-card.male h3 {
+            background: #3b82f6;
+          }
+          
+          .gender-stats p {
+            margin: 8px 0;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          }
+          
+          .gender-stats p:last-child {
+            border-bottom: none;
+          }
+          
+          .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          
+          .summary-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+          }
+          
+          .summary-card h4 {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            font-weight: 600;
+          }
+          
+          .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e40af;
+          }
+          
+          .evaluation-text {
+            text-align: center;
+            font-size: 16px;
+            color: #059669;
+            background: #f0fdf4;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #bbf7d0;
+          }
+          
+          @media print {
+            .analysis-tables {
+              margin-bottom: 20px;
+            }
+            
+            .table-section {
+              margin-bottom: 20px;
+            }
+            
+            .section-title {
+              font-size: 16px;
+              margin-bottom: 12px;
+            }
+            
+            .analysis-table {
+              font-size: 10px;
+            }
+            
+            .analysis-table th,
+            .analysis-table td {
+              padding: 8px 6px;
+              font-size: 10px;
+            }
+            
+            .gender-analysis {
+              gap: 15px;
+            }
+            
+            .gender-card {
+              padding: 15px;
+            }
+            
+            .gender-card h3 {
+              font-size: 16px;
+            }
+            
+            .gender-stats p {
+              font-size: 11px;
+            }
+            
+            .summary-cards {
+              gap: 10px;
+            }
+            
+            .summary-card {
+              padding: 12px;
+            }
+            
+            .summary-card h4 {
+              font-size: 10px;
+            }
+            
+            .summary-value {
+              font-size: 16px;
+            }
+            
+            .evaluation-text {
+              font-size: 14px;
+              padding: 12px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <!-- En-tête général -->
+        <div class="print-header">
+          <h1>بطاقات التحليل السنوي</h1>
+          <p>${currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'} - ${new Date().toLocaleDateString('ar-DZ')} - إجمالي التلاميذ: ${studentsList.length}</p>
+          <div class="print-buttons">
+            <button onclick="window.print()">🖨️ طباعة</button>
+            <button onclick="window.close()" class="close-btn">❌ إغلاق</button>
+          </div>
+        </div>
+        
+        <!-- Tableaux d'analyse -->
+        <div class="analysis-tables">
+          <!-- Indicateurs de performance -->
+          <div class="table-section">
+            <h2 class="section-title">مؤشرات الأداء الفصلي</h2>
+            <table class="analysis-table">
+              <thead>
+                <tr>
+                  <th>الفصل</th>
+                  <th>المعدل العام</th>
+                  <th>نسبة النجاح</th>
+                  <th>الانحراف المعياري</th>
+                  <th>عدد الحضور</th>
+                  <th>التقييم</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>ف1 الفصل الأول</td>
+                  <td class="blue-text">${metrics.s1.mean ? metrics.s1.mean.toFixed(2) : 'غير محدد'}</td>
+                  <td class="green-text">${metrics.s1.success ? metrics.s1.success.toFixed(1) + '%' : 'غير محدد'}</td>
+                  <td>${metrics.s1.std ? metrics.s1.std.toFixed(2) : 'غير محدد'}</td>
+                  <td>${metrics.s1.present || 0}</td>
+                  <td class="gold-text">${metrics.s1.mean ? (metrics.s1.mean >= 18 ? 'ممتاز' : metrics.s1.mean >= 14 ? 'جيد جداً' : metrics.s1.mean >= 12 ? 'جيد' : metrics.s1.mean >= 10 ? 'مقبول' : 'ضعيف') : 'غير محدد'}</td>
+                </tr>
+                <tr>
+                  <td>ف2 الفصل الثاني</td>
+                  <td class="green-text">${metrics.s2.mean ? metrics.s2.mean.toFixed(2) : 'غير محدد'}</td>
+                  <td class="green-text">${metrics.s2.success ? metrics.s2.success.toFixed(1) + '%' : 'غير محدد'}</td>
+                  <td>${metrics.s2.std ? metrics.s2.std.toFixed(2) : 'غير محدد'}</td>
+                  <td>${metrics.s2.present || 0}</td>
+                  <td class="gold-text">${metrics.s2.mean ? (metrics.s2.mean >= 18 ? 'ممتاز' : metrics.s2.mean >= 14 ? 'جيد جداً' : metrics.s2.mean >= 12 ? 'جيد' : metrics.s2.mean >= 10 ? 'مقبول' : 'ضعيف') : 'غير محدد'}</td>
+                </tr>
+                <tr>
+                  <td>ف3 الفصل الثالث</td>
+                  <td class="orange-text">${metrics.s3.mean ? metrics.s3.mean.toFixed(2) : 'غير محدد'}</td>
+                  <td class="green-text">${metrics.s3.success ? metrics.s3.success.toFixed(1) + '%' : 'غير محدد'}</td>
+                  <td>${metrics.s3.std ? metrics.s3.std.toFixed(2) : 'غير محدد'}</td>
+                  <td>${metrics.s3.present || 0}</td>
+                  <td class="gold-text">${metrics.s3.mean ? (metrics.s3.mean >= 18 ? 'ممتاز' : metrics.s3.mean >= 14 ? 'جيد جداً' : metrics.s3.mean >= 12 ? 'جيد' : metrics.s3.mean >= 10 ? 'مقبول' : 'ضعيف') : 'غير محدد'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <!-- Analyse par genre -->
+          <div class="table-section">
+            <h2 class="section-title">تحليل الأداء حسب الجنس</h2>
+            <div class="gender-analysis">
+              <div class="gender-card female">
+                <h3>الإناث</h3>
+                <div class="gender-stats">
+                  <p><strong>العدد الإجمالي:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'أنثى').length}</p>
+                  <p><strong>نسبة النجاح:</strong> <span class="green-text">${annualDetails.perStudent.filter(s => s.gender === 'أنثى' && s.annualAvg >= 10).length > 0 ? ((annualDetails.perStudent.filter(s => s.gender === 'أنثى' && s.annualAvg >= 10).length / annualDetails.perStudent.filter(s => s.gender === 'أنثى').length) * 100).toFixed(1) + '%' : '0%'}</span></p>
+                  <p><strong>نسبة الرسوب:</strong> <span class="red-text">${annualDetails.perStudent.filter(s => s.gender === 'أنثى' && s.annualAvg < 10).length > 0 ? ((annualDetails.perStudent.filter(s => s.gender === 'أنثى' && s.annualAvg < 10).length / annualDetails.perStudent.filter(s => s.gender === 'أنثى').length) * 100).toFixed(1) + '%' : '0%'}</span></p>
+                  <p><strong>المعدل العام:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'أنثى').length > 0 ? (annualDetails.perStudent.filter(s => s.gender === 'أنثى').reduce((sum, s) => sum + s.annualAvg, 0) / annualDetails.perStudent.filter(s => s.gender === 'أنثى').length).toFixed(2) : 'غير محدد'}</p>
+                  <p><strong>أحسن معدل:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'أنثى').length > 0 ? annualDetails.perStudent.filter(s => s.gender === 'أنثى').sort((a, b) => b.annualAvg - a.annualAvg)[0].name + ' (' + annualDetails.perStudent.filter(s => s.gender === 'أنثى').sort((a, b) => b.annualAvg - a.annualAvg)[0].annualAvg.toFixed(2) + ')' : 'غير محدد'}</p>
+                </div>
+              </div>
+              <div class="gender-card male">
+                <h3>الذكور</h3>
+                <div class="gender-stats">
+                  <p><strong>العدد الإجمالي:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'ذكر').length}</p>
+                  <p><strong>نسبة النجاح:</strong> <span class="green-text">${annualDetails.perStudent.filter(s => s.gender === 'ذكر' && s.annualAvg >= 10).length > 0 ? ((annualDetails.perStudent.filter(s => s.gender === 'ذكر' && s.annualAvg >= 10).length / annualDetails.perStudent.filter(s => s.gender === 'ذكر').length) * 100).toFixed(1) + '%' : '0%'}</span></p>
+                  <p><strong>نسبة الرسوب:</strong> <span class="red-text">${annualDetails.perStudent.filter(s => s.gender === 'ذكر' && s.annualAvg < 10).length > 0 ? ((annualDetails.perStudent.filter(s => s.gender === 'ذكر' && s.annualAvg < 10).length / annualDetails.perStudent.filter(s => s.gender === 'ذكر').length) * 100).toFixed(1) + '%' : '0%'}</span></p>
+                  <p><strong>المعدل العام:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'ذكر').length > 0 ? (annualDetails.perStudent.filter(s => s.gender === 'ذكر').reduce((sum, s) => sum + s.annualAvg, 0) / annualDetails.perStudent.filter(s => s.gender === 'ذكر').length).toFixed(2) : 'غير محدد'}</p>
+                  <p><strong>أحسن معدل:</strong> ${annualDetails.perStudent.filter(s => s.gender === 'ذكر').length > 0 ? annualDetails.perStudent.filter(s => s.gender === 'ذكر').sort((a, b) => b.annualAvg - a.annualAvg)[0].name + ' (' + annualDetails.perStudent.filter(s => s.gender === 'ذكر').sort((a, b) => b.annualAvg - a.annualAvg)[0].annualAvg.toFixed(2) + ')' : 'غير محدد'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Résumé annuel -->
+          <div class="table-section">
+            <h2 class="section-title">تقييم الأداء نهاية السنة</h2>
+            <div class="summary-cards">
+              <div class="summary-card">
+                <h4>عدد التلاميذ المحتسبين</h4>
+                <div class="summary-value">${annualDetails.perStudent.length}</div>
+              </div>
+              <div class="summary-card">
+                <h4>الانحراف المعياري السنوي</h4>
+                <div class="summary-value">${metrics.annual.std ? metrics.annual.std.toFixed(2) : 'غير محدد'}</div>
+              </div>
+              <div class="summary-card">
+                <h4>نسبة النجاح السنوية</h4>
+                <div class="summary-value">${metrics.annual.success ? metrics.annual.success.toFixed(1) + '%' : 'غير محدد'}</div>
+              </div>
+              <div class="summary-card">
+                <h4>المعدل السنوي</h4>
+                <div class="summary-value">${metrics.annual.mean ? metrics.annual.mean.toFixed(2) : 'غير محدد'}</div>
+              </div>
+            </div>
+            <div class="evaluation-text">
+              <strong>${metrics.annual.label || 'لا توجد بيانات كافية'}</strong>
+            </div>
+          </div>
+        </div>
+        
+        ${studentsList.map((student, index) => {
+          // Utiliser les données de l'analyse annuelle
+          const annualAverage = student.annualAvg;
+          
+          // Récupérer les données des matières depuis annualDetails
+          const subjectStats = annualDetails.subjectStats || [];
+          
+          // Créer la liste des matières avec leurs moyennes pour cet élève
+          const studentSubjects = subjectStats.map(subjectData => {
+            if (!subjectData || !subjectData.overall) return null;
+            
+            // Utiliser la moyenne générale de la matière
+            const subjectAverage = subjectData.overall.mean;
+            
+            return {
+              name: subjectData.label,
+              average: subjectAverage
+            };
+          }).filter((subject): subject is { name: string; average: number | null } => subject !== null);
+          
+          return `
+            <div class="student-card">
+              <!-- Numéro de l'élève -->
+              <div class="student-number">${index + 1}</div>
+              
+              <!-- En-tête de la carte -->
+              <div class="card-header">
+                <h2>بطاقة التلميذ الفردية</h2>
+                <p>${new Date().toLocaleDateString('ar-DZ')}</p>
+              </div>
+              
+              <!-- Informations de base -->
+              <div class="info-grid">
+                <div class="info-section">
+                  <h3 class="blue">معلومات التلميذ</h3>
+                  <p><strong>الاسم:</strong> <span>${student.name}</span></p>
+                  <p><strong>الجنس:</strong> <span>${student.gender === 'male' ? 'ذكر' : student.gender === 'female' ? 'أنثى' : student.gender}</span></p>
+                  <p><strong>الترتيب:</strong> <span>${index + 1}</span></p>
+                </div>
+                
+                <div class="info-section green">
+                  <h3 class="green">المعدل السنوي</h3>
+                  <p class="highlight"><strong>المعدل السنوي العام:</strong> <span>${annualAverage ? annualAverage.toFixed(1) : 'غير محدد'}</span></p>
+                  <p><strong>التقييم:</strong> <span>${annualAverage >= 18 ? 'ممتاز' : annualAverage >= 14 ? 'جيد جداً' : annualAverage >= 12 ? 'جيد' : annualAverage >= 10 ? 'مقبول' : 'ضعيف'}</span></p>
+                </div>
+              </div>
+              
+              <!-- Détails des matières -->
+              <div class="info-section purple">
+                <h3 class="purple">تفاصيل المواد السنوية</h3>
+                <div class="subjects-grid">
+                  ${studentSubjects.map(subject => {
+                    const isPass = subject.average !== null && subject.average >= 10;
+                    return `
+                      <div class="subject-item">
+                        <span class="subject-name">${subject.name}</span>
+                        <span class="subject-grade ${isPass ? 'pass' : 'fail'}">${subject.average ? subject.average.toFixed(1) : 'غير محدد'}</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+              
+              <!-- Pied de la carte -->
+              <div class="card-footer">
+                <p><strong>تم إنشاء هذه البطاقة في:</strong> ${new Date().toLocaleString('ar-DZ')}</p>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </body>
+      </html>
+    `;
+
+    // Ouvrir une nouvelle fenêtre pour l'impression
+    const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      // Attendre que le contenu soit chargé
+      printWindow.onload = () => {
+        console.log('Fenêtre d\'impression prête');
+      };
+      
+      // Focus sur la fenêtre d'impression
+      printWindow.focus();
+    } else {
+      alert('لا يمكن فتح نافذة الطباعة. تأكد من السماح للنوافذ المنبثقة.');
     }
   };
 
@@ -323,9 +1143,14 @@ export default function AnalysisResultsCompare() {
     return { perStudent, subjectStats };
   }, [sem1Students, sem2Students, sem3Students]);
 
-  // Prepare annual per-student list: cap to first 65 students
+  // Prepare annual per-student list
+  // On-screen: keep pagination
+  // For PDF: show all up to 65 students
   const annualMax = 65;
-  const annualList = useMemo(() => annualDetails.perStudent.slice(0, annualMax), [annualDetails.perStudent]);
+  const annualList = useMemo(() => {
+    const list = annualDetails.perStudent.slice(0, annualMax);
+    return list;
+  }, [annualDetails.perStudent]);
   // Pagination for annual per-student table
   const totalAnnual = annualList.length;
   const totalAnnualPages = Math.max(1, Math.ceil(totalAnnual / annualPageSize));
@@ -369,6 +1194,12 @@ export default function AnalysisResultsCompare() {
             <h1 className="text-3xl font-bold mb-2">التحليل السنوي - {currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button onClick={handlePrintStudentCards} className="bg-white text-purple-600 px-4 py-2 rounded-lg hover:bg-purple-50 flex items-center gap-2 font-medium shadow-md transition-all duration-200 hover:shadow-lg text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              طباعة البطاقات
+            </button>
             <button onClick={handleReset} className="bg-white text-red-600 px-4 py-2 rounded-lg hover:bg-red-50 flex items-center gap-2 font-medium shadow-md transition-all duration-200 hover:shadow-lg text-sm">
               <RefreshCw className="w-4 h-4" />
               تهيئة البيانات
@@ -392,7 +1223,7 @@ export default function AnalysisResultsCompare() {
           </p>
         </div>
       ) : (
-        <>
+        <div id="annual-analysis-content">
       {isLoading ? (
         <div className="bg-white rounded-lg border shadow-sm p-8 text-center text-gray-600">جاري تحميل البيانات...</div>
       ) : (
@@ -400,7 +1231,7 @@ export default function AnalysisResultsCompare() {
           {/* Always show cards and table structure */}
           <>
           {/* Available semesters indicator */}
-          <div className="bg-white rounded-lg border p-4">
+          <div id="available-semesters-section" className="bg-white rounded-lg border p-4">
             <div className="text-sm text-gray-700 mb-2 font-semibold">الفصول المتوفرة:</div>
             <div className="flex flex-wrap gap-2">
               {(metrics.s1.present ?? 0) > 0 && (
@@ -517,7 +1348,7 @@ export default function AnalysisResultsCompare() {
           </div>
 
           {/* Annual evaluation (requires all three semesters) */}
-          <div className="bg-white rounded-xl border p-6 shadow-sm">
+          <div id="annual-evaluation-section" className="bg-white rounded-xl border p-6 shadow-sm">
             <h3 className="text-2xl font-bold text-gray-800 mb-4">تقييم الأداء لنهاية السنة</h3>
             {(((metrics.s1.present ?? 0) > 0) && ((metrics.s2.present ?? 0) > 0) && ((metrics.s3.present ?? 0) > 0) && metrics.annual.mean != null) ? (
               <>
@@ -539,7 +1370,7 @@ export default function AnalysisResultsCompare() {
           </div>
 
           {/* Detailed annual summary */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200 p-8 shadow-lg">
+          <div id="annual-detailed-summary-section" className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200 p-8 shadow-lg">
             <div className="flex items-center justify-between mb-8">
               <h3 className="text-3xl font-bold text-slate-800 flex items-center">
                 <span className="text-4xl mr-4">📊</span>
@@ -777,7 +1608,7 @@ export default function AnalysisResultsCompare() {
             </div>
 
             {/* Gender Performance Analysis */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <div id="gender-performance-section" className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
               <h4 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
                 <span className="text-2xl mr-3">👥</span>
                 تحليل الأداء حسب الجنس
@@ -1039,7 +1870,7 @@ export default function AnalysisResultsCompare() {
           </div>
 
           {/* Annual per-student ranking */}
-          <div className="bg-white rounded-xl border p-6 shadow-sm">
+          <div id="annual-ranking-section" className="bg-white rounded-xl border p-6 shadow-sm">
             <h3 className="text-2xl font-bold text-gray-800 mb-4">ترتيب سنوي حسب المعدل العام للتلاميذ</h3>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300 text-sm">
@@ -1118,7 +1949,7 @@ export default function AnalysisResultsCompare() {
           </>
         </>
       )}
-        </>
+        </div>
       )}
     </div>
   );

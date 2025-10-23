@@ -421,15 +421,7 @@ export const createArabicHTMLContent = (data: any) => {
       </div>
       ` : ''}
       
-      <!-- Pied de page -->
-      <div style="margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 8px; text-align: center; border-top: 3px solid #3b82f6;">
-        <p style="color: #64748b; font-size: 14px; margin: 0;">
-          <strong>تم إنشاء هذا التقرير في:</strong> ${new Date().toLocaleString('ar-SA')}
-        </p>
-        <p style="color: #64748b; font-size: 12px; margin: 5px 0 0 0;">
       
-        </p>
-      </div>
     </div>
   `;
 };

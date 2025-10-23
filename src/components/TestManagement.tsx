@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import { Brain, Briefcase, Lightbulb, UserCircle2, Users, Sparkles, PlusCircle, PlayCircle, X, Save, Settings, FileText, Heart, Calculator, RefreshCw, ArrowRight } from 'lucide-react';
+import { Brain, Briefcase, Lightbulb, UserCircle2, Users, Sparkles, PlusCircle, PlayCircle, X, Save, Settings, Heart, Calculator, RefreshCw, ArrowRight, FileText } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import NewTest from './tests/NewTest';
@@ -9,245 +9,13 @@ import TestQuestions from './tests/TestQuestions';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-import { getStudents, Student, submitTestResult, getSettings, updateSettings, AppSettings, createTest, getTestResults, TestResult } from '../lib/storage';
+import { getStudents, Student, submitTestResult, getSettings, updateSettings, AppSettings, createTest, getTestResults, TestResult, deleteTestResult } from '../lib/storage';
 import { useCycle } from '../contexts/CycleContext';
 import { getQuestionsByType, getTestTypeTitle, getTestDescription, creativeQuestions, socialQuestions, evaluateCreativeTest, evaluateSocialTest } from '../data/testQuestions';
 
 const testTypes = [];
 
-// Test Results Section Component
-function TestResultsSection({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
-  const { currentCycle } = useCycle();
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filteredResults, setFilteredResults] = useState<TestResult[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<string>('all');
-  const [selectedTestType, setSelectedTestType] = useState<string>('all');
-
-  useEffect(() => {
-    loadData();
-  }, [currentCycle]);
-
-  useEffect(() => {
-    filterResults();
-  }, [testResults, selectedStudent, selectedTestType]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [results, studentsData] = await Promise.all([
-        getTestResults(undefined, currentCycle),
-        getStudents()
-      ]);
-      setTestResults(results);
-      setStudents(studentsData);
-    } catch (error) {
-      console.error('Error loading test results:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterResults = () => {
-    let filtered = testResults;
-
-    if (selectedStudent !== 'all') {
-      filtered = filtered.filter(result => result.studentId === selectedStudent);
-    }
-
-    if (selectedTestType !== 'all') {
-      filtered = filtered.filter(result => result.testId === selectedTestType);
-    }
-
-    setFilteredResults(filtered);
-  };
-
-  const getTestTypeTitle = (testId: string) => {
-    const testTypeMap: { [key: string]: string } = {
-      'cognitive_abilities': 'القدرات الفكرية',
-      'professional_orientation': 'الميول المهنية',
-      'emotional_intelligence': 'الذكاء العاطفي',
-      'personality': 'الشخصية',
-      'representational_styles': 'الأنماط التمثيلية',
-      'creative_thinking': 'التفكير الإبداعي',
-      'social_skills': 'المهارات الاجتماعية',
-      'subject_inclination': 'الميول نحو المواد'
-    };
-    return testTypeMap[testId] || testId;
-  };
-
-  const getStudentName = (studentId: string) => {
-    const student = students.find(s => s.id === studentId);
-    return student ? `${student.firstName} ${student.lastName}` : 'طالب غير معروف';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getScoreLevel = (score: number) => {
-    if (score >= 80) return 'ممتاز';
-    if (score >= 60) return 'جيد';
-    if (score >= 40) return 'متوسط';
-    return 'ضعيف';
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">جاري تحميل النتائج...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">نتائج الاختبارات</h2>
-            <p className="text-gray-600 mt-1">عرض وإدارة جميع نتائج الاختبارات المكتملة</p>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold text-blue-600">{filteredResults.length}</div>
-            <div className="text-sm text-gray-500">نتيجة اختبار</div>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">{currentCycle === 'ثانوي' ? 'الطالب' : 'التلميذ'}</label>
-            <select
-              value={selectedStudent}
-              onChange={(e) => setSelectedStudent(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">{currentCycle === 'ثانوي' ? 'جميع الطلاب' : 'جميع التلاميذ'}</option>
-              {students.map(student => (
-                <option key={student.id} value={student.id}>
-                  {student.firstName} {student.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">نوع الاختبار</label>
-            <select
-              value={selectedTestType}
-              onChange={(e) => setSelectedTestType(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">جميع الاختبارات</option>
-              <option value="cognitive_abilities">القدرات الفكرية</option>
-              <option value="professional_orientation">الميول المهنية</option>
-              <option value="emotional_intelligence">الذكاء العاطفي</option>
-              <option value="personality">الشخصية</option>
-              <option value="representational_styles">الأنماط التمثيلية</option>
-              <option value="creative_thinking">التفكير الإبداعي</option>
-              <option value="social_skills">المهارات الاجتماعية</option>
-              <option value="subject_inclination">الميول نحو المواد</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={loadData}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              تحديث
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Results List */}
-      {filteredResults.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-8 border border-gray-200">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 mb-3">لا توجد نتائج اختبارات</h3>
-            <p className="text-gray-600 text-sm mb-6">
-              {selectedStudent !== 'all' || selectedTestType !== 'all' 
-                ? 'لا توجد نتائج تطابق الفلاتر المحددة'
-                : 'ابدأ بإنشاء اختبارات جديدة أو سجل نتائج الاختبارات المكتملة'
-              }
-            </p>
-            <button
-              onClick={() => setActiveTab('types')}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 font-semibold text-sm shadow-lg hover:shadow-xl transform hover:scale-105 mx-auto"
-            >
-              <Brain className="w-4 h-4" />
-              <span>عرض أنواع الاختبارات</span>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredResults.map((result) => (
-            <div key={result.id} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">
-                    {getTestTypeTitle(result.testId)}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {getStudentName(result.studentId)}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatDate(result.completedAt)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className={`text-2xl font-bold ${getScoreColor(result.score)}`}>
-                    {result.score}%
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {getScoreLevel(result.score)}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                <div 
-                  className={`h-2 rounded-full transition-all duration-1000 ${
-                    result.score >= 80 ? 'bg-green-500' : 
-                    result.score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${result.score}%` }}
-                ></div>
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>{result.answers.length} سؤال</span>
-                <span>مكتمل</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// Results section removed
 
 function TestList() {
   const { currentCycle, getCycleConfig } = useCycle();
@@ -292,7 +60,8 @@ function TestList() {
     wilaya: '',
     date: '',
     counselorName: '',
-    academicYear: ''
+    academicYear: '',
+    group: ''
   });
   const [repResults, setRepResults] = useState<{
     score: number;
@@ -312,7 +81,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     date: '',
     counselorName: '',
-    academicYear: ''
+    academicYear: '',
+    wilaya: '',
+    group: ''
   });
   const [creativeResults, setCreativeResults] = useState<{
     score: number;
@@ -339,7 +110,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     counselorName: '',
     academicYear: '',
-    date: ''
+    date: '',
+    wilaya: '',
+    group: ''
   });
   const [repRanks, setRepRanks] = useState<Record<number, { a: number; b: number; c: number }>>({});
 
@@ -373,7 +146,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     counselorName: '',
     academicYear: '',
-    date: ''
+    date: '',
+    wilaya: '',
+    group: ''
   });
   const [personalitySaving, setPersonalitySaving] = useState(false);
   const [personalityResults, setPersonalityResults] = useState<{
@@ -393,33 +168,33 @@ function TestList() {
   const resetCreativeTest = () => {
     setCreativeAnswers({});
     setCreativeSelectedStudent('');
-    setCreativePersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '' });
+    setCreativePersonalInfo({ name: '', surname: '', section: '', schoolType: '', date: '', wilaya: '', group: '' });
   };
 
   const resetSocialTest = () => {
     setSocialAnswers({});
     setSocialSelectedStudent('');
-    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
+    setSocialPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '', wilaya: '', group: '' });
   };
 
   const resetProfessionalTest = () => {
     setProfessionalAnswers({});
     setProfessionalSelectedStudent('');
-    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
+    setProfessionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '', wilaya: '', group: '' });
     setProfessionalResults(null);
   };
 
   const resetCognitiveTest = () => {
     setCognitiveAnswers({});
     setCognitiveSelectedStudent('');
-    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '' });
+    setCognitivePersonalInfo({ name: '', surname: '', section: '', schoolType: getCycleConfig(currentCycle).schoolName, counselorName: '', academicYear: '', date: '', wilaya: '', group: '' });
     setCognitiveResults(null);
   };
 
   const resetEmotionalTest = () => {
     setEmotionalAnswers({});
     setEmotionalSelectedStudent('');
-    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '' });
+    setEmotionalPersonalInfo({ name: '', surname: '', section: '', schoolType: '', counselorName: '', academicYear: '', date: '', wilaya: '', group: '' });
     setEmotionalResults(null as any);
   };
   const [professionalSelectedStudent, setProfessionalSelectedStudent] = useState<string>('');
@@ -435,7 +210,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     counselorName: '',
     academicYear: '',
-    date: ''
+    date: '',
+    wilaya: '',
+    group: ''
   });
   const [cognitiveSaving, setCognitiveSaving] = useState(false);
   const [cognitiveResults, setCognitiveResults] = useState<{
@@ -459,7 +236,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     counselorName: '',
     academicYear: '',
-    date: ''
+    date: '',
+    wilaya: '',
+    group: ''
   });
   const [emotionalSaving, setEmotionalSaving] = useState(false);
   const [emotionalResults, setEmotionalResults] = useState<{
@@ -478,7 +257,9 @@ function TestList() {
         schoolType: getCycleConfig(currentCycle).schoolName,
     counselorName: '',
     academicYear: '',
-    date: ''
+    date: '',
+    wilaya: '',
+    group: ''
   });
   const [professionalSaving, setProfessionalSaving] = useState(false);
   const [professionalResults, setProfessionalResults] = useState<{
@@ -498,7 +279,11 @@ function TestList() {
     section: '',
     highSchool: '',
     date: '',
-    schoolType: 'المتوسطة'
+    schoolType: 'المتوسطة',
+    counselorName: '',
+    academicYear: '',
+    wilaya: '',
+    group: ''
   });
   
   // Text answer states for questions 12, 13, 14
@@ -1885,7 +1670,7 @@ function TestList() {
               <!-- Left Side: directorate -->
               <div style="text-align: right; direction: rtl; flex: 1;">
                 <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">
-                  مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}
+                  مديرية التربية لولاية ${personalityPersonalInfo.wilaya || 'مستغانم'}
                 </div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; direction: rtl; text-align: right; white-space: nowrap;">
                   <span style="font-weight: bold;">نوع المؤسسة :</span>
@@ -1907,7 +1692,7 @@ function TestList() {
             
             <!-- Report Title -->
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center;">
+              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center; width: 100%;">
                 تقرير اختبار التوجه الشخصي
               </h1>
             </div>
@@ -1917,14 +1702,14 @@ function TestList() {
             <h3 style="color: #2c5aa0; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName}</p>
                 <p><strong>المستوى:</strong> ${student?.level || personalityPersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || personalityPersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${personalityPersonalInfo.schoolType || getCycleConfig(currentCycle).schoolName}</p>
                 <p><strong>السنة الدراسية:</strong> ${(personalityPersonalInfo as any).academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${personalityPersonalInfo.date || new Date().toLocaleDateString('ar-SA')}</p>
+            <p><strong>تاريخ الإجراء:</strong> ${personalityPersonalInfo.date || new Date().toISOString().split('T')[0]}</p>
               </div>
             </div>
           </div>
@@ -2013,12 +1798,7 @@ function TestList() {
             </div>
           </div>
           
-          <!-- Footer -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">
-              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
-            </div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
       
@@ -2705,6 +2485,7 @@ function TestList() {
       const counselorName = (repPersonalInfo as any).counselorName || settings?.counselorName || 'غير محدد';
       const schoolType = repPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
       const procedureDate = repPersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = (repPersonalInfo as any).academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
       
       // Create HTML content for PDF with charts
@@ -2746,7 +2527,7 @@ function TestList() {
               <!-- Right side (extreme right): Directorate block -->
               <div style="text-align: right; direction: rtl;">
                 <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">
-                  مديرية التربية لولاية مستغانم
+                  مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}
                 </div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">
                   <span style="font-weight: bold;">نوع المؤسسة :</span>
@@ -2761,7 +2542,7 @@ function TestList() {
 
             <!-- Report Title -->
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center;">
+              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center; width: 100%;">
                 تقرير اختبار الأنماط التمثيلية
               </h1>
             </div>
@@ -2771,12 +2552,12 @@ function TestList() {
             <h3 style="color: #2c5aa0; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName}</p>
                 <p><strong>المستوى:</strong> ${student?.level || repPersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || repPersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -2931,12 +2712,7 @@ function TestList() {
             </p>
           </div>
           
-          <!-- Footer -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">
-              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
-            </div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
       
@@ -3004,7 +2780,8 @@ function TestList() {
       const student = students.find(s => s.id === creativeSelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${creativePersonalInfo.name} ${creativePersonalInfo.surname}`;
       const schoolType = creativePersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
-      const procedureDate = creativePersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const procedureDate = creativePersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
       const htmlContent = `
@@ -3031,13 +2808,13 @@ function TestList() {
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${creativePersonalInfo.academicYear || academicYear}</div>
               </div>
               <div style="text-align: right; direction: rtl;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${creativePersonalInfo.wilaya || 'مستغانم'}</div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${creativePersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
               </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #7e22ce; margin: 0; font-size: 20px; border: 2px solid #7e22ce; padding: 10px; border-radius: 8px; background: #faf5ff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار التفكير الإبداعي</h1>
+              <h1 style="color: #7e22ce; margin: 0; font-size: 20px; border: 2px solid #7e22ce; padding: 10px; border-radius: 8px; background: #faf5ff; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير اختبار التفكير الإبداعي</h1>
             </div>
           </div>
 
@@ -3046,14 +2823,14 @@ function TestList() {
             <h3 style="color: #7e22ce; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
                 <p><strong>المستوى:</strong> ${student?.level || creativePersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || creativePersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
                 <p><strong>السنة الدراسية:</strong> ${academicYear}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -3108,12 +2885,7 @@ function TestList() {
             </p>
           </div>
 
-          <!-- Footer -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">
-              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
-            </div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
 
@@ -3173,7 +2945,8 @@ function TestList() {
       const student = students.find(s => s.id === socialSelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${socialPersonalInfo.name} ${socialPersonalInfo.surname}`;
       const schoolType = socialPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
-      const procedureDate = socialPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const procedureDate = socialPersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
       const htmlContent = `
@@ -3199,13 +2972,13 @@ function TestList() {
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${socialPersonalInfo.academicYear || academicYear}</div>
               </div>
               <div style="text-align: right; direction: rtl;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${socialPersonalInfo.wilaya || 'مستغانم'}</div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${socialPersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
               </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #059669; margin: 0; font-size: 20px; border: 2px solid #059669; padding: 10px; border-radius: 8px; background: #ecfdf5; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار المهارات الاجتماعية</h1>
+              <h1 style="color: #059669; margin: 0; font-size: 20px; border: 2px solid #059669; padding: 10px; border-radius: 8px; background: #ecfdf5; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير اختبار المهارات الاجتماعية</h1>
             </div>
           </div>
 
@@ -3213,14 +2986,14 @@ function TestList() {
             <h3 style="color: #059669; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
                 <p><strong>المستوى:</strong> ${student?.level || socialPersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || socialPersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
                 <p><strong>السنة الدراسية:</strong> ${socialPersonalInfo.academicYear || academicYear}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -3257,9 +3030,7 @@ function TestList() {
             </div>
           </div>
 
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي</div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
 
@@ -3355,7 +3126,8 @@ function TestList() {
       const student = students.find(s => s.id === professionalSelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${professionalPersonalInfo.name} ${professionalPersonalInfo.surname}`;
       const schoolType = professionalPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
-      const procedureDate = professionalPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const procedureDate = professionalPersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
       const htmlContent = `
@@ -3382,13 +3154,13 @@ function TestList() {
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${professionalPersonalInfo.academicYear || academicYear}</div>
               </div>
               <div style="text-align: right; direction: rtl;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${professionalPersonalInfo.wilaya || 'مستغانم'}</div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه :</span> <span>${professionalPersonalInfo.counselorName || settings?.counselorName || 'غير محدد'}</span></div>
               </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #0e7490; margin: 0; font-size: 20px; border: 2px solid #0e7490; padding: 10px; border-radius: 8px; background: #ecfeff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار الميول المهنية</h1>
+              <h1 style="color: #0e7490; margin: 0; font-size: 20px; border: 2px solid #0e7490; padding: 10px; border-radius: 8px; background: #ecfeff; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير اختبار الميول المهنية</h1>
             </div>
           </div>
 
@@ -3397,14 +3169,14 @@ function TestList() {
             <h3 style="color: #0e7490; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
                 <p><strong>المستوى:</strong> ${student?.level || professionalPersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || professionalPersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
                 <p><strong>السنة الدراسية:</strong> ${professionalPersonalInfo.academicYear || academicYear}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -3459,12 +3231,7 @@ function TestList() {
             </p>
           </div>
 
-          <!-- Footer -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">
-              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
-            </div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
 
@@ -3525,7 +3292,8 @@ function TestList() {
       const student = students.find(s => s.id === cognitiveSelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${cognitivePersonalInfo.name} ${cognitivePersonalInfo.surname}`;
       const schoolType = cognitivePersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
-      const procedureDate = cognitivePersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const procedureDate = cognitivePersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
       const htmlContent = `
@@ -3552,13 +3320,13 @@ function TestList() {
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${cognitivePersonalInfo.academicYear || academicYear}</div>
               </div>
               <div style="text-align: right; direction: rtl;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${cognitivePersonalInfo.wilaya || 'مستغانم'}</div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار التوجيه :</span> <span>${settings?.counselorName || 'غير محدد'}</span></div>
               </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار القدرات الفكرية</h1>
+              <h1 style="color: #2c5aa0; margin: 0; font-size: 20px; border: 2px solid #2c5aa0; padding: 10px; border-radius: 8px; background: #f0f9ff; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير اختبار القدرات الفكرية</h1>
             </div>
           </div>
 
@@ -3567,14 +3335,14 @@ function TestList() {
             <h3 style="color: #2c5aa0; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
                 <p><strong>المستوى:</strong> ${student?.level || cognitivePersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || cognitivePersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
                 <p><strong>السنة الدراسية:</strong> ${cognitivePersonalInfo.academicYear || academicYear}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -3614,12 +3382,7 @@ function TestList() {
             </p>
           </div>
 
-          <!-- Footer -->
-          <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center;">
-            <div style="font-size: 12px; color: #6b7280;">
-              تم إنشاء هذا التقرير في ${new Date().toLocaleDateString('ar-SA')} - نظام إدارة التوجيه المدرسي
-            </div>
-          </div>
+          <!-- Footer removed as requested -->
         </div>
       `;
 
@@ -3679,7 +3442,8 @@ function TestList() {
       const student = students.find(s => s.id === emotionalSelectedStudent);
       const studentName = student ? `${student.firstName} ${student.lastName}` : `${emotionalPersonalInfo.name} ${emotionalPersonalInfo.surname}`;
       const schoolType = emotionalPersonalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
-      const procedureDate = emotionalPersonalInfo.date || new Date().toLocaleDateString('ar-SA');
+      const procedureDate = emotionalPersonalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
       const academicYear = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
       const htmlContent = `
@@ -3706,13 +3470,13 @@ function TestList() {
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${academicYear}</div>
               </div>
               <div style="text-align: right; direction: rtl;">
-                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${repPersonalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${emotionalPersonalInfo.wilaya || 'مستغانم'}</div>
                 <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
                 <div style="font-size: 14px; color: #000; margin-top: 6px; white-space: nowrap;"><span style="font-weight: bold;">مستشار التوجيه :</span> <span>${settings?.counselorName || 'غير محدد'}</span></div>
               </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
-              <h1 style="color: #047857; margin: 0; font-size: 20px; border: 2px solid #047857; padding: 10px; border-radius: 8px; background: #ecfdf5; display: inline-flex; align-items: center; justify-content: center;">تقرير اختبار الذكاء العاطفي</h1>
+              <h1 style="color: #047857; margin: 0; font-size: 20px; border: 2px solid #047857; padding: 10px; border-radius: 8px; background: #ecfdf5; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير اختبار الذكاء العاطفي</h1>
             </div>
           </div>
 
@@ -3721,14 +3485,14 @@ function TestList() {
             <h3 style="color: #047857; margin-bottom: 10px;">معلومات التلميذ</h3>
             <div style="display: flex; justify-content: space-between;">
               <div style="flex: 1; margin-left: 20px;">
-                <p><strong>الاسم واللقب:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
                 <p><strong>المستوى:</strong> ${student?.level || emotionalPersonalInfo.section || ''}</p>
-                <p><strong>الفوج:</strong> ${student?.group || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || emotionalPersonalInfo.group || ''}</p>
               </div>
               <div style="flex: 1; margin-right: 20px;">
                 <p><strong>نوع المؤسسة:</strong> ${schoolType}</p>
                 <p><strong>السنة الدراسية:</strong> ${academicYear}</p>
-                <p><strong>تاريخ الإجراء:</strong> ${procedureDate}</p>
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
               </div>
             </div>
           </div>
@@ -3840,7 +3604,138 @@ function TestList() {
   };
 
   const exportSubjectInclinationPDF = async () => {
-    await exportPrintArea('تقرير الميول نحو المواد.pdf');
+    try {
+      const student = students.find(s => s.id === inclinationSelectedStudent);
+      const studentName = student ? `${student.firstName} ${student.lastName}` : `${personalInfo.name} ${personalInfo.surname}`;
+      const schoolType = personalInfo.schoolType || (currentCycle === 'ثانوي' ? 'ثانوية' : 'متوسطة');
+      const procedureDate = personalInfo.date || new Date().toISOString().split('T')[0];
+      const formattedProcedureDate = procedureDate.split('-').reverse().join('-');
+      const academicYear = personalInfo.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+      const domStream = scienceScore >= artsScore ? 'جدع مشترك علوم و تكنولوجيا' : 'جدع مشترك آداب';
+
+      const htmlContent = `
+        <div id="inclination-pdf-content" style="
+          font-family: 'Amiri', 'Arial', sans-serif;
+          direction: rtl;
+          text-align: right;
+          padding: 15px;
+          background: white;
+          color: black;
+          line-height: 1.5;
+          width: 794px;
+          min-height: 1123px;
+        ">
+          <!-- Header (aligned with الأنماط التمثيلية) -->
+          <div style="margin-bottom: 25px; border-bottom: 2px solid #000; padding-bottom: 15px; position: relative;">
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; color: #000; margin-bottom: 8px;">الجمهورية الجزائرية الديمقراطية الشعبية</div>
+              <div style="font-size: 16px; font-weight: bold; color: #000; margin-bottom: 8px;">وزارة التربية الوطنية</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 16px; direction: ltr;">
+              <div style="text-align: left;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مركز التوجيه و الإرشاد المدرسي و المهني</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;">السنة الدراسية: ${academicYear}</div>
+              </div>
+              <div style="text-align: right; direction: rtl;">
+                <div style="font-size: 16px; font-weight: bold; color: #000; white-space: nowrap;">مديرية التربية لولاية ${personalInfo.wilaya || 'مستغانم'}</div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">نوع المؤسسة :</span> <span>${schoolType}</span></div>
+                <div style="font-size: 14px; color: #000; margin-top: 4px; white-space: nowrap;"><span style="font-weight: bold;">مستشار(ة) التوجيه:</span> <span>${personalInfo.counselorName || 'غير محدد'}</span></div>
+              </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+              <h1 style="color: #1d4ed8; margin: 0; font-size: 20px; border: 2px solid #1d4ed8; padding: 10px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; width: 100%;">تقرير الميول نحو المواد</h1>
+            </div>
+          </div>
+
+          <!-- Student Info -->
+          <div style="margin-bottom: 20px; border-bottom: 2px solid #1d4ed8; padding-bottom: 15px;">
+            <h3 style="color: #1d4ed8; margin-bottom: 10px;">معلومات التلميذ</h3>
+            <div style="display: flex; justify-content: space-between;">
+              <div style="flex: 1; margin-left: 20px;">
+                <p><strong>اللقب والاسم:</strong> ${studentName || 'غير محدد'}</p>
+                <p><strong>المستوى:</strong> ${student?.level || personalInfo.section || ''}</p>
+                <p><strong>الفوج:</strong> ${student?.group || personalInfo.group || ''}</p>
+              </div>
+              <div style="flex: 1; margin-right: 20px;">
+                <p><strong>تاريخ الإجراء:</strong> ${formattedProcedureDate}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results Section -->
+          <div style="margin-bottom: 20px;">
+            <h3 style="color: #1d4ed8; margin-bottom: 10px;">النتائج</h3>
+            <div style="display: flex; gap: 12px;">
+              <div style="flex: 1; padding: 12px; border: 2px solid #60a5fa; border-radius: 8px; background: linear-gradient(135deg, #eff6ff, #dbeafe); text-align: center;">
+                <h4 style="color: #1d4ed8; margin: 0 0 8px 0; font-size: 14px;">مجموع علوم و تكنولوجيا</h4>
+                <div style="font-size: 28px; font-weight: 800; color: #1d4ed8;">${scienceScore}</div>
+              </div>
+              <div style="flex: 1; padding: 12px; border: 2px solid #c4b5fd; border-radius: 8px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); text-align: center;">
+                <h4 style="color: #4f46e5; margin: 0 0 8px 0; font-size: 14px;">مجموع آداب</h4>
+                <div style="font-size: 28px; font-weight: 800; color: #4f46e5;">${artsScore}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dominant / Recommendation -->
+          <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #f3f4f6, #e5e7eb); border-radius: 8px; border-right: 4px solid #2563eb;">
+            <h3 style="color: #1d4ed8; margin-bottom: 10px; font-size: 16px;">🎯 الجذع المقترح</h3>
+            <p style="font-size: 18px; font-weight: bold; color: #1f2937; text-align: center; padding: 12px; background: white; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">${domStream}</p>
+          </div>
+
+          <div style="margin-bottom: 15px;">
+            <h3 style="color: #1d4ed8; margin-bottom: 10px; font-size: 16px;">💡 التوصية</h3>
+            <div style="background: linear-gradient(135deg, #ecfeff, #cffafe); padding: 15px; border-radius: 8px; border-right: 4px solid #06b6d4; box-shadow: 0 2px 4px rgba(0,0,0,0.06);">
+              <p style="font-size: 14px; line-height: 1.6; color: #0e7490; margin: 0;">${recommendation || '—'}</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      tempDiv.style.width = '210mm';
+      document.body.appendChild(tempDiv);
+
+      try {
+        const fonts = (document as any).fonts;
+        if (fonts?.ready) await fonts.ready;
+      } catch (_) {}
+
+      const canvas = await html2canvas(tempDiv.firstElementChild as HTMLElement, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 794,
+        height: 1123,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: 794,
+        windowHeight: 1123
+      });
+
+      document.body.removeChild(tempDiv);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 0;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      pdf.save('تقرير الميول نحو المواد.pdf');
+    } catch (error: unknown) {
+      console.error('خطأ في إنشاء ملف PDF:', error);
+      alert(`حدث خطأ أثناء إنشاء ملف PDF: ${error instanceof Error ? error.message : 'خطأ غير معروف'}`);
+    }
   };
 
   // Save inclination test result
@@ -5052,16 +4947,6 @@ function TestList() {
                       <h6 className="font-semibold text-blue-800 mb-3">المعلومات الشخصية</h6>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-blue-700 mb-1">الاسم :</label>
-                          <input
-                            type="text"
-                            value={personalInfo.name}
-                            onChange={(e) => handlePersonalInfoChange('name', e.target.value)}
-                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
-                            placeholder="أدخل الاسم"
-                          />
-                        </div>
-                        <div>
                           <label className="block text-sm font-medium text-blue-700 mb-1">اللقب :</label>
                           <input
                             type="text"
@@ -5069,6 +4954,16 @@ function TestList() {
                             onChange={(e) => handlePersonalInfoChange('surname', e.target.value)}
                             className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
                             placeholder="أدخل اللقب"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">الاسم :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.name}
+                            onChange={(e) => handlePersonalInfoChange('name', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="أدخل الاسم"
                           />
                         </div>
                         <div>
@@ -5082,13 +4977,53 @@ function TestList() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-blue-700 mb-1">نوع المؤسسة :</label>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                           <input
                             type="text"
                             value={personalInfo.schoolType || ''}
                             onChange={(e) => handlePersonalInfoChange('schoolType', e.target.value)}
                             className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
                             placeholder={getCycleConfig(currentCycle).schoolName}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">مستشار(ة) التوجيه :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.counselorName || ''}
+                            onChange={(e) => handlePersonalInfoChange('counselorName', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="أدخل اسم مستشار(ة) التوجيه"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">السنة الدراسية :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.academicYear || ''}
+                            onChange={(e) => handlePersonalInfoChange('academicYear', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="مثال: 2025-2026"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">الولاية :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.wilaya || ''}
+                            onChange={(e) => handlePersonalInfoChange('wilaya', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="أدخل اسم الولاية"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-blue-700 mb-1">الفوج :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.group || ''}
+                            onChange={(e) => handlePersonalInfoChange('group', e.target.value)}
+                            className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                            placeholder="أدخل الفوج"
                           />
                         </div>
                         
@@ -5570,16 +5505,6 @@ function TestList() {
                       <h6 className="font-semibold text-purple-800 mb-3">المعلومات الشخصية</h6>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-purple-700 mb-1">الاسم :</label>
-                          <input
-                            type="text"
-                            value={personalInfo.name}
-                            onChange={(e) => handlePersonalInfoChange('name', e.target.value)}
-                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
-                            placeholder="أدخل الاسم"
-                          />
-                        </div>
-                        <div>
                           <label className="block text-sm font-medium text-purple-700 mb-1">اللقب :</label>
                           <input
                             type="text"
@@ -5587,6 +5512,16 @@ function TestList() {
                             onChange={(e) => handlePersonalInfoChange('surname', e.target.value)}
                             className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
                             placeholder="أدخل اللقب"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">الاسم :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.name}
+                            onChange={(e) => handlePersonalInfoChange('name', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="أدخل الاسم"
                           />
                         </div>
                         <div>
@@ -5600,13 +5535,53 @@ function TestList() {
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-purple-700 mb-1">نوع المؤسسة :</label>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                           <input
                             type="text"
                             value={personalInfo.schoolType || ''}
                             onChange={(e) => handlePersonalInfoChange('schoolType', e.target.value)}
                             className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
                             placeholder={getCycleConfig(currentCycle).schoolName}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">مستشار(ة) التوجيه :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.counselorName || ''}
+                            onChange={(e) => handlePersonalInfoChange('counselorName', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="أدخل اسم مستشار(ة) التوجيه"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">السنة الدراسية :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.academicYear || ''}
+                            onChange={(e) => handlePersonalInfoChange('academicYear', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="مثال: 2025-2026"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">الولاية :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.wilaya || ''}
+                            onChange={(e) => handlePersonalInfoChange('wilaya', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="أدخل اسم الولاية"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-purple-700 mb-1">الفوج :</label>
+                          <input
+                            type="text"
+                            value={personalInfo.group || ''}
+                            onChange={(e) => handlePersonalInfoChange('group', e.target.value)}
+                            className="w-full border-b-2 border-purple-300 px-2 py-1 focus:border-purple-500 focus:outline-none text-sm"
+                            placeholder="أدخل الفوج"
                           />
                         </div>
                         
@@ -6097,6 +6072,15 @@ function TestList() {
                 <div className="text-center mb-6">
                   <h4 className="text-2xl font-bold text-gray-800 mb-3">نتائج ميولك نحو المواد</h4>
                   <div className="w-24 h-1 bg-gradient-to-r from-blue-600 to-purple-600 mx-auto rounded-full mb-4"></div>
+                  <div className="mt-4 flex justify-center gap-2 no-print">
+                    <button
+                      onClick={exportSubjectInclinationPDF}
+                      className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      حفظ كـ PDF
+                    </button>
+                  </div>
                   
                   {/* معلومات الثلميذ */}
                   <div className="bg-white rounded-lg p-6 border-2 border-blue-200 shadow-lg max-w-2xl mx-auto">
@@ -6106,14 +6090,14 @@ function TestList() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                       <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                         <div className="text-center">
-                          <div className="text-sm font-medium text-gray-600 mb-2">الاسم</div>
-                          <div className="text-lg font-bold text-blue-700">{personalInfo.name || 'غير محدد'}</div>
+                      <div className="text-sm font-medium text-gray-600 mb-2">الاسم</div>
+                      <div className="text-lg font-bold text-blue-700">{(inclinationSelectedStudent ? (students.find(s => s.id === inclinationSelectedStudent)?.firstName || '') : personalInfo.name) || 'غير محدد'}</div>
                         </div>
                       </div>
                       <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                         <div className="text-center">
-                          <div className="text-sm font-medium text-gray-600 mb-2">اللقب</div>
-                          <div className="text-lg font-bold text-blue-700">{personalInfo.surname || 'غير محدد'}</div>
+                      <div className="text-sm font-medium text-gray-600 mb-2">اللقب</div>
+                      <div className="text-lg font-bold text-blue-700">{(inclinationSelectedStudent ? (students.find(s => s.id === inclinationSelectedStudent)?.lastName || '') : personalInfo.surname) || 'غير محدد'}</div>
                         </div>
                       </div>
                     </div>
@@ -6324,52 +6308,21 @@ function TestList() {
 
 
       {/* En-tête avec flèche de retour */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
-          title="Retour à la لوحة القيادة"
-        >
-          <ArrowRight className="w-5 h-5" />
-        </button>
-        
-        <h1 className="text-3xl font-bold text-gray-800">إدارة الإختبارات</h1>
+      <div className="mb-8">
+        <div className="flex items-center gap-4 mb-2">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+            title="Retour à la لوحة القيادة"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+          
+          <h1 className="text-3xl font-bold text-gray-800">إدارة الإختبارات</h1>
+        </div>
+        <p className="text-gray-600 text-sm mr-14">نظام شامل لإدارة وتقييم الاختبارات التعليمية</p>
       </div>
 
-      {/* Header Section with Enhanced Design */}
-      <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 mb-6 border border-blue-100 shadow-lg">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-3 rounded-xl shadow-lg">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-1">إدارة الإختبارات</h2>
-              <p className="text-gray-600 text-sm">نظام شامل لإدارة وتقييم الاختبارات التعليمية</p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              onClick={() => setShowResultModal(true)}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-5 py-3 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <div className="bg-white bg-opacity-20 rounded-full p-1.5">
-                <PlayCircle className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-semibold text-sm">تسجيل نتيجة اختبار</span>
-            </button>
-            <button
-              onClick={() => navigate('new')}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-3 rounded-lg transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <div className="bg-white bg-opacity-20 rounded-full p-1.5">
-                <PlusCircle className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-semibold text-sm">إنشاء اختبار جديد</span>
-            </button>
-          </div>
-        </div>
-      </div>
 
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
         <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
@@ -6387,24 +6340,13 @@ function TestList() {
                 <span>أنواع الاختبارات</span>
               </div>
             </button>
-            <button
-              onClick={() => setActiveTab('results')}
-              className={`px-6 py-3 text-sm font-semibold transition-all duration-300 ${
-                activeTab === 'results'
-                  ? 'border-b-2 border-blue-600 text-blue-700 bg-white shadow-sm'
-                  : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                <span>نتائج الاختبارات</span>
-              </div>
-            </button>
+            {/* Removed Results tab */}
           </div>
         </div>
 
         <div className="p-6">
-          {activeTab === 'types' ? (
+          {/* Only Types tab retained */}
+          {(
             <div className="space-y-6">
               {/* Main Test Types Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -6604,8 +6546,6 @@ function TestList() {
                 </div>
               </div>
             </div>
-          ) : (
-            <TestResultsSection setActiveTab={setActiveTab} />
           )}
         </div>
 
@@ -6626,16 +6566,6 @@ function TestList() {
                     <h6 className="font-semibold text-teal-800 mb-3">المعلومات الشخصية</h6>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-teal-700 mb-1">الاسم :</label>
-                        <input
-                          type="text"
-                          value={repPersonalInfo.name}
-                          onChange={(e) => handleRepPersonalInfoChange('name', e.target.value)}
-                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
-                          placeholder="أدخل الاسم"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-teal-700 mb-1">اللقب :</label>
                         <input
                           type="text"
@@ -6645,16 +6575,16 @@ function TestList() {
                           placeholder="أدخل اللقب"
                         />
                       </div>
-                <div>
-                  <label className="block text-sm font-medium text-teal-700 mb-1">الولاية :</label>
-                  <input
-                    type="text"
-                    value={repPersonalInfo.wilaya || ''}
-                    onChange={(e) => handleRepPersonalInfoChange('wilaya', e.target.value)}
-                    className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
-                    placeholder="أدخل اسم الولاية"
-                  />
-                </div>
+                      <div>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">الاسم :</label>
+                        <input
+                          type="text"
+                          value={repPersonalInfo.name}
+                          onChange={(e) => handleRepPersonalInfoChange('name', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder="أدخل الاسم"
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-teal-700 mb-1">القسم :</label>
                         <input
@@ -6666,7 +6596,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-teal-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                         <input
                           type="text"
                           value={repPersonalInfo.schoolType || ''}
@@ -6693,6 +6623,26 @@ function TestList() {
                           onChange={(e) => handleRepPersonalInfoChange('academicYear', e.target.value)}
                           className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
                           placeholder="مثال: 2025-2026"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">الولاية :</label>
+                        <input
+                          type="text"
+                          value={(repPersonalInfo as any).wilaya || ''}
+                          onChange={(e) => handleRepPersonalInfoChange('wilaya', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder="أدخل اسم الولاية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-teal-700 mb-1">الفوج :</label>
+                        <input
+                          type="text"
+                          value={repPersonalInfo.group || ''}
+                          onChange={(e) => handleRepPersonalInfoChange('group', e.target.value)}
+                          className="w-full border-b-2 border-teal-300 px-2 py-1 focus:border-teal-500 focus:outline-none text-sm"
+                          placeholder="أدخل الفوج"
                         />
                       </div>
                       <div className="col-span-2">
@@ -6861,16 +6811,6 @@ function TestList() {
                     <h6 className="font-semibold text-indigo-800 mb-3">المعلومات الشخصية</h6>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-indigo-700 mb-1">الاسم :</label>
-                        <input
-                          type="text"
-                          value={personalityPersonalInfo.name}
-                          onChange={(e) => handlePersonalityPersonalInfoChange('name', e.target.value)}
-                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
-                          placeholder="أدخل الاسم"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-indigo-700 mb-1">اللقب :</label>
                         <input
                           type="text"
@@ -6878,6 +6818,16 @@ function TestList() {
                           onChange={(e) => handlePersonalityPersonalInfoChange('surname', e.target.value)}
                           className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
                           placeholder="أدخل اللقب"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">الاسم :</label>
+                        <input
+                          type="text"
+                          value={personalityPersonalInfo.name}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('name', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="أدخل الاسم"
                         />
                       </div>
                       <div>
@@ -6891,7 +6841,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-indigo-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                         <input
                           type="text"
                           value={personalityPersonalInfo.schoolType || ''}
@@ -6918,6 +6868,26 @@ function TestList() {
                           onChange={(e) => handlePersonalityPersonalInfoChange('academicYear', e.target.value)}
                           className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
                           placeholder="مثال: 2025-2026"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">الولاية :</label>
+                        <input
+                          type="text"
+                          value={(personalityPersonalInfo as any).wilaya || ''}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('wilaya', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="أدخل اسم الولاية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-indigo-700 mb-1">الفوج :</label>
+                        <input
+                          type="text"
+                          value={(personalityPersonalInfo as any).group || ''}
+                          onChange={(e) => handlePersonalityPersonalInfoChange('group', e.target.value)}
+                          className="w-full border-b-2 border-indigo-300 px-2 py-1 focus:border-indigo-500 focus:outline-none text-sm"
+                          placeholder="أدخل الفوج"
                         />
                       </div>
                       <div className="col-span-2">
@@ -7081,16 +7051,6 @@ function TestList() {
                     <h6 className="font-semibold text-blue-800 mb-3">المعلومات الشخصية</h6>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-blue-700 mb-1">الاسم :</label>
-                        <input
-                          type="text"
-                          value={cognitivePersonalInfo.name}
-                          onChange={(e) => handleCognitivePersonalInfoChange('name', e.target.value)}
-                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
-                          placeholder="أدخل الاسم"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-blue-700 mb-1">اللقب :</label>
                         <input
                           type="text"
@@ -7098,6 +7058,16 @@ function TestList() {
                           onChange={(e) => handleCognitivePersonalInfoChange('surname', e.target.value)}
                           className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
                           placeholder="أدخل اللقب"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">الاسم :</label>
+                        <input
+                          type="text"
+                          value={cognitivePersonalInfo.name}
+                          onChange={(e) => handleCognitivePersonalInfoChange('name', e.target.value)}
+                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm"
+                          placeholder="أدخل الاسم"
                         />
                       </div>
                       <div>
@@ -7111,7 +7081,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-blue-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                         <input
                           type="text"
                           value={cognitivePersonalInfo.schoolType || ''}
@@ -7138,6 +7108,26 @@ function TestList() {
                           onChange={e => handleCognitivePersonalInfoChange('academicYear', e.target.value)}
                           className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
                           placeholder="مثال: 2025-2026"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">الولاية :</label>
+                        <input
+                          type="text"
+                          value={(cognitivePersonalInfo as any).wilaya || ''}
+                          onChange={e => handleCognitivePersonalInfoChange('wilaya', e.target.value)}
+                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
+                          placeholder="أدخل اسم الولاية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-700 mb-1">الفوج :</label>
+                        <input
+                          type="text"
+                          value={(cognitivePersonalInfo as any).group || ''}
+                          onChange={e => handleCognitivePersonalInfoChange('group', e.target.value)}
+                          className="w-full border-b-2 border-blue-300 px-2 py-1 focus:border-blue-500 focus:outline-none text-sm bg-white"
+                          placeholder="أدخل الفوج"
                         />
                       </div>
                       <div className="col-span-2">
@@ -7317,20 +7307,20 @@ function TestList() {
                     <h6 className="font-semibold text-emerald-800 mb-3">المعلومات الشخصية</h6>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
-                        <input
-                          type="text"
-                          value={professionalPersonalInfo.name}
-                          onChange={(e) => handleProfessionalPersonalInfoChange('name', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">اللقب</label>
                         <input
                           type="text"
                           value={professionalPersonalInfo.surname}
                           onChange={(e) => handleProfessionalPersonalInfoChange('surname', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                        <input
+                          type="text"
+                          value={professionalPersonalInfo.name}
+                          onChange={(e) => handleProfessionalPersonalInfoChange('name', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
@@ -7344,7 +7334,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                         <input
                           type="text"
                           value={professionalPersonalInfo.schoolType}
@@ -7371,6 +7361,26 @@ function TestList() {
                           onChange={(e) => handleProfessionalPersonalInfoChange('academicYear', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
                           placeholder="مثال: 2025-2026"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الولاية</label>
+                        <input
+                          type="text"
+                          value={professionalPersonalInfo.wilaya || ''}
+                          onChange={(e) => handleProfessionalPersonalInfoChange('wilaya', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="أدخل اسم الولاية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الفوج</label>
+                        <input
+                          type="text"
+                          value={professionalPersonalInfo.group || ''}
+                          onChange={(e) => handleProfessionalPersonalInfoChange('group', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="أدخل الفوج"
                         />
                       </div>
                     </div>
@@ -7540,16 +7550,6 @@ function TestList() {
                     <h6 className="font-semibold text-pink-800 mb-3">المعلومات الشخصية</h6>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
-                        <input
-                          type="text"
-                          value={emotionalPersonalInfo.name}
-                          onChange={(e) => handleEmotionalPersonalInfoChange('name', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-md"
-                          placeholder="أدخل الاسم"
-                        />
-                      </div>
-                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">اللقب</label>
                         <input
                           type="text"
@@ -7557,6 +7557,16 @@ function TestList() {
                           onChange={(e) => handleEmotionalPersonalInfoChange('surname', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-md"
                           placeholder="أدخل اللقب"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                        <input
+                          type="text"
+                          value={emotionalPersonalInfo.name}
+                          onChange={(e) => handleEmotionalPersonalInfoChange('name', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="أدخل الاسم"
                         />
                       </div>
                       <div>
@@ -7570,7 +7580,7 @@ function TestList() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                         <input
                           type="text"
                           value={emotionalPersonalInfo.schoolType}
@@ -7597,6 +7607,26 @@ function TestList() {
                           onChange={(e) => handleEmotionalPersonalInfoChange('academicYear', e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-md"
                           placeholder="مثال: 2025-2026"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الولاية</label>
+                        <input
+                          type="text"
+                          value={emotionalPersonalInfo.wilaya || ''}
+                          onChange={(e) => handleEmotionalPersonalInfoChange('wilaya', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="أدخل اسم الولاية"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">الفوج</label>
+                        <input
+                          type="text"
+                          value={emotionalPersonalInfo.group || ''}
+                          onChange={(e) => handleEmotionalPersonalInfoChange('group', e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md"
+                          placeholder="أدخل الفوج"
                         />
                       </div>
                       <div className="col-span-2">
@@ -7818,23 +7848,23 @@ function TestList() {
                   <h6 className="font-semibold text-purple-800 mb-3">معلومات شخصية</h6>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">اللقب</label>
                       <input
                         type="text"
-                        value={creativePersonalInfo.name}
-                        onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, name: e.target.value }))}
+                       value={creativePersonalInfo.surname}
+                       onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, surname: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="أدخل الاسم"
+                       placeholder="أدخل اللقب"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">اللقب</label>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
                       <input
                         type="text"
-                        value={creativePersonalInfo.surname}
-                        onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, surname: e.target.value }))}
+                       value={creativePersonalInfo.name}
+                       onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, name: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="أدخل اللقب"
+                       placeholder="أدخل الاسم"
                       />
                     </div>
                     <div>
@@ -7875,6 +7905,26 @@ function TestList() {
                     onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, academicYear: e.target.value }))}
                     className="w-full p-2 border border-gray-300 rounded-md"
                     placeholder="مثال: 2025-2026"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الولاية</label>
+                  <input
+                    type="text"
+                    value={creativePersonalInfo.wilaya}
+                    onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, wilaya: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="أدخل اسم الولاية"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الفوج</label>
+                  <input
+                    type="text"
+                    value={creativePersonalInfo.group}
+                    onChange={(e) => setCreativePersonalInfo(prev => ({ ...prev, group: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                    placeholder="أدخل الفوج"
                   />
                 </div>
                 <div className="col-span-2">
@@ -8089,16 +8139,6 @@ function TestList() {
                   <h6 className="font-semibold text-green-800 mb-3">معلومات شخصية</h6>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
-                      <input
-                        type="text"
-                        value={socialPersonalInfo.name}
-                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded-md"
-                        placeholder="أدخل الاسم"
-                      />
-                    </div>
-                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">اللقب</label>
                       <input
                         type="text"
@@ -8106,6 +8146,16 @@ function TestList() {
                         onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, surname: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
                         placeholder="أدخل اللقب"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+                      <input
+                        type="text"
+                        value={socialPersonalInfo.name}
+                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="أدخل الاسم"
                       />
                     </div>
                     <div>
@@ -8119,7 +8169,7 @@ function TestList() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{getCycleConfig(currentCycle).schoolName}</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">أدخل اسم {currentCycle === 'ثانوي' ? 'الثانوية' : 'المتوسطة'}:</label>
                       <input
                         type="text"
                         value={socialPersonalInfo.schoolType}
@@ -8146,6 +8196,26 @@ function TestList() {
                         onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, academicYear: e.target.value }))}
                         className="w-full p-2 border border-gray-300 rounded-md"
                         placeholder="مثال: 2025-2026"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">الولاية</label>
+                      <input
+                        type="text"
+                        value={socialPersonalInfo.wilaya || ''}
+                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, wilaya: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="أدخل اسم الولاية"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">الفوج</label>
+                      <input
+                        type="text"
+                        value={socialPersonalInfo.group || ''}
+                        onChange={(e) => setSocialPersonalInfo(prev => ({ ...prev, group: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                        placeholder="أدخل الفوج"
                       />
                     </div>
                     <div className="col-span-2">

@@ -36,33 +36,29 @@ export const UserInfo: React.FC = () => {
   const cycleInfo = getCycleInfo(user.email);
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-      <div className="flex items-center gap-3">
-        <div className="bg-blue-500 text-white p-2 rounded-full">
-          <User size={20} />
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+      <div className="flex items-center gap-2">
+        <div className="bg-blue-500 text-white p-1.5 rounded-full">
+          <User size={16} />
         </div>
-        <div>
-          <div className="font-medium text-gray-800">
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-gray-800 text-sm">
             {getUserDisplayName(user.email)}
           </div>
-          <div className="text-sm text-gray-600 flex items-center gap-1">
-            <Users size={14} />
+          <div className="text-xs text-gray-600 flex items-center gap-1">
+            <Users size={12} />
             {getUserType(user.email)}
           </div>
-          <div className="text-sm text-gray-600 flex items-center gap-1">
-            <cycleInfo.icon size={14} />
+          <div className="text-xs text-gray-600 flex items-center gap-1">
+            <cycleInfo.icon size={12} />
             Cycle {cycleInfo.label} ({cycleInfo.cycle})
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 truncate">
             {user.email}
           </div>
         </div>
       </div>
       
-      <div className="mt-3 text-xs text-blue-700 bg-blue-100 p-2 rounded">
-        <strong>ℹ️ Session isolée :</strong> Vos données sont séparées des autres utilisateurs. 
-        Cycle automatiquement sélectionné selon votre type d'établissement.
-      </div>
 
     </div>
   );

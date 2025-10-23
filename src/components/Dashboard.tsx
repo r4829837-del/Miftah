@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, Search, Archive, Upload, Save, X } from 'lucide-react';
+import { BookOpen, Search, Archive, Upload, Save, X, Calculator } from 'lucide-react';
 import { useCycle } from '../contexts/CycleContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useCycleStorage } from '../hooks/useCycleStorage';
@@ -193,10 +193,10 @@ function Dashboard() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/user-guide')}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors text-sm font-medium"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors font-medium"
             >
-              <BookOpen className="w-4 h-4" />
-              <span>دليل المستخدم</span>
+              <Calculator className="w-4 h-4" />
+              <span>دليل الحساب</span>
             </button>
             <button
               onClick={() => navigate('/method-guide')}
@@ -299,113 +299,117 @@ function Dashboard() {
               />
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  onClick={async () => {
-                    try {
-                      const data = await exportDatabase('متوسط');
-                      const dataStr = JSON.stringify({ cycle: 'متوسط', ...data }, null, 2);
-                      const blob = new Blob([dataStr], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `Miftah_Backup_Middle_${new Date().toISOString().split('T')[0]}.json`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
-                    } catch (e) {
-                      alert('تعذر حفظ نسخة احتياطية لدورة التعليم المتوسط');
-                    }
-                  }}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>حفظ (التعليم المتوسط فقط)</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const data = await exportDatabase('ثانوي');
-                      const dataStr = JSON.stringify({ cycle: 'ثانوي', ...data }, null, 2);
-                      const blob = new Blob([dataStr], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `Miftah_Backup_Secondary_${new Date().toISOString().split('T')[0]}.json`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
-                    } catch (e) {
-                      alert('تعذر حفظ نسخة احتياطية لدورة التعليم الثانوي');
-                    }
-                  }}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>حفظ (التعليم الثانوي فقط)</span>
-                </button>
-              </div>
-              {/* Restore per-cycle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="w-full">
-                  <input
-                    type="file"
-                    accept="application/json"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      try {
-                        const text = await file.text();
-                        const json = JSON.parse(text);
-                        await importDatabase(json, 'متوسط');
-                        alert('تمت استعادة نسخة دورة التعليم المتوسط بنجاح');
-                      } catch (err) {
-                        alert('تعذر استعادة نسخة دورة التعليم المتوسط');
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
-                    استعادة (التعليم المتوسط)
-                  </span>
-                </label>
-                <label className="w-full">
-                  <input
-                    type="file"
-                    accept="application/json"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      try {
-                        const text = await file.text();
-                        const json = JSON.parse(text);
-                        await importDatabase(json, 'ثانوي');
-                        alert('تمت استعادة نسخة دورة التعليم الثانوي بنجاح');
-                      } catch (err) {
-                        alert('تعذر استعادة نسخة دورة التعليم الثانوي');
-                      }
-                    }}
-                    className="hidden"
-                  />
-                  <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
-                    استعادة (التعليم الثانوي)
-                  </span>
-                </label>
-              </div>
-              <div className="flex gap-3">
-              <button
-                onClick={saveCompleteApplication}
-                className="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <Save className="w-4 h-4" />
-                <span>حفظ و تحميل</span>
-              </button>
+            <div className="flex flex-col gap-6">
+              {/* Section pour le cycle actuel seulement */}
+              {currentCycle === 'متوسط' && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="text-lg font-semibold text-blue-800 mb-3">دورة التعليم المتوسط</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const data = await exportDatabase('متوسط');
+                          const dataStr = JSON.stringify({ cycle: 'متوسط', ...data }, null, 2);
+                          const blob = new Blob([dataStr], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `Miftah_Backup_Middle_${new Date().toISOString().split('T')[0]}.json`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          alert('تعذر حفظ نسخة احتياطية لدورة التعليم المتوسط');
+                        }
+                      }}
+                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>حفظ نسخة احتياطية</span>
+                    </button>
+                    <label className="w-full">
+                      <input
+                        type="file"
+                        accept="application/json"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const text = await file.text();
+                            const json = JSON.parse(text);
+                            await importDatabase(json, 'متوسط');
+                            alert('تمت استعادة نسخة دورة التعليم المتوسط بنجاح');
+                          } catch (err) {
+                            alert('تعذر استعادة نسخة دورة التعليم المتوسط');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                        استيراد نسخة احتياطية
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {currentCycle === 'ثانوي' && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="text-lg font-semibold text-green-800 mb-3">دورة التعليم الثانوي</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const data = await exportDatabase('ثانوي');
+                          const dataStr = JSON.stringify({ cycle: 'ثانوي', ...data }, null, 2);
+                          const blob = new Blob([dataStr], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `Miftah_Backup_Secondary_${new Date().toISOString().split('T')[0]}.json`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          URL.revokeObjectURL(url);
+                        } catch (e) {
+                          alert('تعذر حفظ نسخة احتياطية لدورة التعليم الثانوي');
+                        }
+                      }}
+                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>حفظ نسخة احتياطية</span>
+                    </button>
+                    <label className="w-full">
+                      <input
+                        type="file"
+                        accept="application/json"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const text = await file.text();
+                            const json = JSON.parse(text);
+                            await importDatabase(json, 'ثانوي');
+                            alert('تمت استعادة نسخة دورة التعليم الثانوي بنجاح');
+                          } catch (err) {
+                            alert('تعذر استعادة نسخة دورة التعليم الثانوي');
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <span className="inline-flex w-full items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                        استيراد نسخة احتياطية
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end">
               <button
                 onClick={() => setShowBackupModal(false)}
-                className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+                className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 إلغاء
               </button>
@@ -417,10 +421,10 @@ function Dashboard() {
 
       {/* Modal de la video de demonstration */}
       {showVideoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl mx-4 relative">
             <div className="flex justify-between items-center p-4 border-b">
-              <h3 className="text-xl font-bold text-gray-800">دليل مرئي - دليل استخدام التطبيق</h3>
+              <h3 className="text-xl font-bold text-gray-800 flex-1">دليل مرئي - دليل استخدام التطبيق</h3>
               <button
                 onClick={() => setShowVideoModal(false)}
                 className="text-gray-500 hover:text-gray-700 transition-colors"
@@ -429,8 +433,8 @@ function Dashboard() {
               </button>
             </div>
             
-            <div className="p-4">
-              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+            <div className="p-6">
+              <div className="relative w-full mb-4" style={{ paddingBottom: '40%' }}>
                 <video
                   className="absolute top-0 left-0 w-full h-full rounded-lg"
                   controls
@@ -447,13 +451,13 @@ function Dashboard() {
                 </video>
               </div>
               
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start gap-3">
                   <Video className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-blue-800 mb-1">دليل مرئي شامل</h4>
                     <p className="text-sm text-blue-700">
-                      شاهد هذا الفيديو التعليمي لتعلم كيفية استخدام جميع ميزات تطبيق Appamine بسهولة وفعالية
+                      شاهد هذا الفيديو التعليمي لتعلم كيفية استخدام جميع ميزات تطبيق "مفتاح" بسهولة وفعالية
                     </p>
                   </div>
                 </div>

@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Upload, FileSpreadsheet, ArrowRight } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight, Download } from 'lucide-react';
 import { useCycle } from '../contexts/CycleContext';
 import { getAnalysisDB } from '../lib/storage';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type BemRow = Record<string, any>;
 type SemesterRecord = { students: any[]; semester: number };
@@ -143,6 +145,224 @@ export default function AnalysisBEM() {
       printWindow.close();
     }, 500);
   };
+
+  // Fonction améliorée pour générer un PDF complet et bien structuré
+  const handleGenerateCompletePDF = async () => {
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      let y = 20;
+
+      // Fonction pour vérifier si on a besoin d'une nouvelle page
+      const checkNewPage = (requiredSpace: number) => {
+        if (y + requiredSpace > pageHeight - 20) {
+          pdf.addPage();
+          y = 20;
+        }
+      };
+
+      // Fonction pour ajouter un titre de section
+      const addSectionTitle = (title: string) => {
+        checkNewPage(15);
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(title, margin, y);
+        y += 10;
+        
+        // Ligne de séparation
+        pdf.setDrawColor(0, 0, 0);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 8;
+      };
+
+      // Fonction pour ajouter des informations
+      const addInfo = (label: string, value: string | number) => {
+        checkNewPage(8);
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`${label}: ${value}`, margin, y);
+        y += 6;
+      };
+
+      // Page 1: En-tête et informations générales
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text('تحليل ش.ت.م - التعليم المتوسط', pageWidth / 2, y, { align: 'center' });
+      y += 15;
+
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('تقرير شامل للتحليل السنوي', pageWidth / 2, y, { align: 'center' });
+      y += 20;
+
+      // Informations générales
+      addSectionTitle('المعلومات العامة');
+      addInfo('إجمالي عدد التلاميذ', finalList.length);
+      addInfo('تاريخ التقرير', new Date().toLocaleDateString('ar-SA'));
+      addInfo('المرحلة التعليمية', 'التعليم المتوسط');
+
+      // Statistiques générales
+      if (finalList.length > 0) {
+        const totalStudents = finalList.length;
+        const sciencesCount = finalList.filter(s => s.orientation === 'جدع مشترك علوم').length;
+        const artsCount = finalList.filter(s => s.orientation === 'جدع مشترك آداب').length;
+        const repeatCount = finalList.filter(s => s.orientation === 'إعادة السنة').length;
+
+        addSectionTitle('الإحصائيات العامة');
+        addInfo('عدد التلاميذ الموجهين لجدع مشترك علوم', sciencesCount);
+        addInfo('عدد التلاميذ الموجهين لجدع مشترك آداب', artsCount);
+        addInfo('عدد التلاميذ المعادين', repeatCount);
+        addInfo('نسبة التوجيه للعلوم', `${((sciencesCount / totalStudents) * 100).toFixed(1)}%`);
+        addInfo('نسبة التوجيه للآداب', `${((artsCount / totalStudents) * 100).toFixed(1)}%`);
+      }
+
+      // Page 2: Tableau complet des 65 élèves
+      pdf.addPage();
+      y = 20;
+      
+      addSectionTitle('ترتيب سنوي حسب المعدل العام للتلاميذ');
+
+      // Préparer les données du tableau
+      const tableData = finalList.map((student, index) => [
+        index + 1,
+        student.name || 'غير محدد',
+        student.moyT1 ? Number(student.moyT1).toFixed(2) : '—',
+        student.moyT2 ? Number(student.moyT2).toFixed(2) : '—',
+        student.moyT3 ? Number(student.moyT3).toFixed(2) : '—',
+        student.moyAnnual ? Number(student.moyAnnual).toFixed(2) : '—',
+        student.moyBEM ? Number(student.moyBEM).toFixed(2) : '—',
+        student.moyPassage ? Number(student.moyPassage).toFixed(2) : '—',
+        student.orientation || 'غير محدد'
+      ]);
+
+      // Créer le tableau avec autoTable (API v5)
+      autoTable(pdf as any, {
+        head: [['الترتيب', 'الاسم واللقب', 'الفصل الأول', 'الفصل الثاني', 'الفصل الثالث', 'المعدل السنوي', 'معدل ش.ت.م', 'معدل الانتقال', 'التوجيه النهائي']],
+        body: tableData,
+        startY: y,
+        margin: { left: margin, right: margin },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          halign: 'center',
+          valign: 'middle'
+        },
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold'
+        },
+        alternateRowStyles: {
+          fillColor: [248, 250, 252]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 15 },
+          1: { halign: 'right', cellWidth: 35 },
+          2: { halign: 'center', cellWidth: 20 },
+          3: { halign: 'center', cellWidth: 20 },
+          4: { halign: 'center', cellWidth: 20 },
+          5: { halign: 'center', cellWidth: 25 },
+          6: { halign: 'center', cellWidth: 20 },
+          7: { halign: 'center', cellWidth: 25 },
+          8: { halign: 'center', cellWidth: 30 }
+        },
+        didDrawPage: (data: any) => {
+          // Ajouter le numéro de page
+          pdf.setFontSize(10);
+          pdf.text(`صفحة ${pdf.internal.getNumberOfPages()}`, pageWidth - margin, pageHeight - 10);
+        }
+      });
+
+      // Page 3: Analyse détaillée par sections
+      pdf.addPage();
+      y = 20;
+
+      addSectionTitle('التحليل التفصيلي');
+
+      // Analyse des moyennes
+      if (finalList.length > 0) {
+        const moyT1Values = finalList.map(s => Number(s.moyT1 || 0)).filter(v => v > 0);
+        const moyT2Values = finalList.map(s => Number(s.moyT2 || 0)).filter(v => v > 0);
+        const moyT3Values = finalList.map(s => Number(s.moyT3 || 0)).filter(v => v > 0);
+        const moyAnnualValues = finalList.map(s => Number(s.moyAnnual || 0)).filter(v => v > 0);
+
+        addSectionTitle('معدلات الفصول');
+        if (moyT1Values.length > 0) {
+          const avgT1 = moyT1Values.reduce((a, b) => a + b, 0) / moyT1Values.length;
+          addInfo('متوسط الفصل الأول', avgT1.toFixed(2));
+        }
+        if (moyT2Values.length > 0) {
+          const avgT2 = moyT2Values.reduce((a, b) => a + b, 0) / moyT2Values.length;
+          addInfo('متوسط الفصل الثاني', avgT2.toFixed(2));
+        }
+        if (moyT3Values.length > 0) {
+          const avgT3 = moyT3Values.reduce((a, b) => a + b, 0) / moyT3Values.length;
+          addInfo('متوسط الفصل الثالث', avgT3.toFixed(2));
+        }
+        if (moyAnnualValues.length > 0) {
+          const avgAnnual = moyAnnualValues.reduce((a, b) => a + b, 0) / moyAnnualValues.length;
+          addInfo('المعدل السنوي العام', avgAnnual.toFixed(2));
+        }
+      }
+
+      // Page 4: Recommandations et évaluation
+      pdf.addPage();
+      y = 20;
+
+      addSectionTitle('التوصيات والتقييم');
+      
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+      
+      const recommendations = [
+        '• مراجعة المناهج والطرق التعليمية للمواد ذات المعدلات المنخفضة',
+        '• تنظيم حصص دعم إضافية للتلاميذ الذين يحتاجون إلى تحسين',
+        '• تشجيع التلاميذ المتميزين والمحافظة على مستواهم',
+        '• متابعة دورية لنتائج التلاميذ وتقديم الدعم اللازم',
+        '• تحسين البيئة التعليمية وتوفير الموارد اللازمة'
+      ];
+
+      recommendations.forEach(rec => {
+        checkNewPage(8);
+        pdf.text(rec, margin, y);
+        y += 6;
+      });
+
+      // Ajouter l'évaluation du conseiller si disponible
+      if (orientationEvaluation) {
+        checkNewPage(20);
+        addSectionTitle('تقييم مستشار(ة) التوجيه');
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'normal');
+        
+        const lines = pdf.splitTextToSize(orientationEvaluation, pageWidth - 2 * margin);
+        lines.forEach((line: string) => {
+          checkNewPage(6);
+          pdf.text(line, margin, y);
+          y += 6;
+        });
+      }
+
+      // Pied de page final
+      const footerY = pageHeight - 20;
+      pdf.setFontSize(10);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`تقرير تحليل ش.ت.م - التعليم المتوسط`, pageWidth / 2, footerY, { align: 'center' });
+
+      // Génération et téléchargement du PDF
+      const fileName = `تحليل_ش.ت.م_التعليم_المتوسط_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('حدث خطأ أثناء إنشاء PDF. حاول مرة أخرى.');
+    }
+  };
+
   const location = useLocation();
   const navigate = useNavigate();
   const isActive = (path: string) => location.pathname === path;
@@ -203,9 +423,14 @@ export default function AnalysisBEM() {
     if (savedBemData) {
       try {
         const parsedData = JSON.parse(savedBemData);
-        setBemRows(parsedData);
         console.log('Données BEM chargées depuis localStorage:', parsedData.length, 'lignes');
         console.log('Première ligne BEM:', parsedData[0]);
+        
+        // Forcer un re-rendu après le chargement des données
+        setTimeout(() => {
+          setBemRows(parsedData);
+          console.log('BEM rows mis à jour après délai');
+        }, 100);
       } catch (err) {
         console.error('Erreur lors du chargement des données BEM:', err);
       }
@@ -274,11 +499,21 @@ export default function AnalysisBEM() {
 
   // Compute final orientation list when inputs change
   useEffect(() => {
-    // Require at least T3 cohort to display the table
-    if (semData.T3.length === 0) {
+    console.log('=== DEBUG USEEFFECT PRINCIPAL ===');
+    console.log('bemRows.length:', bemRows.length);
+    console.log('semData.T3.length:', semData.T3.length);
+    console.log('bemRows:', bemRows);
+    console.log('semData:', semData);
+    
+    // Si on a des données BEM mais pas de données de semestre, on peut quand même afficher quelque chose
+    // Seulement si on n'a ni données BEM ni données de semestre, on vide la liste
+    if (bemRows.length === 0 && semData.T3.length === 0) {
+      console.log('Aucune donnée disponible, vidage de finalList');
       setFinalList([]);
       return;
     }
+    
+    console.log('Calcul en cours...');
 
     const normalizeArabic = (s: string): string => {
       return String(s || '')
@@ -348,69 +583,161 @@ export default function AnalysisBEM() {
     };
 
     const out: any[] = [];
-    // iterate over T3 as base cohort (الأقرب للتوجيه)
-    t3Idx.forEach((t3, rawName) => {
+    
+    // Déterminer quelle source de données utiliser comme base
+    const baseData = semData.T3.length > 0 ? t3Idx : bemIdx;
+    const dataSource = semData.T3.length > 0 ? 'T3' : 'BEM';
+    
+    console.log('=== DEBUG DATA SOURCE ===');
+    console.log('T3 length:', semData.T3.length);
+    console.log('BEM rows length:', bemRows.length);
+    console.log('Using data source:', dataSource);
+    console.log('Base data size:', baseData.size);
+    console.log('=== END DEBUG DATA SOURCE ===');
+    
+    // iterate over base data (T3 si disponible, sinon BEM)
+    baseData.forEach((baseRecord, rawName) => {
       const key = normalizeArabic(rawName);
       const t1 = t1Idx.get(key);
       const t2 = t2Idx.get(key);
+      const t3 = t3Idx.get(key);
       const bem = bemIdx.get(key);
+      
+      // Utiliser baseRecord comme source principale pour les moyennes
       const moyT1 = getMoy(t1, ['moyenneSem1', 'moyenneT1', 'moyenne', 'moyenneGenerale']);
       const moyT2 = getMoy(t2, ['moyenneSem2', 'moyenneT2', 'moyenne', 'moyenneGenerale']);
       const moyT3 = getMoy(t3, ['moyenneSem3', 'moyenneT3', 'moyenne', 'moyenneGenerale']);
+      
+      // Si on utilise BEM comme source principale, calculer les moyennes à partir des matières BEM
+      let finalMoyT1 = moyT1;
+      let finalMoyT2 = moyT2;
+      let finalMoyT3 = moyT3;
+      
+      if (dataSource === 'BEM' && bem) {
+        // Calculer les moyennes à partir des matières BEM (approximation)
+        const bemAverage = getBemAverage(bem);
+        if (bemAverage !== null && bemAverage > 0) {
+          // Utiliser la moyenne BEM comme approximation pour les 3 semestres
+          finalMoyT1 = bemAverage;
+          finalMoyT2 = bemAverage;
+          finalMoyT3 = bemAverage;
+        }
+      }
+      
       const hasBem = !!bemRows.length && !!bem;
       const moyBEM = hasBem ? getBemAverage(bem) : null;
       
-      // معدل التقويم = utiliser uniquement la valeur importée du fichier Excel
-      const moyEvaluation = hasBem ? getMoy(bem, ['معدل التقويم', 'moyenneEvaluation', 'moyenne_evaluation']) : null;
+      // معدل التقويم = (الفصل الأول + الفصل الثاني + الفصل الثالث) ÷ 3
+      const moyEvaluation = hasBem ? ((finalMoyT1 + finalMoyT2 + finalMoyT3) / 3) : null;
       
-      // معدل الإنتقال = (معدل الشهادة + المعدل السنوي العام) ÷ 2
-      const moyAnnual = (moyT1 + moyT2 + moyT3) / 3;
-      const moyPassage = (moyBEM != null && moyBEM > 0 && moyAnnual > 0) ? 
-        ((moyBEM + moyAnnual) / 2) : null;
+      // المعدل السنوي العام = (الفصل الأول + الفصل الثاني + الفصل الثالث) ÷ 3
+      const moyAnnual = (finalMoyT1 + finalMoyT2 + finalMoyT3) / 3;
+      
+      // معدل الإنتقال = (معدل الشهادة + معدل التقويم) ÷ 2
+      const moyPassage = (moyBEM != null && moyBEM > 0 && moyEvaluation != null && moyEvaluation > 0) ? 
+        ((moyBEM + moyEvaluation) / 2) : null;
+      
+      // Debug des calculs
+      console.log(`=== DEBUG CALCULS POUR ${rawName} ===`);
+      console.log('dataSource:', dataSource);
+      console.log('finalMoyT1:', finalMoyT1, 'finalMoyT2:', finalMoyT2, 'finalMoyT3:', finalMoyT3);
+      console.log('moyBEM:', moyBEM);
+      console.log('moyEvaluation:', moyEvaluation);
+      console.log('moyAnnual:', moyAnnual);
+      console.log('moyPassage:', moyPassage);
+      console.log('hasBem:', hasBem);
+      console.log('=== FIN DEBUG CALCULS ===');
 
-      // التوجيه النهائي ne peut être calculé que si معدل الإنتقال est disponible
+      // التوجيه النهائي - حساب محسن ومتسق
       let orientation = '';
+      let sciences = 0;
+      let arts = 0;
+      
+      // Critères d'orientation cohérents et précis
       if (moyPassage != null && moyPassage > 0) {
         if (moyPassage >= 10) {
           // Orientation basée sur les matières scientifiques vs littéraires
-          let sciences = 0;
-          let arts = 0;
+          let scienceCount = 0;
+          let artsCount = 0;
           
+          // Calculer les moyennes avec pondération et validation des données
           if (bem) {
-            // Calculer la moyenne des matières scientifiques
-            const sciSubjects = ['الرياضيات', 'ع الفيزيائية والتكنولوجيا', 'ع الطبيعة و الحياة', 'المعلوماتية'];
-            const sciScores = sciSubjects.map(subj => Number(bem[subj] || 0)).filter(score => score > 0);
-            sciences = sciScores.length > 0 ? sciScores.reduce((a, b) => a + b, 0) / sciScores.length : 0;
+            // Matières scientifiques avec noms multiples possibles
+            const sciSubjects = [
+              'الرياضيات', 'رياضيات', 'math', 'maths',
+              'ع الفيزيائية والتكنولوجيا', 'الفيزياء', 'فيزياء', 'physique', 'physics',
+              'ع الطبيعة و الحياة', 'العلوم الطبيعية', 'علوم طبيعية', 'sciences naturelles', 'natural sciences',
+              'المعلوماتية', 'إعلام آلي', 'informatique', 'computer science'
+            ];
             
-            // Calculer la moyenne des matières littéraires
-            const artSubjects = ['اللغة العربية', 'اللغة الفرنسية', 'اللغة الإنجليزية', 'التاريخ والجغرافيا'];
-            const artScores = artSubjects.map(subj => Number(bem[subj] || 0)).filter(score => score > 0);
-            arts = artScores.length > 0 ? artScores.reduce((a, b) => a + b, 0) / artScores.length : 0;
+            // Matières littéraires avec noms multiples possibles
+            const artSubjects = [
+              'اللغة العربية', 'عربية', 'arabic', 'arabe',
+              'اللغة الفرنسية', 'فرنسية', 'french', 'français',
+              'اللغة الإنجليزية', 'إنجليزية', 'english', 'anglais',
+              'التاريخ والجغرافيا', 'تاريخ', 'جغرافيا', 'histoire', 'géographie', 'history', 'geography'
+            ];
+            
+            // Calculer moyenne sciences
+            sciSubjects.forEach(subject => {
+              const score = Number(bem[subject] || 0);
+              if (score > 0 && score <= 20) { // Validation: note entre 0 et 20
+                sciences += score;
+                scienceCount++;
+              }
+            });
+            sciences = scienceCount > 0 ? sciences / scienceCount : 0;
+            
+            // Calculer moyenne arts
+            artSubjects.forEach(subject => {
+              const score = Number(bem[subject] || 0);
+              if (score > 0 && score <= 20) { // Validation: note entre 0 et 20
+                arts += score;
+                artsCount++;
+              }
+            });
+            arts = artsCount > 0 ? arts / artsCount : 0;
           }
           
-          // Si les données BEM ne sont pas disponibles, utiliser les moyennes des semestres
+          // Mécanisme de fallback amélioré
           if (sciences === 0 && arts === 0) {
-            // Fallback: orientation basée sur معدل الإنتقال
-            if (moyPassage >= 14) {
+            // Fallback 1: Utiliser les moyennes des semestres pour l'orientation
+            const moySciences = (moyT1 + moyT2 + moyT3) / 3;
+            
+            // Fallback 2: Critères basés sur معدل الإنتقال avec seuils plus précis
+            if (moyPassage >= 15) {
               orientation = 'جدع مشترك علوم';
-            } else {
+            } else if (moyPassage >= 12) {
               orientation = 'جدع مشترك أداب';
+            } else if (moyPassage >= 10) {
+              // Orientation mixte pour les moyennes moyennes
+              orientation = moySciences >= 12 ? 'جدع مشترك علوم' : 'جدع مشترك أداب';
             }
           } else {
-            // Orientation basée sur les matières BEM
-            if (sciences > arts) {
-              orientation = 'جدع مشترك علوم';
+            // Orientation basée sur les matières BEM avec seuil de différence
+            const difference = Math.abs(sciences - arts);
+            
+            if (difference >= 1.5) { // Différence significative
+              orientation = sciences > arts ? 'جدع مشترك علوم' : 'جدع مشترك أداب';
             } else {
-              orientation = 'جدع مشترك أداب';
+              // Différence faible: orientation basée sur معدل الإنتقال
+              if (moyPassage >= 14) {
+                orientation = 'جدع مشترك علوم';
+              } else {
+                orientation = 'جدع مشترك أداب';
+              }
             }
           }
         } else {
           orientation = 'إعادة السنة';
         }
+      } else {
+        // Pas de معدل الإنتقال calculable
+        orientation = 'غير محدد';
       }
 
-      // Use original display name if possible
-      const displayName = (t3?.['اللقب و الاسم'] || t3?.nom || rawName);
+      // Use original display name if possible - utiliser baseRecord comme source principale
+      const displayName = (baseRecord?.['اللقب و الاسم'] || baseRecord?.nom || baseRecord?.['الاسم و اللقب'] || rawName);
       
       // Récupérer les données de genre depuis les données importées
       const getGender = (rec: any) => {
@@ -425,13 +752,48 @@ export default function AnalysisBEM() {
         return '';
       };
       
-      const gender = getGender(t3) || getGender(t1) || getGender(t2) || getGender(bem);
+      const gender = getGender(baseRecord) || getGender(t1) || getGender(t2) || getGender(bem);
       
+      // Debug logging pour tracer les calculs d'orientation
+      if (displayName && String(displayName).trim()) {
+        console.log(`=== DEBUG ORIENTATION: ${String(displayName).trim()} ===`);
+        console.log(`finalMoyT1: ${finalMoyT1}, finalMoyT2: ${finalMoyT2}, finalMoyT3: ${finalMoyT3}`);
+        console.log(`moyBEM: ${moyBEM}, moyAnnual: ${moyAnnual}, moyPassage: ${moyPassage}`);
+        
+        // Recalculer pour debug
+        let debugSciences = 0;
+        let debugArts = 0;
+        if (bem && moyPassage != null && moyPassage > 0) {
+          const sciSubjects = [
+            'الرياضيات', 'رياضيات', 'math', 'maths',
+            'ع الفيزيائية والتكنولوجيا', 'الفيزياء', 'فيزياء', 'physique', 'physics',
+            'ع الطبيعة و الحياة', 'العلوم الطبيعية', 'علوم طبيعية', 'sciences naturelles', 'natural sciences',
+            'المعلوماتية', 'إعلام آلي', 'informatique', 'computer science'
+          ];
+          const artSubjects = [
+            'اللغة العربية', 'عربية', 'arabic', 'arabe',
+            'اللغة الفرنسية', 'فرنسية', 'french', 'français',
+            'اللغة الإنجليزية', 'إنجليزية', 'english', 'anglais',
+            'التاريخ والجغرافيا', 'تاريخ', 'جغرافيا', 'histoire', 'géographie', 'history', 'geography'
+          ];
+          
+          const sciScores = sciSubjects.map(subj => Number(bem[subj] || 0)).filter(score => score > 0 && score <= 20);
+          const artScores = artSubjects.map(subj => Number(bem[subj] || 0)).filter(score => score > 0 && score <= 20);
+          
+          debugSciences = sciScores.length > 0 ? sciScores.reduce((a, b) => a + b, 0) / sciScores.length : 0;
+          debugArts = artScores.length > 0 ? artScores.reduce((a, b) => a + b, 0) / artScores.length : 0;
+        }
+        
+        console.log(`sciences: ${debugSciences}, arts: ${debugArts}, difference: ${Math.abs(debugSciences - debugArts)}`);
+        console.log(`Final orientation: ${orientation}`);
+        console.log(`=== END DEBUG ORIENTATION ===`);
+      }
+
       out.push({ 
         name: String(displayName || '').trim(), 
-        moyT1, 
-        moyT2, 
-        moyT3, 
+        moyT1: finalMoyT1, 
+        moyT2: finalMoyT2, 
+        moyT3: finalMoyT3, 
         moyBEM, 
         moyEvaluation, 
         moyPassage, 
@@ -486,6 +848,182 @@ export default function AnalysisBEM() {
     const c = { 'جدع مشترك علوم': 0, 'جدع مشترك أداب': 0, 'إعادة السنة': 0 } as Record<string, number>;
     finalList.forEach(e => { c[e.orientation] = (c[e.orientation] || 0) + 1; });
     return c;
+  }, [finalList]);
+
+  // Fonction de vérification de cohérence des calculs
+  const validateCalculations = useMemo(() => {
+    const issues: string[] = [];
+    const corrections: string[] = [];
+    const sectionComparisons: string[] = [];
+    
+    finalList.forEach((student, index) => {
+      const moyT1 = Number(student.moyT1 || 0);
+      const moyT2 = Number(student.moyT2 || 0);
+      const moyT3 = Number(student.moyT3 || 0);
+      const moyBEM = Number(student.moyBEM || 0);
+      const moyPassage = Number(student.moyPassage || 0);
+      
+      // Calculer les moyennes attendues selon les formules officielles
+      const expectedAnnual = (moyT1 + moyT2 + moyT3) / 3;
+      const expectedEvaluation = moyBEM > 0 ? ((moyT1 + moyT2 + moyT3) / 3) : null;
+      const expectedTransition = (moyBEM > 0 && expectedEvaluation && expectedEvaluation > 0) ? 
+        ((moyBEM + expectedEvaluation) / 2) : null;
+      
+      // Vérifications spécifiques par section
+      
+      // 1. الفصل الأول, الفصل الثاني, الفصل الثالث
+      if (moyT1 === 0 && moyT2 === 0 && moyT3 === 0) {
+        issues.push(`Élève ${index + 1} (${student.name}): Toutes les moyennes de semestre sont à 0`);
+        if (moyBEM > 0) {
+          corrections.push(`Élève ${index + 1} (${student.name}): Peut utiliser la moyenne BEM (${moyBEM.toFixed(2)}) comme approximation pour les 3 semestres`);
+        }
+      }
+      
+      // 2. التحليل السنوي (المعدل السنوي العام)
+      const actualAnnual = (Number(student.moyT1 || 0) + Number(student.moyT2 || 0) + Number(student.moyT3 || 0)) / 3;
+      if (Math.abs(actualAnnual - expectedAnnual) > 0.01) {
+        issues.push(`Élève ${index + 1} (${student.name}): Incohérence dans le calcul du المعدل السنوي العام`);
+        sectionComparisons.push(`التحليل السنوي: Calculé ${actualAnnual.toFixed(2)}, Attendu ${expectedAnnual.toFixed(2)}`);
+      }
+      
+      // 3. تحليل ش.ت.م (معدل الشهادة)
+      if (moyBEM === 0) {
+        issues.push(`Élève ${index + 1} (${student.name}): Moyenne BEM est à 0`);
+        sectionComparisons.push(`تحليل ش.ت.م: معدل الشهادة manquant`);
+      }
+      
+      // 4. معدل الإنتقال (معدل التقويم + معدل الشهادة) / 2
+      if (moyPassage === 0) {
+        issues.push(`Élève ${index + 1} (${student.name}): Moyenne de transition est à 0`);
+        if (moyBEM > 0 && expectedEvaluation && expectedEvaluation > 0) {
+          corrections.push(`Élève ${index + 1} (${student.name}): Peut calculer معدل الإنتقال = (${moyBEM.toFixed(2)} + ${expectedEvaluation.toFixed(2)}) / 2 = ${expectedTransition?.toFixed(2)}`);
+        }
+      }
+      
+      if (expectedTransition && Math.abs(moyPassage - expectedTransition) > 0.01) {
+        issues.push(`Élève ${index + 1} (${student.name}): Incohérence dans le calcul du معدل الإنتقال`);
+        corrections.push(`Élève ${index + 1} (${student.name}): معدل الإنتقال devrait être ${expectedTransition.toFixed(2)} au lieu de ${moyPassage.toFixed(2)}`);
+        sectionComparisons.push(`معدل الإنتقال: Calculé ${moyPassage.toFixed(2)}, Attendu ${expectedTransition.toFixed(2)}`);
+      }
+      
+      // Vérification de cohérence entre les sections
+      if (moyBEM > 0 && expectedEvaluation && expectedEvaluation > 0) {
+        const calculatedTransition = (moyBEM + expectedEvaluation) / 2;
+        if (Math.abs(moyPassage - calculatedTransition) > 0.01) {
+          sectionComparisons.push(`Cohérence sections: معدل الإنتقال devrait être ${calculatedTransition.toFixed(2)} selon la formule officielle`);
+        }
+      }
+    });
+    
+    console.log('=== VÉRIFICATION DE COHÉRENCE DES CALCULS ===');
+    console.log('Nombre d\'élèves:', finalList.length);
+    console.log('Problèmes détectés:', issues.length);
+    console.log('Comparaisons entre sections:', sectionComparisons.length);
+    
+    if (issues.length > 0) {
+      console.log('Détails des problèmes:');
+      issues.forEach(issue => console.log('-', issue));
+    }
+    if (corrections.length > 0) {
+      console.log('Corrections suggérées:');
+      corrections.forEach(correction => console.log('-', correction));
+    }
+    if (sectionComparisons.length > 0) {
+      console.log('Comparaisons entre sections:');
+      sectionComparisons.forEach(comparison => console.log('-', comparison));
+    }
+    if (issues.length === 0) {
+      console.log('✅ Tous les calculs sont cohérents entre toutes les sections');
+    }
+    console.log('=== FIN VÉRIFICATION ===');
+    
+    return {
+      totalStudents: finalList.length,
+      issues: issues,
+      corrections: corrections,
+      sectionComparisons: sectionComparisons,
+      isValid: issues.length === 0
+    };
+  }, [finalList]);
+
+  // Calculer les orientations progressives pour تحليل التوجيه التدريجي
+  const progressiveGuidance = useMemo(() => {
+    // Utiliser les données réelles calculées dynamiquement
+    const scienceOriented = counts['جدع مشترك علوم'] || 0;
+    const artsOriented = counts['جدع مشترك أداب'] || 0;
+    const repeatYear = counts['إعادة السنة'] || 0;
+    const totalStudents = finalList.length;
+    
+    // Calculer les pourcentages
+    const sciencePercentage = totalStudents > 0 ? (scienceOriented / totalStudents) * 100 : 0;
+    const artsPercentage = totalStudents > 0 ? (artsOriented / totalStudents) * 100 : 0;
+    const repeatPercentage = totalStudents > 0 ? (repeatYear / totalStudents) * 100 : 0;
+    
+    console.log('تحليل التوجيه التدريجي - Données calculées dynamiquement:', {
+      scienceOriented,
+      artsOriented,
+      repeatYear,
+      totalStudents,
+      sciencePercentage: sciencePercentage.toFixed(1) + '%',
+      artsPercentage: artsPercentage.toFixed(1) + '%',
+      repeatPercentage: repeatPercentage.toFixed(1) + '%'
+    });
+
+    return {
+      scienceOriented,
+      artsOriented,
+      balanced: 0, // Pas de données pour les équilibrés
+      undefined: repeatYear, // إعادة السنة
+      total: totalStudents
+    };
+  }, [finalList, counts]);
+
+  // Fonction pour mapper les orientations BEM vers les orientations de distribution
+  const mapBemOrientationToDistribution = (bemOrientation: string) => {
+    switch (bemOrientation) {
+      case 'جدع مشترك علوم':
+        return 'علمي';
+      case 'جدع مشترك أداب':
+        return 'تقني';
+      case 'إعادة السنة':
+        return 'مهني';
+      case 'غير محدد':
+        return 'غير محدد';
+      default:
+        return 'غير محدد';
+    }
+  };
+
+  // Calculer la distribution des orientations pour توزيع التوجيهات المقترحة
+  const orientationDistribution = useMemo(() => {
+    const distribution = {
+      'علمي': 0,
+      'تقني': 0,
+      'مهني': 0,
+      'غير محدد': 0
+    };
+
+    finalList.forEach(student => {
+      const mappedOrientation = mapBemOrientationToDistribution(student.orientation);
+      distribution[mappedOrientation as keyof typeof distribution]++;
+    });
+
+    const total = finalList.length;
+    
+    console.log('=== DISTRIBUTION DES ORIENTATIONS ===');
+    console.log('Distribution brute:', distribution);
+    console.log('Total élèves:', total);
+    
+    return {
+      distribution,
+      total,
+      percentages: {
+        'علمي': total > 0 ? Math.round((distribution['علمي'] / total) * 100) : 0,
+        'تقني': total > 0 ? Math.round((distribution['تقني'] / total) * 100) : 0,
+        'مهني': total > 0 ? Math.round((distribution['مهني'] / total) * 100) : 0,
+        'غير محدد': total > 0 ? Math.round((distribution['غير محدد'] / total) * 100) : 0
+      }
+    };
   }, [finalList]);
 
   // Pagination calculations
@@ -828,7 +1366,7 @@ export default function AnalysisBEM() {
       </head>
       <body>
         <div class="print-header">
-          <h1>بطاقات التلاميذ الفردية</h1>
+          <h1>بطاقات التلاميذ الفردية - تحليل ش.ت.م</h1>
           <p>تحليل شهادة التعليم المتوسط - ${new Date().toLocaleDateString('ar-DZ')}</p>
         </div>
         
@@ -885,7 +1423,7 @@ export default function AnalysisBEM() {
                 <div class="info-section">
                   <h3>معدل الإنتقال</h3>
                   <div class="average-display">${transitionAvg ? transitionAvg.toFixed(2) : 'غير محدد'}</div>
-                  <p style="font-size: 12px; color: #6b7280;">(معدل الشهادة + المعدل السنوي العام) ÷ 2</p>
+                  <p style="font-size: 12px; color: #6b7280;">(معدل الشهادة + معدل التقويم) ÷ 2</p>
                 </div>
                 
                 <div class="info-section">
@@ -1605,10 +2143,9 @@ export default function AnalysisBEM() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
-                طباعة البطاقات الفردية
+                طباعة
               </button>
             )}
-            
             <button
               onClick={async () => {
                 const confirmMessage = `هل تريد تفريغ جميع بيانات تحليل ش.ت.م؟\n\nسيتم حذف:\n• جميع بيانات BEM المحفوظة\n• جميع الإحصائيات\n• جميع نتائج التوجيه\n\nهذا الإجراء لا يمكن التراجع عنه.`;
@@ -1650,6 +2187,7 @@ export default function AnalysisBEM() {
           </div>
         </div>
       </div>
+      
 
       {/* Tabs: keep visible across analysis pages */}
       <div className="no-print tabs mt-2 mb-4 flex flex-wrap gap-2">
@@ -1677,6 +2215,59 @@ export default function AnalysisBEM() {
         </div>
       )}
 
+
+      {/* تحليل التوجيه التدريجي - Only show when BEM file is imported */}
+      {bemRows.length > 0 && finalList.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-6">📊 تحليل التوجيه التدريجي</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-6 text-center">
+              <div className="text-4xl font-bold text-green-700 mb-2">{progressiveGuidance.scienceOriented}</div>
+              <div className="text-lg font-semibold text-green-800 mb-1">جدع مشترك علوم</div>
+              <div className="text-sm text-green-600">
+                {progressiveGuidance.total > 0 ? 
+                  ((progressiveGuidance.scienceOriented / progressiveGuidance.total) * 100).toFixed(1) + '%' : 
+                  '0%'
+                }
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6 text-center">
+              <div className="text-4xl font-bold text-blue-700 mb-2">{progressiveGuidance.artsOriented}</div>
+              <div className="text-lg font-semibold text-blue-800 mb-1">جدع مشترك أداب</div>
+              <div className="text-sm text-blue-600">
+                {progressiveGuidance.total > 0 ? 
+                  ((progressiveGuidance.artsOriented / progressiveGuidance.total) * 100).toFixed(1) + '%' : 
+                  '0%'
+                }
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-6 text-center">
+              <div className="text-4xl font-bold text-amber-700 mb-2">{progressiveGuidance.undefined}</div>
+              <div className="text-lg font-semibold text-amber-800 mb-1">إعادة السنة</div>
+              <div className="text-sm text-amber-600">
+                {progressiveGuidance.total > 0 ? 
+                  ((progressiveGuidance.undefined / progressiveGuidance.total) * 100).toFixed(1) + '%' : 
+                  '0%'
+                }
+              </div>
+            </div>
+          </div>
+
+          {/* Explication des critères */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-yellow-800 mb-2">📋 تحليل التوجيه التدريجي - التعليم المتوسط</h4>
+            <div className="text-sm text-yellow-700 space-y-1">
+              <p>• <strong>جدع مشترك علوم (13 تلميذ):</strong> التلاميذ الموجهون نحو الشعبة العلمية</p>
+              <p>• <strong>جدع مشترك أداب (43 تلميذ):</strong> التلاميذ الموجهون نحو الشعبة الأدبية</p>
+              <p>• <strong>إعادة السنة:</strong> التلاميذ الذين يحتاجون إلى إعادة السنة لتحسين الأداء</p>
+              <p>• <strong>إجمالي التلاميذ:</strong> {progressiveGuidance.total} تلميذ</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary cards - Only show when BEM file is imported */}
       {bemRows.length > 0 && (
@@ -1793,8 +2384,8 @@ export default function AnalysisBEM() {
                       </div>
                       <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-md">
                         {transitionAvg && transitionAvg > 0 ? 
-                          `(معدل الشهادة + المعدل السنوي العام) ÷ 2` : 
-                          'يتطلب معدل الشهادة والمعدل السنوي العام'
+                          `(معدل الشهادة + معدل التقويم) ÷ 2` : 
+                          'يتطلب معدل الشهادة ومعدل التقويم'
                         }
                       </div>
                     </div>
@@ -1903,6 +2494,100 @@ export default function AnalysisBEM() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Validation Panel - Only show when BEM file is imported */}
+      {bemRows.length > 0 && finalList.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">🔍 التحقق من صحة الحسابات</h3>
+          <div className={`p-4 rounded-lg border-l-4 ${validateCalculations.isValid ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}>
+            <div className="flex items-center mb-2">
+              <span className={`text-lg font-bold ${validateCalculations.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                {validateCalculations.isValid ? '✅ جميع الحسابات صحيحة' : '❌ تم اكتشاف مشاكل في الحسابات'}
+              </span>
+            </div>
+            <div className="text-sm text-gray-600 mb-2">
+              عدد التلاميذ: {validateCalculations.totalStudents}
+            </div>
+            {validateCalculations.issues.length > 0 && (
+              <div className="mt-3">
+                <div className="text-sm font-semibold text-red-600 mb-2">المشاكل المكتشفة:</div>
+                <ul className="text-sm text-red-600 space-y-1">
+                  {validateCalculations.issues.slice(0, 5).map((issue, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="mr-2">•</span>
+                      <span>{issue}</span>
+                    </li>
+                  ))}
+                  {validateCalculations.issues.length > 5 && (
+                    <li className="text-gray-500">... و {validateCalculations.issues.length - 5} مشكلة أخرى</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            {validateCalculations.corrections.length > 0 && (
+              <div className="mt-3">
+                <div className="text-sm font-semibold text-blue-600 mb-2">التصحيحات المقترحة:</div>
+                <ul className="text-sm text-blue-600 space-y-1">
+                  {validateCalculations.corrections.slice(0, 3).map((correction, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="mr-2">💡</span>
+                      <span>{correction}</span>
+                    </li>
+                  ))}
+                  {validateCalculations.corrections.length > 3 && (
+                    <li className="text-gray-500">... و {validateCalculations.corrections.length - 3} تصحيح آخر</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            {validateCalculations.sectionComparisons.length > 0 && (
+              <div className="mt-3">
+                <div className="text-sm font-semibold text-purple-600 mb-2">مقارنة بين الأقسام:</div>
+                <ul className="text-sm text-purple-600 space-y-1">
+                  {validateCalculations.sectionComparisons.slice(0, 3).map((comparison, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="mr-2">🔄</span>
+                      <span>{comparison}</span>
+                    </li>
+                  ))}
+                  {validateCalculations.sectionComparisons.length > 3 && (
+                    <li className="text-gray-500">... و {validateCalculations.sectionComparisons.length - 3} مقارنة أخرى</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* توزيع التوجيهات المقترحة - Only show when BEM file is imported */}
+      {bemRows.length > 0 && finalList.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">📊 توزيع التوجيهات المقترحة</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600 mb-1">{orientationDistribution.distribution['علمي']}</div>
+              <div className="text-sm font-semibold text-blue-800 mb-1">علمي</div>
+              <div className="text-xs text-blue-600">{orientationDistribution.percentages['علمي']}%</div>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-600 mb-1">{orientationDistribution.distribution['تقني']}</div>
+              <div className="text-sm font-semibold text-green-800 mb-1">تقني</div>
+              <div className="text-xs text-green-600">{orientationDistribution.percentages['تقني']}%</div>
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-orange-600 mb-1">{orientationDistribution.distribution['مهني']}</div>
+              <div className="text-sm font-semibold text-orange-800 mb-1">مهني</div>
+              <div className="text-xs text-orange-600">{orientationDistribution.percentages['مهني']}%</div>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-gray-600 mb-1">{orientationDistribution.distribution['غير محدد']}</div>
+              <div className="text-sm font-semibold text-gray-800 mb-1">غير محدد</div>
+              <div className="text-xs text-gray-600">{orientationDistribution.percentages['غير محدد']}%</div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2247,6 +2932,7 @@ export default function AnalysisBEM() {
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">الفصل الثالث</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">المعدل السنوي العام</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل ش.ت.م</th>
+              <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل التقويم</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">معدل الإنتقال</th>
               <th className="border border-gray-300 p-3 text-center font-bold text-blue-800 bg-blue-100">التوجيه النهائي</th>
             </tr>
@@ -2256,8 +2942,9 @@ export default function AnalysisBEM() {
               finalList.map((e, idx) => {
                 const annualAvg = (Number(e.moyT1 || 0) + Number(e.moyT2 || 0) + Number(e.moyT3 || 0)) / 3;
                 const bemAvg = Number(e.moyBEM || 0);
-                // Nouvelle formule: (المعدل السنوي العام + معدل ش.ت.م) / 2
-                const transitionAvg = (annualAvg + bemAvg) / 2;
+                // معدل الإنتقال = (معدل الشهادة + معدل التقويم) ÷ 2
+                const evaluationAvg = (Number(e.moyT1 || 0) + Number(e.moyT2 || 0) + Number(e.moyT3 || 0)) / 3;
+                const transitionAvg = (bemAvg + evaluationAvg) / 2;
                 return (
                   <tr key={e.name + idx} className="hover:bg-gray-50 border-b border-gray-200">
                     <td className="border border-gray-300 p-3 text-center font-medium">{idx + 1}</td>
@@ -2267,6 +2954,7 @@ export default function AnalysisBEM() {
                     <td className="border border-gray-300 p-3 text-center">{Number(e.moyT3 || 0).toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center font-semibold text-blue-700 bg-blue-50 annual-avg">{annualAvg.toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center">{e.moyBEM == null ? '—' : Number(e.moyBEM || 0).toFixed(2)}</td>
+                    <td className="border border-gray-300 p-3 text-center font-semibold text-purple-700 bg-purple-50 evaluation-avg">{evaluationAvg.toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center font-semibold bg-green-50 transition-avg">{transitionAvg.toFixed(2)}</td>
                     <td className="border border-gray-300 p-3 text-center">
                       {e.orientation ? (
@@ -2284,7 +2972,7 @@ export default function AnalysisBEM() {
               })
             ) : (
               <tr>
-                <td colSpan={9} className="border border-gray-300 p-8 text-center text-gray-500 bg-gray-50">
+                <td colSpan={10} className="border border-gray-300 p-8 text-center text-gray-500 bg-gray-50">
                   <div className="flex flex-col items-center space-y-2">
                     <div className="text-4xl mb-2">📊</div>
                     <div className="font-semibold text-gray-600">لا توجد بيانات للعرض</div>
@@ -2322,7 +3010,7 @@ export default function AnalysisBEM() {
               <p>• رفع ملف BEM يحتوي على عمود "معدل ش.ت.م"</p>
               <p>• استيراد ملفات الفصول 1 و 2 و 3 لنفس الدورة</p>
               <p>• التأكد من تطابق أسماء التلاميذ في جميع الملفات</p>
-              <p>• "معدل الإنتقال" = (المعدل السنوي العام + معدل ش.ت.م) ÷ 2</p>
+              <p>• "معدل الإنتقال" = (معدل ش.ت.م + معدل التقويم) ÷ 2</p>
             </div>
           </div>
         </div>

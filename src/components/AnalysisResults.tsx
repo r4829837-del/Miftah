@@ -1109,12 +1109,11 @@ const AnalysisResults: React.FC = () => {
       y += 6;
     });
     
-    // Pied de page final
+    // Pied de page final (date line removed as requested)
     const footerY = pageHeight - 20;
     pdf.setFontSize(10);
-    pdf.setTextColor(0, 0, 0); // Noir pour réduire la taille
-    pdf.text(`تم إنشاء هذا التقرير في: ${new Date().toLocaleString('ar-SA')}`, pageWidth / 2, footerY, { align: 'center' });
-    pdf.text(`تقرير تحليل النتائج - ${currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}`, pageWidth / 2, footerY + 8, { align: 'center' });
+    pdf.setTextColor(0, 0, 0);
+    pdf.text(`تقرير تحليل النتائج - ${currentCycle === 'ثانوي' ? 'التعليم الثانوي' : 'التعليم المتوسط'}`, pageWidth / 2, footerY, { align: 'center' });
     
     // Génération et téléchargement du PDF
     const fileName = `تقرير_تحليل_النتائج_${currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -1858,7 +1857,7 @@ const AnalysisResults: React.FC = () => {
                 <div className="text-2xl font-bold text-blue-600">
                   {indicators.excellentCount}
                 </div>
-                <div className="text-sm text-gray-600">طلاب متفوقون</div>
+                <div className="text-sm text-gray-600">تلاميذ متفوقون</div>
               </div>
               <div className="bg-white p-3 rounded border">
                 <div className="text-2xl font-bold text-green-600">

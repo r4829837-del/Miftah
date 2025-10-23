@@ -53,7 +53,7 @@ const ReportCharts: React.FC<ReportChartsProps> = ({ data }) => {
     labels: ['ممتاز', 'جيد', 'متوسط', 'ضعيف'],
     datasets: [
       {
-        label: 'عدد الطلاب',
+        label: `عدد ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}`,
         data: [data.totals.excellent, data.totals.good, data.totals.average, data.totals.weak],
         backgroundColor: [
           'rgba(34, 197, 94, 0.8)',   // Vert pour ممتاز
@@ -188,7 +188,7 @@ const ReportCharts: React.FC<ReportChartsProps> = ({ data }) => {
         </div>
         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg">
           <div className="text-3xl font-bold">{data.totals.totalStudents}</div>
-          <div className="text-sm opacity-90">إجمالي الطلاب</div>
+          <div className="text-sm opacity-90">إجمالي {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</div>
         </div>
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg">
           <div className="text-3xl font-bold">{data.subjects.length}</div>
@@ -206,7 +206,7 @@ const ReportCharts: React.FC<ReportChartsProps> = ({ data }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Répartition des étudiants - Barres */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4 text-center">توزيع الطلاب حسب المستوى</h3>
+          <h3 className="text-xl font-bold mb-4 text-center">توزيع {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} حسب المستوى</h3>
           <div className="h-80">
             <Bar data={studentDistributionData} options={chartOptions} />
           </div>
@@ -214,7 +214,7 @@ const ReportCharts: React.FC<ReportChartsProps> = ({ data }) => {
 
         {/* Répartition des étudiants - Secteurs */}
         <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-bold mb-4 text-center">توزيع الطلاب (نسب مئوية)</h3>
+          <h3 className="text-xl font-bold mb-4 text-center">توزيع {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} (نسب مئوية)</h3>
           <div className="h-80">
             <Doughnut data={studentDistributionDoughnut} options={doughnutOptions} />
           </div>

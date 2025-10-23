@@ -113,7 +113,7 @@ function Sidebar({ onToggle }: SidebarProps) {
       {/* Bouton de toggle */}
       <button
         onClick={toggleSidebar}
-        className="absolute top-4 left-4 z-10 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+        className="absolute top-16 left-4 z-10 p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
         title={isCollapsed ? 'Développer la sidebar' : 'Rétracter la sidebar'}
       >
         {isCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -122,7 +122,6 @@ function Sidebar({ onToggle }: SidebarProps) {
       <div className={`mb-8 ${isCollapsed ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         {/* Sélecteur de cycle dynamique */}
         <div className="mb-4">
-          <div className="text-sm text-gray-400 mb-2">اختر المرحلة التعليمية:</div>
           <div className="flex bg-gray-800 rounded-lg p-1">
             {getAvailableCycles().map((cycleConfig) => {
               const IconComponent = cycleConfig.icon === 'BookOpen' ? BookOpen : GraduationCap;

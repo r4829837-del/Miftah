@@ -70,9 +70,6 @@ const CycleIsolationMonitor: React.FC<CycleIsolationMonitorProps> = ({
           {getStatusIcon()}
           <span className="text-sm font-medium">{getStatusText()}</span>
         </div>
-        <div className="text-xs text-gray-500">
-          {currentCycle === 'ثانوي' ? 'ثانوي' : 'متوسط'}
-        </div>
       </div>
     );
   }

@@ -5216,7 +5216,7 @@ export default function Reports() {
                                </div>
                                {r.content?.totals && (
                                  <div className="text-xs text-gray-500 mt-1">
-                                   إجمالي الطلاب: {r.content.totals.totalStudents} | 
+                                   إجمالي {currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}: {r.content.totals.totalStudents} | 
                                    المعدل العام: {r.content.average?.toFixed(2) || 'غير محدد'}
                                  </div>
                                )}
@@ -5256,7 +5256,7 @@ export default function Reports() {
                                          </div>
                                          <div class="stat-card">
                                            <div class="stat-number">${c.totals?.totalStudents || 0}</div>
-                                           <div class="stat-label">إجمالي الطلاب</div>
+                                           <div class="stat-label">إجمالي ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</div>
                                          </div>
                                          <div class="stat-card" style="background:linear-gradient(135deg,#10b981,#059669)">
                                            <div class="stat-number">${c.totals?.excellent || 0}</div>
@@ -5277,7 +5277,7 @@ export default function Reports() {
                                        </div>
                                        
                                        <div class="chart-container">
-                                         <div class="chart-title">توزيع الطلاب حسب المستوى</div>
+                                         <div class="chart-title">توزيع ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'} حسب المستوى</div>
                                          <canvas id="studentChart" width="400" height="200"></canvas>
                                        </div>
                                        
@@ -5287,7 +5287,7 @@ export default function Reports() {
                                        </div>
                                        
                                        <div class="chart-container">
-                                         <div class="chart-title">أفضل الطلاب</div>
+                                         <div class="chart-title">أفضل ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</div>
                                          <canvas id="topPerformersChart" width="400" height="200"></canvas>
                                        </div>
                                      </div>
@@ -5298,8 +5298,8 @@ export default function Reports() {
                                          type: 'bar',
                                          data: {
                                            labels: ['ممتاز', 'جيد', 'متوسط', 'ضعيف'],
-                                           datasets: [{
-                                             label: 'عدد الطلاب',
+                                         datasets: [{
+                                           label: 'عدد ' + (currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'),
                                              data: [${c.totals?.excellent || 0}, ${c.totals?.good || 0}, ${c.totals?.average || 0}, ${c.totals?.weak || 0}],
                                              backgroundColor: ['rgba(34, 197, 94, 0.8)', 'rgba(59, 130, 246, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
                                              borderColor: ['rgba(34, 197, 94, 1)', 'rgba(59, 130, 246, 1)', 'rgba(245, 158, 11, 1)', 'rgba(239, 68, 68, 1)'],
@@ -5452,7 +5452,7 @@ export default function Reports() {
                                            </div>
                                            <div class="stat-card">
                                              <div class="stat-number">${c.totals?.totalStudents || 0}</div>
-                                             <div class="stat-label">إجمالي الطلاب</div>
+                                             <div class="stat-label">إجمالي ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</div>
                                            </div>
                                            <div class="stat-card excellent">
                                              <div class="stat-number">${c.totals?.excellent || 0}</div>
@@ -5510,12 +5510,12 @@ export default function Reports() {
                                          ` : ''}
                                          ${c.topPerformers && c.topPerformers.length > 0 ? `
                                            <div class="section">
-                                             <h2>أفضل الطلاب</h2>
+                                             <h2>أفضل ${currentCycle === 'ثانوي' ? 'الطلاب' : 'التلاميذ'}</h2>
                                              <table>
                                                <thead>
                                                  <tr>
                                                    <th>الترتيب</th>
-                                                   <th>اسم الطالب</th>
+                                                   <th>اسم ${currentCycle === 'ثانوي' ? 'الطالب' : 'التلميذ'}</th>
                                                    <th>المعدل</th>
                                                  </tr>
                                                </thead>
