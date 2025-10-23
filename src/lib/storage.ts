@@ -314,23 +314,101 @@ export interface StoredScheduleSession {
 }
 
 export const getScheduleSessions = async (cycle?: string): Promise<StoredScheduleSession[]> => {
-  const items: StoredScheduleSession[] = [];
-  const db = getScheduleDB(cycle);
-  await db.iterate((value: StoredScheduleSession) => {
-    items.push(value);
-  });
-  return items;
+  try {
+    // Essayer d'abord localStorage (plus fiable en hébergement)
+    const currentCycle = cycle || getCurrentCycle();
+    const localStorageKey = `scheduleSessions_${currentCycle}`;
+    const localData = localStorage.getItem(localStorageKey);
+    
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      console.log('Sessions chargées depuis localStorage:', parsed);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+    
+    // Fallback vers IndexedDB si localStorage est vide
+    const items: StoredScheduleSession[] = [];
+    const db = getScheduleDB(cycle);
+    await db.iterate((value: StoredScheduleSession) => {
+      items.push(value);
+    });
+    
+    // Synchroniser avec localStorage pour la prochaine fois
+    if (items.length > 0) {
+      localStorage.setItem(localStorageKey, JSON.stringify(items));
+    }
+    
+    return items;
+  } catch (error) {
+    console.error('Erreur lors du chargement des sessions:', error);
+    return [];
+  }
 };
 
 export const upsertScheduleSession = async (session: StoredScheduleSession, cycle?: string): Promise<StoredScheduleSession> => {
-  const db = getScheduleDB(cycle);
-  await db.setItem(session.id, session);
-  return session;
+  try {
+    // Sauvegarder dans localStorage (méthode principale)
+    const currentCycle = cycle || getCurrentCycle();
+    const localStorageKey = `scheduleSessions_${currentCycle}`;
+    const existingData = localStorage.getItem(localStorageKey);
+    let sessions: StoredScheduleSession[] = [];
+    
+    if (existingData) {
+      sessions = JSON.parse(existingData);
+    }
+    
+    // Mettre à jour ou ajouter la session
+    const existingIndex = sessions.findIndex(s => s.id === session.id);
+    if (existingIndex >= 0) {
+      sessions[existingIndex] = session;
+    } else {
+      sessions.push(session);
+    }
+    
+    // Sauvegarder dans localStorage
+    localStorage.setItem(localStorageKey, JSON.stringify(sessions));
+    console.log('Session sauvegardée dans localStorage:', session);
+    
+    // Essayer aussi de sauvegarder dans IndexedDB (fallback)
+    try {
+      const db = getScheduleDB(cycle);
+      await db.setItem(session.id, session);
+    } catch (dbError) {
+      console.warn('IndexedDB non disponible, utilisation de localStorage uniquement:', dbError);
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde de la session:', error);
+    throw error;
+  }
 };
 
 export const deleteScheduleSession = async (id: string, cycle?: string): Promise<void> => {
-  const db = getScheduleDB(cycle);
-  await db.removeItem(id);
+  try {
+    // Supprimer de localStorage (méthode principale)
+    const currentCycle = cycle || getCurrentCycle();
+    const localStorageKey = `scheduleSessions_${currentCycle}`;
+    const existingData = localStorage.getItem(localStorageKey);
+    
+    if (existingData) {
+      let sessions: StoredScheduleSession[] = JSON.parse(existingData);
+      sessions = sessions.filter(s => s.id !== id);
+      localStorage.setItem(localStorageKey, JSON.stringify(sessions));
+      console.log('Session supprimée de localStorage:', id);
+    }
+    
+    // Essayer aussi de supprimer d'IndexedDB (fallback)
+    try {
+      const db = getScheduleDB(cycle);
+      await db.removeItem(id);
+    } catch (dbError) {
+      console.warn('IndexedDB non disponible pour la suppression:', dbError);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la session:', error);
+    throw error;
+  }
 };
 
 // Function to clear all student data for all cycles

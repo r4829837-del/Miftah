@@ -103,12 +103,7 @@ export default function Schedule() {
   }, []);
 
   // Sauvegarder automatiquement les sessions dans le stockage local quand elles changent
-  useEffect(() => {
-    if (sessions.length > 0) {
-      setCycleLocalStorage('scheduleData', sessions);
-      console.log('Sessions sauvegardées automatiquement:', sessions);
-    }
-  }, [sessions]);
+  // Les sessions sont maintenant sauvegardées directement via upsertScheduleSession
 
   const loadData = async () => {
     try {
@@ -122,32 +117,17 @@ export default function Schedule() {
       
       console.log('Sessions chargées depuis la base de données:', loadedSessions);
       
-      // Toujours vérifier le stockage local en priorité pour les sessions
-      const local = getCycleLocalStorage('scheduleData');
-      console.log('Sessions du stockage local:', local);
-      
-      if (Array.isArray(local) && local.length > 0) {
-        setSessions(local as Session[]);
-        console.log('Sessions chargées depuis le stockage local');
-      } else if (loadedSessions && loadedSessions.length > 0) {
+      // Utiliser directement les sessions chargées (qui utilisent maintenant localStorage)
+      if (loadedSessions && loadedSessions.length > 0) {
         setSessions(loadedSessions as Session[]);
-        console.log('Sessions chargées depuis la base de données');
-        // Synchroniser avec le stockage local
-        setCycleLocalStorage('scheduleData', loadedSessions);
+        console.log('Sessions chargées depuis localStorage via getScheduleSessions');
       } else {
         setSessions([]);
         console.log('Aucune session trouvée');
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
-      // En cas d'erreur, essayer de charger depuis le stockage local
-      const local = getCycleLocalStorage('scheduleData');
-      if (Array.isArray(local) && local.length > 0) {
-        setSessions(local as Session[]);
-        console.log('Sessions chargées depuis le stockage local (fallback)');
-      } else {
-        setSessions([]);
-      }
+      setSessions([]);
     }
   };
 
@@ -197,32 +177,32 @@ export default function Schedule() {
     console.log('Sauvegarde de session:', newSession);
     console.log('Date de la session:', newSession.date);
     
-    if (selectedSession) {
-      // Edit existing session
-      const updated: Session = { ...selectedSession, ...newSession } as Session;
-      console.log('Mise à jour de session:', updated);
-      await upsertScheduleSession(updated);
-      const next = sessions.map(session => session.id === updated.id ? updated : session);
-      setSessions(next);
-      setCycleLocalStorage('scheduleData', next);
-    } else {
-      // Add new session
-      const created: Session = {
-        id: Math.random().toString(36).substr(2, 9),
-        ...newSession
-      } as Session;
-      console.log('Nouvelle session créée:', created);
-      await upsertScheduleSession(created);
-      const next = [...sessions, created];
-      setSessions(next);
-      setCycleLocalStorage('scheduleData', next);
-      console.log('Sessions après ajout:', next);
+    try {
+      if (selectedSession) {
+        // Edit existing session
+        const updated: Session = { ...selectedSession, ...newSession } as Session;
+        console.log('Mise à jour de session:', updated);
+        await upsertScheduleSession(updated);
+        const next = sessions.map(session => session.id === updated.id ? updated : session);
+        setSessions(next);
+      } else {
+        // Add new session
+        const created: Session = {
+          id: Math.random().toString(36).substr(2, 9),
+          ...newSession
+        } as Session;
+        console.log('Nouvelle session créée:', created);
+        await upsertScheduleSession(created);
+        const next = [...sessions, created];
+        setSessions(next);
+        console.log('Sessions après ajout:', next);
+      }
+      
+      console.log('Session sauvegardée avec succès');
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      alert('Erreur lors de la sauvegarde du rendez-vous. Veuillez réessayer.');
     }
-    
-    // Forcer le rechargement des données pour s'assurer de la persistance
-    setTimeout(() => {
-      loadData();
-    }, 100);
     
     setShowAddModal(false);
     setSelectedSession(null);
@@ -235,7 +215,7 @@ export default function Schedule() {
       level: '',
       group: '',
       targetType: 'group',
-        studentIds: [],
+      studentIds: [],
       date: '',
       manualLastName: '',
       manualFirstName: '',
